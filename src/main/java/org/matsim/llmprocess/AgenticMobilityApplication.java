@@ -4,6 +4,7 @@ import org.apache.logging.log4j.core.tools.picocli.CommandLine;
 import org.matsim.application.MATSimApplication;
 import org.matsim.agentic.scenario.CityScenarioAdapter;
 import org.matsim.agentic.scenario.CityScenarioAdapters;
+import org.matsim.agentic.manager.ManagerRuntime;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
@@ -14,7 +15,7 @@ import org.matsim.core.population.PopulationUtils;
 @CommandLine.Command(
         name = "agentic-matsim",
         header = ":: Agentic Mobility: MATSim + LLM agents ::",
-        version = "0.1.0")
+        version = "0.2.0")
 public final class AgenticMobilityApplication extends MATSimApplication {
 
     private static final String DEFAULT_CONFIG = "scenarios/sioux-falls/config.xml";
@@ -56,7 +57,8 @@ public final class AgenticMobilityApplication extends MATSimApplication {
                     env("AGENTIC_CITY_ADAPTER", "sioux-falls"));
         }
         controler.addControllerListener(
-                new IterativeLlmDecisionController(controler, scenarioAdapter));
+                new IterativeLlmDecisionController(controler, scenarioAdapter,
+                        ManagerRuntime.configure(controler)));
     }
 
     private static String env(String name, String fallback) {

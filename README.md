@@ -4,7 +4,9 @@ An unofficial research platform connecting bounded LLM travel agents to MATSim. 
 
 一个非官方的 MATSim + LLM Agent 开源实验平台。当前直接接入 Sioux Falls，并保留城市适配接口供后续场景扩展。
 
-> Status: research preview (`v0.1`). The default provider is deterministic `mock`, so an accidental launch never creates paid API calls.
+> Status: research preview (`v0.2`). The default traveler provider is deterministic `mock`; Manager is disabled unless explicitly configured.
+
+**开始使用：** [中文详细使用指南](docs/usage-guide.zh-CN.md)覆盖安装、场景准备、基线运行、候选筛选、Manager 配置、LLM 接入、结果解释与排错。模块细节见 [Manager 技术说明](docs/manager.md)，测试证据见 [验证记录](docs/manager-validation.md)。
 
 ## Current scope
 
@@ -14,6 +16,7 @@ An unofficial research platform connecting bounded LLM travel agents to MATSim. 
 - Deterministic `mock` and generic `openai-compatible` decision providers.
 - Auditable decisions, experiences, selected agents, action memory and run manifest.
 - `CityScenarioAdapter` extension point for subsequent cities.
+- Optional single congestion-pricing Manager: researcher-fixed candidate links/time grid, bounded prices, fixed/rule/LLM providers, off/shadow/active modes. See [Manager 使用说明](docs/manager.md).
 
 The provider proposes only a bounded high-level action. MATSim performs routing, traffic simulation and scoring. Agents cannot change activities, destinations, capacities or the physical network.
 
@@ -37,13 +40,16 @@ The expected files and scenario citation are documented in [`scenarios/sioux-fal
 
 ## Build and verify with Sioux Falls
 
-Use a single iteration for a network-free smoke test:
+Use a single iteration with no model API calls for a smoke test (scenario input is still required):
 
 ```powershell
 .\mvnw.cmd clean package
 $env:AGENTIC_PROVIDER = "mock"
+Remove-Item Env:MANAGER_CONFIG -ErrorAction SilentlyContinue
+Remove-Item Env:LLM_AGENT_COUNT -ErrorAction SilentlyContinue
 $env:LLM_AGENT_SHARE = "0.0001"
-java -jar target\agentic-matsim-0.1.0-SNAPSHOT.jar `
+if (Test-Path output\sioux-falls-smoke) { throw "Choose a new output directory; the application overwrites existing output." }
+java -jar target\agentic-matsim-0.2.0-SNAPSHOT.jar `
   --config scenarios\sioux-falls\config.xml `
   --iterations 0 `
   --output output\sioux-falls-smoke
@@ -61,7 +67,7 @@ $env:AGENTIC_API_KEY = "..."
 $env:AGENTIC_BASE_URL = "https://api.deepseek.com"
 $env:AGENTIC_MODEL = "deepseek-chat"
 $env:LLM_AGENT_SHARE = "0.01"
-java -jar target\agentic-matsim-0.1.0-SNAPSHOT.jar `
+java -jar target\agentic-matsim-0.2.0-SNAPSHOT.jar `
   --config scenarios\sioux-falls\config.xml
 ```
 
@@ -121,6 +127,7 @@ The versioned system prompt is at `src/main/resources/prompts/travel-decision-v1
 src/main/java/org/matsim/agentic/api       provider/action API
 src/main/java/org/matsim/agentic/provider  mock and remote providers
 src/main/java/org/matsim/agentic/scenario  city scenario adapters
+src/main/java/org/matsim/agentic/manager   single bounded congestion-pricing manager
 src/main/java/org/matsim/llmprocess        MATSim controller and adaptive policy
 scenarios/sioux-falls                     default scenario configuration
 analysis                                  experiment analysis tools
@@ -133,11 +140,11 @@ Every run writes `run-manifest.json`, including city adapter, MATSim/Java versio
 
 - This is not an official MATSim project.
 - An iteration is an execution-feedback-replanning cycle, not automatically a calendar day.
-- `v0.1` exposes mode and departure-time decisions; manager agents are outside the current scope.
+- `v0.2` adds a single bounded congestion-pricing Manager. No traveler-opinion feedback, multi-manager coordination, or automatic candidate-set selection is included. Example prices are not calibrated policy recommendations.
 - Use a paired conventional MATSim baseline with identical demand and QSim settings for causal comparisons.
 
 ## License and citation
 
-Java source is GPL-2.0; see [`LICENSE`](LICENSE). External scenarios retain their original terms and are excluded from Git until redistribution permission is confirmed. Update [`CITATION.cff`](CITATION.cff) with author and repository metadata before the first public release.
+Java source is GPL-2.0; see [`LICENSE`](LICENSE). External scenarios retain their original terms and are excluded from Git until redistribution permission is confirmed. See [`CITATION.cff`](CITATION.cff) for software citation metadata; individual authors and an associated paper can be added when confirmed.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`SECURITY.md`](SECURITY.md) before contributing or publishing data.

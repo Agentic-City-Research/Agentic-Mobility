@@ -15,7 +15,7 @@ $scenarioDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoDirectory = [System.IO.Path]::GetFullPath(
     (Join-Path $scenarioDirectory "..\..")
 )
-$jarPath = Join-Path $repoDirectory "target\agentic-matsim-0.1.0-SNAPSHOT.jar"
+$jarPath = Join-Path $repoDirectory "target\agentic-matsim-0.2.0-SNAPSHOT.jar"
 $configPath = Join-Path $scenarioDirectory "config.xml"
 $resolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
     $OutputDirectory

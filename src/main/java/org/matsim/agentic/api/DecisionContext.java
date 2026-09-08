@@ -17,6 +17,14 @@ public record DecisionContext(
         String recentHistory,
         String longTermMemory) {
 
+    public DecisionContext withPolicy(String policy) {
+        if (policy == null || policy.isBlank()) return this;
+        return new DecisionContext(personId, targetIteration, age, sex, carAvailable,
+                currentMode, allowedModes, allowedDepartureShifts, dailyBeelineKm,
+                activityChain, experience, recentHistory,
+                (longTermMemory == null ? "" : longTermMemory) + policy);
+    }
+
     public String toPrompt() {
         String observed = experience == null
                 ? "none; this is the initial decision"

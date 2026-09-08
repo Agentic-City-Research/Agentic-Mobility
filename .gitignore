@@ -2,6 +2,8 @@
 /output/
 /external/
 /scenarios/sioux-falls/input/
+/scenarios/sioux-falls/manager.local.json
+/scenarios/sioux-falls/*.local.xml
 /.idea/
 /.vscode/
 /.env

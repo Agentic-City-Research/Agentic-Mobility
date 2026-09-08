@@ -8,6 +8,7 @@ import org.matsim.agentic.api.AgentAction;
 import org.matsim.agentic.api.AgentExperience;
 import org.matsim.agentic.api.DecisionContext;
 import org.matsim.agentic.api.DecisionProvider;
+import org.matsim.agentic.manager.ManagerRuntime;
 import org.matsim.agentic.provider.MockDecisionProvider;
 import org.matsim.agentic.provider.OpenAICompatibleDecisionProvider;
 import org.matsim.agentic.scenario.CityScenarioAdapter;
@@ -69,6 +70,7 @@ final class IterativeLlmDecisionController
 
     private final Controler controler;
     private final CityScenarioAdapter scenarioAdapter;
+    private final ManagerRuntime manager;
     private final Map<Id<Person>, AgentState> agents = new LinkedHashMap<>();
     private final List<DecisionRow> decisions = new ArrayList<>();
     private final List<ExperienceRow> experiences = new ArrayList<>();
@@ -85,9 +87,10 @@ final class IterativeLlmDecisionController
 
     IterativeLlmDecisionController(
             Controler controler,
-            CityScenarioAdapter scenarioAdapter) {
+            CityScenarioAdapter scenarioAdapter, ManagerRuntime manager) {
         this.controler = controler;
         this.scenarioAdapter = scenarioAdapter;
+        this.manager = manager;
     }
 
     @Override
@@ -100,6 +103,7 @@ final class IterativeLlmDecisionController
         provider = createProvider(settings);
 
         Path output = Path.of(controler.getControllerIO().getOutputPath());
+        if (manager != null) manager.start(output);
         decisionFile = output.resolve("llm-decisions.csv");
         experienceFile = output.resolve("llm-experiences.csv");
         selectionFile = output.resolve("llm-agent-selection.csv");
@@ -181,12 +185,35 @@ final class IterativeLlmDecisionController
                     state.lastAppliedMode(), state.lastDepartureShiftMinutes(),
                     state.baselineFirstDepartureSeconds()));
             state.observe(experience, settings);
-            state.addHistory("outcome it=%d mode=%s time=%.2fmin distance=%.2fkm score=%.3f"
+            state.addHistory((manager == null ? "" : "policy=" + manager.policy().version() + " ")
+                    + "outcome it=%d mode=%s time=%.2fmin distance=%.2fkm score=%.3f"
                     .formatted(iteration, experience.mode(), experience.travelTimeMinutes(),
                             experience.distanceKm(), experience.score()));
         }
 
         int lastIteration = controler.getConfig().controller().getLastIteration();
+        if (manager != null) {
+            int previousPolicy = manager.policy().version();
+            manager.iterationEnded(iteration, lastIteration);
+            if (previousPolicy != manager.policy().version()) {
+                // Preserve the old regime's aggregate memory before resetting score comparisons.
+                writeTables();
+                try {
+                    Files.copy(actionMemoryFile, actionMemoryFile.resolveSibling(
+                            "llm-action-memory-policy-" + previousPolicy + ".csv"));
+                } catch (IOException exception) {
+                    throw new java.io.UncheckedIOException(exception);
+                }
+                for (AgentState state : agents.values()) {
+                    state.actionMemory.clear();
+                    state.bestExperiencedScore = Double.NEGATIVE_INFINITY;
+                    state.consecutiveScoreDeclines = 0;
+                    state.addHistory("policy_change " + previousPolicy + " -> "
+                            + manager.policy().version()
+                            + "; newest outcome belongs to previous policy; action statistics reset");
+                }
+            }
+        }
         if (iteration < lastIteration) {
             decideAndApply(iteration + 1, observed);
         }
@@ -202,6 +229,7 @@ final class IterativeLlmDecisionController
         if (provider != null) {
             provider.close();
         }
+        if (manager != null) manager.close();
     }
 
     private static DecisionProvider createProvider(ExperimentSettings settings) {
@@ -229,7 +257,8 @@ final class IterativeLlmDecisionController
             AgentExperience experience = observed == null
                     ? null : observed.get(state.person().getId());
             DecisionContext context = state.context(
-                    targetIteration, experience, settings);
+                    targetIteration, experience, settings).withPolicy(manager == null ? ""
+                    : manager.travelerContext(state.person().getId().toString()));
             Callable<DecisionResult> task = () -> requestDecision(state, context);
             futures.add(executor.submit(task));
         }
@@ -494,10 +523,11 @@ final class IterativeLlmDecisionController
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode manifest = mapper.createObjectNode();
         manifest.put("schema_version", "1");
-        manifest.put("project_version", "0.1.0-SNAPSHOT");
+        manifest.put("project_version", "0.2.0-SNAPSHOT");
         manifest.put("matsim_version", "2026.0");
         manifest.put("java_version", System.getProperty("java.version"));
         manifest.put("provider", provider.name());
+        manifest.put("manager_mode", manager == null ? "off" : manager.mode());
         manifest.put("city_adapter", scenarioAdapter.id());
         manifest.put("model", providerDisplayModel());
         manifest.put("prompt", "/prompts/travel-decision-v1.txt");

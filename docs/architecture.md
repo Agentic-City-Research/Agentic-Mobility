@@ -19,4 +19,4 @@ The provider cannot modify the network, activities, destinations or scoring para
 - Add bounded fields to `AgentAction` only together with validation and an action applier.
 - Keep memory and exploration outside remote providers so that experiments can isolate their effects.
 
-The validated controller remains in the legacy `org.matsim.llmprocess` package for `v0.1` to minimize behavioral drift. It will be decomposed into public MATSim adapter, policy and audit modules in a later release.
+The traveler controller remains in the legacy `org.matsim.llmprocess` package. In v0.2 an optional `org.matsim.agentic.manager` module observes completed iterations, validates a bounded congestion-price table and publishes it before the next traveler decision. Actual car payments enter MATSim scoring as money events; car routing reads the same immutable table. Disabled mode installs no handlers or routing overrides. See [Manager](manager.md) for configuration, experiment boundaries and audit semantics.

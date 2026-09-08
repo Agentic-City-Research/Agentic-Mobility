@@ -23,5 +23,12 @@ jobs:
       - name: Test and package
         shell: bash
         run: bash ./mvnw --batch-mode clean package
-      # Scenario inputs are intentionally not redistributed. The unit suite
-      # validates providers and adapter resolution without external data.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test baseline candidate ranking
+        shell: bash
+        run: |
+          python -m pip install 'zstandard>=0.23,<1'
+          python -m unittest discover -s analysis/tests -p 'test_rank_toll_candidates.py'
+      # Synthetic QSim tests require no redistributed Sioux Falls input or API key.
