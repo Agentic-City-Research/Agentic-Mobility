@@ -30,18 +30,22 @@ hybrid 默认保留原生时刻变异，LLM 目标出发时刻由其联合选择
 
 200pct 默认为 168220 人的拥堵需求。`-Demand 100` 使用此前恢复的 84110 个原始 ID，
 这属于需求情景变化；两个实验必须用相同人口、容量、接驳设置和随机种子才能直接比较。
-全量运行不抽样、不自动缩放道路容量。`-SamplePersons` 仅用于程序冒烟测试。
+本目录默认配置的流量容量和存储容量系数均为 `1.0`，使用原始路网的完整基础容量。
+全量运行不抽样。`-SamplePersons` 仅用于程序冒烟测试，不同步缩放道路容量。
 
 `-SampleRate` / Java `--sample-rate` 将人口和道路容量统一采样。例如 `0.1` 从
 `-Demand` 所选全天人口固定随机抽取 10%，并把 QSim 的 flowCapacityFactor 和
 storageCapacityFactor 都设为 0.1；100pct 得到 8411 人，200pct 得到 16822 人。
-这些容量系数相对于路网 XML 原始容量，直接覆盖配置值，不再与已有 0.1 相乘。
-比例 1 使用全量人口与两个容量系数 1；省略参数保持原来的全量人口及配置容量。
+这些容量系数相对于路网 XML 原始容量，直接设为采样率；基础系数为 `1.0`。
+例如比例 `0.25` 使用 25% 人口与两个容量系数 `0.25`；比例 `1.0` 使用全量人口与完整容量。
+在本目录的默认配置中，省略参数也使用全量人口与两个容量系数 `1.0`。
 
 比例须在 `(0,1]`，人数按 `floor(总人数 × 比例)` 计算；不能得到零人，也不能与非零
-`-SamplePersons` 同用。相同输入、比例与 Seed 选中同一批 person ID，保留入选人员
-的全部计划，不按天重新抽人；早高峰 cohort 在抽样后重新统计。manifest 记录
-sampleRate、actualPopulationSampleRate、两项有效容量系数与 populationSampling，
+`-SamplePersons` 同用。`-PopulationSeed` / Java `--population-seed` 独立控制人口抽样，默认固定为 `4711`；也支持 SampleSeed / sample-seed 别名。
+相同输入人口、Demand、比例与 PopulationSeed 选中同一批 person ID，更换仿真 Seed 也不改变该人口样本。
+相同输入人口与 PopulationSeed 下，较小采样率选中的人员包含在较大采样率的样本中。
+保留入选人员的全部计划，不按天重新抽人；早高峰 cohort 在抽样后重新统计。manifest 记录
+sampleRate、populationSeed、actualPopulationSampleRate、两项有效容量系数与 populationSampling（含实际 seed 和 linear 容量公式），
 统一采样不标为 diagnosticSubsample。默认输出放在 `sample0.1` 等独立目录中。
 
 manager 和 no manager 对照使用相同 Demand、SampleRate、Seed、Days 及其余设置：

@@ -26,9 +26,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test baseline candidate ranking
+      - name: Test morning scenario extraction
         shell: bash
         run: |
-          python -m pip install 'zstandard>=0.23,<1'
-          python -m unittest discover -s analysis/tests -p 'test_rank_toll_candidates.py'
+          python -B -m unittest discover -s scripts -p 'test_extract_morning_scenario.py'
+      - name: Test experiment runner
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test_run_public_experiment.ps1
       # Synthetic QSim tests require no redistributed Sioux Falls input or API key.

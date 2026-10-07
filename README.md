@@ -133,7 +133,19 @@ matsim-example-project-0.0.1-SNAPSHOT.jar
 
 `-SampleRate 0.1` 同时采样人口并缩放 flow/storage capacity。不要与 `-SamplePersons` 同时使用。`-Demand 100` 使用恢复的 84,110 人全天人口；采样后为 8,411 人。`-Demand 200` 使用公开数据谱系中的 168,220 人需求。
 
-完整人口实验可以省略 `-SampleRate` 和 `-SamplePersons`。正式比较需要保持人口、容量、随机种子和其他设置一致。
+默认场景的 `flowCapacityFactor` 和 `storageCapacityFactor` 均为 `1.0`，使用路网的完整基础容量。设置 `-SampleRate r`（Java `--sample-rate r`）后，人口数量为 `floor(所选 Demand 的总人数 × r)`，两项有效容量系数均为 `r`。例如 `r=0.25` 使用 25% 人口和 25% 道路容量；`r=1.0` 使用全量人口和完整容量。
+
+完整人口实验可以省略 `-SampleRate` 和 `-SamplePersons`，此时默认场景的两项容量系数均为 `1.0`。正式比较需要保持人口、容量、随机种子和其他设置一致。
+
+### 固定采样人口
+
+使用独立的 `-PopulationSeed`（Java `--population-seed`，也支持 `--sample-seed` 别名）固定人口抽样；`-Seed` 继续控制仿真随机性：
+
+```powershell
+.\scripts\run_public_experiment.ps1 -Mode hybrid -LlmAgents 0 -Demand 100 -SampleRate 0.1 -PopulationSeed 20261008 -Seed 4711 -Days 30
+```
+
+PopulationSeed 默认固定为 `4711`，与仿真 Seed 独立。相同输入人口、Demand、采样率和 PopulationSeed 会选中同一批 person ID，即使更换仿真 Seed。人口只在启动时抽样一次，整个实验使用同一批人。相同输入人口和 PopulationSeed 下，提高采样率会保留较小样本中的人员。受控人员名单、默认画像和默认信息分组也使用 PopulationSeed；显式 ProfileSeed / InformationSeed 可分别覆盖。实际使用的采样种子写入 `morning/manifest.json` 的 `populationSeed` 和 `populationSampling.seed`。PowerShell 同时支持 `-SampleSeed` 别名。
 
 ## 5. 接入真实模型，运行 LLM 出行者
 
@@ -251,6 +263,7 @@ Slurm 模板为 [run_hpc_qwen.slurm](scripts/run_hpc_qwen.slurm) 和 [agentic_mo
 | `-LlmAgents 3` | `--llm-agents 3` | 合格目标人员中由所选策略接管的人数；支持 0/all |
 | `-Demand 100` | `--demand 100` | 选择 100pct 原始人口；200 为双倍需求 |
 | `-SampleRate 0.1` | `--sample-rate 0.1` | 人口与道路容量按同一比例采样 |
+| `-PopulationSeed 20261008` | `--population-seed 20261008` | 固定人口采样种子，默认 4711；独立于仿真 Seed |
 | `-SamplePersons 100` | `--sample-persons 100` | 程序诊断抽样，不缩放容量 |
 | `-Days 30` | `--days 30` | 模拟天数，含 iteration 0 |
 | `-Seed 4711` | `--seed 4711` | MATSim 随机种子；模型生成种子是独立参数 |

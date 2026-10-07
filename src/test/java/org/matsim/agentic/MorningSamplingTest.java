@@ -83,6 +83,46 @@ class MorningSamplingTest {
         assertEquals(0.3, unchanged.getConfig().qsim().getStorageCapFactor());
     }
 
+    @Test void samplingSeedFixesPopulationAcrossSimulationSeedsAndInputOrder() {
+        Set<Id<org.matsim.api.core.v01.population.Person>> selected = null;
+        for (long simulationSeed : List.of(4711L, 9261L)) {
+            var scenario = population(100, simulationSeed == 9261);
+            scenario.getConfig().global().setRandomSeed(simulationSeed);
+            var experiment = new MorningExperiment();
+            new CommandLine(experiment).parseArgs("--sample-rate", "0.1", "--sample-seed", "20261008");
+            experiment.applySampling(scenario, simulationSeed);
+            var ids = Set.copyOf(scenario.getPopulation().getPersons().keySet());
+            assertEquals(10, ids.size());
+            if (selected != null) assertEquals(selected, ids);
+            selected = ids;
+            assertEquals(simulationSeed, scenario.getConfig().global().getRandomSeed());
+        }
+        var implicit = new MorningExperiment();
+        var explicit = new MorningExperiment();
+        new CommandLine(implicit).parseArgs("--sample-rate", "0.1");
+        new CommandLine(explicit).parseArgs("--sample-rate", "0.1", "--population-seed", "4711");
+        var legacyPopulation = population(100, false);
+        var explicitPopulation = population(100, true);
+        implicit.applySampling(legacyPopulation, 9261);
+        explicit.applySampling(explicitPopulation, 4711);
+        assertEquals(legacyPopulation.getPopulation().getPersons().keySet(), explicitPopulation.getPopulation().getPersons().keySet());
+    }
+
+    @Test void largerRateWithSameSampleSeedRetainsTheSmallerPopulation() {
+        var small = population(100, false);
+        var large = population(100, true);
+        var experiment = new MorningExperiment();
+        new CommandLine(experiment).parseArgs("--sample-rate", "0.1", "--sample-seed", "20261008");
+        experiment.applySampling(small, 4711);
+        new CommandLine(experiment).parseArgs("--sample-rate", "0.25", "--sample-seed", "20261008");
+        experiment.applySampling(large, 9261);
+        assertEquals(10, small.getPopulation().getPersons().size());
+        assertEquals(25, large.getPopulation().getPersons().size());
+        assertTrue(large.getPopulation().getPersons().keySet().containsAll(small.getPopulation().getPersons().keySet()));
+        assertEquals(0.25, large.getConfig().qsim().getFlowCapFactor());
+        assertEquals(0.25, large.getConfig().qsim().getStorageCapFactor());
+    }
+
     @Test void invalidRatesAndConflictingPopulationSamplingFailBeforeLoading() {
         for (String rate : List.of("0", "-0.1", "1.1", "NaN", "Infinity"))
             assertNotEquals(0, new CommandLine(new MorningExperiment()).execute("--sample-rate", rate));

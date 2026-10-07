@@ -21,13 +21,14 @@ CONCURRENCY="${CONCURRENCY:-60}"
 SEED="${SEED:-9261}"
 DEMAND="${DEMAND:-100}"
 SAMPLE_RATE="${SAMPLE_RATE:-0.1}"
+POPULATION_SEED="${POPULATION_SEED:-${SAMPLE_SEED:-4711}}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-0}"
 NATIVE_TIME_MUTATION="${NATIVE_TIME_MUTATION:-1}"
 MANAGER_MAX_OUTPUT_TOKENS="${MANAGER_MAX_OUTPUT_TOKENS:-8192}"
 MANAGER_UPDATE_INTERVAL="${MANAGER_UPDATE_INTERVAL:-30}"
 INFORMED_SHARE="${INFORMED_SHARE:-0.5}"
 INFORMATION_SCOPE="${INFORMATION_SCOPE:-controlled}"
-INFORMATION_SEED="${INFORMATION_SEED:-$SEED}"
+INFORMATION_SEED="${INFORMATION_SEED:-$POPULATION_SEED}"
 TOLL_HISTORY_BIN_SECONDS="${TOLL_HISTORY_BIN_SECONDS:-3600}"
 MEMORY_MODE="${MEMORY_MODE:-llm}"
 DEPARTURE_BEFORE_SECONDS="${DEPARTURE_BEFORE_SECONDS:-5400}"
@@ -107,7 +108,7 @@ cp -- "$JAR" "$RUNTIME_JAR"
 RUNTIME_SHA="$(sha256sum "$RUNTIME_JAR")"; RUNTIME_SHA="${RUNTIME_SHA%% *}"
 [[ "$SOURCE_SHA" == "$RUNTIME_SHA" ]] || fail 'JAR changed while copying; upload completely before submission.'
 JAR_HELP="$("$JAVA_BIN" -cp "$RUNTIME_JAR" org.matsim.agentic.MorningExperiment --help)" || fail 'Cannot read MorningExperiment help.'
-for option in --sample-rate --informed-share --information-scope --manager-max-output-tokens --manager-update-interval --response-format \
+for option in --sample-rate --population-seed --informed-share --information-scope --manager-max-output-tokens --manager-update-interval --response-format \
     --candidate-pool-size --candidate-time-slack-seconds --candidate-distance-slack-meters \
     --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile native-time-mutation; do
     [[ "$JAR_HELP" == *"$option"* ]] || fail "Uploaded JAR is too old: missing $option"
@@ -152,12 +153,14 @@ cd "$PROJECT_DIR"
 printf 'Qwen job/node: %s / %s\nAPI: %s\nModel: %s\n' "$QWEN_JOB_ID" "$QWEN_NODE" "$AGENTIC_BASE_URL" "$MODEL_NAME"
 printf 'Days: %s\nLLM people: %s\nDemand: %s%%\nPopulation/capacity sample rate: %s\nManager: %s\nConcurrency: %s\n' \
     "$DAYS" "$LLM_AGENTS" "$DEMAND" "$SAMPLE_RATE" "$ENABLE_MANAGER" "$CONCURRENCY"
+printf 'Population sampling seed: %s\nSimulation seed: %s\n' "$POPULATION_SEED" "$SEED"
 printf 'Information scope/share/seed: %s / %s / %s\nMemory: %s\nResponse format: %s\nOutput: %s\n' \
     "$INFORMATION_SCOPE" "$INFORMED_SHARE" "$INFORMATION_SEED" "$MEMORY_MODE" "$RESPONSE_FORMAT" "$OUTPUT_DIR"
 
 experiment_args=(
     --config "$CONFIG" --mode hybrid --policy llm
     --days "$DAYS" --llm-agents "$LLM_AGENTS" --demand "$DEMAND" --sample-rate "$SAMPLE_RATE"
+    --population-seed "$POPULATION_SEED"
     --seed "$SEED" --run-date "$RUN_DATE" --output "$OUTPUT_DIR"
     --peak-start 25200 --peak-end 32400 --analysis-start 23400 --analysis-end 39600
     --informed-share "$INFORMED_SHARE" --information-scope "$INFORMATION_SCOPE"
@@ -167,7 +170,7 @@ experiment_args=(
     --thinking omit --generation-params "$QWEN_GENERATION_PARAMS"
     --token-limit-field max_tokens --response-format "$RESPONSE_FORMAT"
     --max-output-tokens 512 --reason-max-chars 240
-    --personal-profiles legacy --profile-seed "$SEED"
+    --personal-profiles legacy --profile-seed "$POPULATION_SEED"
     --departure-before-seconds "$DEPARTURE_BEFORE_SECONDS" --departure-after-seconds "$DEPARTURE_AFTER_SECONDS" --departure-step-seconds "$DEPARTURE_STEP_SECONDS"
     --memory-mode "$MEMORY_MODE" --history-window 5 --memory-max-chars 500 --memory-max-output-tokens 1024
     --candidate-order original --candidate-order-seed 0 --trip-output-interval 1 --context-samples 20

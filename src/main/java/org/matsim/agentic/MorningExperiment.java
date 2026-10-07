@@ -38,7 +38,7 @@ public final class MorningExperiment implements Callable<Integer> {
     @Mixin MorningManagerControls managerControls = new MorningManagerControls();
     @Option(names = "--informed-share", defaultValue = "0.5", description = "Fixed informed share among information-scope persons, 0..1") double informedShare = .5;
     @Option(names = "--information-scope", defaultValue = "controlled", description = "controlled | all; others retain native public-policy routing") String informationScope = "controlled";
-    @Option(names = "--information-seed", description = "Independent stable information-group seed; defaults to simulation seed") Long informationSeed;
+    @Option(names = "--information-seed", description = "Independent stable information-group seed; defaults to population seed") Long informationSeed;
     @Option(names = "--toll-history-bin-seconds", defaultValue = "3600", description = "Match personal paid link observations in the same time-of-day bin") int tollHistoryBinSeconds = 3600;
     final AgenticConfig llmConfig = new AgenticConfig();
     @Mixin MorningModelOptions modelOptions = new MorningModelOptions();
@@ -50,6 +50,8 @@ public final class MorningExperiment implements Callable<Integer> {
     MorningRoutePolicy policyOverride; // Package-level injection for deterministic integration tests, not a CLI option.
     BiFunction<AgenticConfig, LlmUsageTracker, LlmClient> clientFactory = DeepSeekClient::new;
     @Option(names = "--seed") Long seed;
+    @Option(names = {"--population-seed", "--sample-seed"}, defaultValue = "4711", description = "Fixed population sampling and default roster/profile/information seed; independent of --seed")
+    long populationSeed = 4711;
     @Option(names = "--run-date", description = "Run label date YYYY-MM-DD; default today in Asia/Shanghai") String runDate;
     private String runName;
     private String parameterRunName;
@@ -72,7 +74,7 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--memory-max-chars", defaultValue = "500", description = "Hard summary limit, 1..500 Unicode characters; prompt target 240") int memoryMaxChars = MorningMemoryUpdater.MAX_CHARACTERS;
     @Option(names = "--memory-max-output-tokens", defaultValue = "1024", description = "Reflection response limit; choice uses --max-output-tokens") int memoryMaxOutputTokens = 1024;
     @Option(names = "--personal-profiles", defaultValue = "legacy", description = "legacy: fixed synthetic legacy traits; input: input attributes only") String personalProfiles = "legacy";
-    @Option(names = "--profile-seed", description = "Independent profile seed; default actual MATSim seed") Long profileSeed;
+    @Option(names = "--profile-seed", description = "Independent profile seed; defaults to population seed") Long profileSeed;
     @Option(names = "--profile-file", description = "Reuse legacy roster.json or profiles/cohort JSONL[.gz]; all controlled people must be present") Path profileFile;
     @Option(names = "--candidate-order", defaultValue = "original", description = "original | reverse | shuffle; display only") String candidateOrder = "original";
     @Option(names = "--candidate-order-seed", defaultValue = "0") long candidateOrderSeed;
@@ -149,15 +151,15 @@ public final class MorningExperiment implements Callable<Integer> {
                 + " in [" + cohort.windowStart + "," + cohort.windowEnd + "); planned-arrival requires an original destination activity start time");
         int controlled = fixed() || hybrid() && llmAgents.equalsIgnoreCase("all") ? cohort.persons.size()
                 : hybrid() ? Integer.parseInt(llmAgents) : 0;
-        cohort.selectControlledPeople(controlled, actualSeed);
+        cohort.selectControlledPeople(controlled, populationSeed);
         cohort.configureDepartureOptions(this, config.qsim().getEndTime().seconds());
         var informationPeople = informationScope.equals("all")
                 ? scenario.getPopulation().getPersons().keySet().stream().map(Object::toString).toList()
                 : cohort.controlledPersons;
         cohort.configureInformation(informationPeople, informedShare,
-                informationSeed == null ? actualSeed : informationSeed, tollHistoryBinSeconds);
+                informationSeed == null ? populationSeed : informationSeed, tollHistoryBinSeconds);
         cohort.information.beginDay(config.controller().getFirstIteration());
-        cohort.assignProfiles(personalProfiles, profileSeed == null ? actualSeed : profileSeed,
+        cohort.assignProfiles(personalProfiles, profileSeed == null ? populationSeed : profileSeed,
                 profileFile == null ? null : MorningProfiles.read(profileFile));
         long minimumCalls = policyName.equals("llm") ? cohort.members.values().stream().filter(m -> m.controlled).count()
                 * (config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L) * 2L : 0;
@@ -234,10 +236,11 @@ public final class MorningExperiment implements Callable<Integer> {
         }
         if (selected < fullPopulation) {
             var ids = new ArrayList<>(scenario.getPopulation().getPersons().keySet());
-            ids.sort(Comparator.comparing(Object::toString)); Collections.shuffle(ids, new Random(actualSeed));
+            ids.sort(Comparator.comparing(Object::toString)); Collections.shuffle(ids, new Random(populationSeed));
             for (var id : ids.subList(selected, ids.size())) scenario.getPopulation().removePerson(id);
         }
         System.out.println(Json.write(Map.of("loadedPopulation", fullPopulation, "simulatedPopulation", selected,
+                "populationSeed", populationSeed,
                 "flowCapacityFactor", scenario.getConfig().qsim().getFlowCapFactor(),
                 "storageCapacityFactor", scenario.getConfig().qsim().getStorageCapFactor())));
         return fullPopulation;
@@ -379,7 +382,7 @@ public final class MorningExperiment implements Callable<Integer> {
         if(managerEnabled) result.put("managerRequestBudgetInterpretation","Reserve capacity for all scheduled model updates and repairs. Basic has no safety cooldown or automatic policy changes.");
         result.put("controlledPersons", cohort.controlledPersons.size());
         result.put("travelerInformation", Map.of("scope", informationScope, "requestedInformedShare", informedShare,
-                "seed", informationSeed == null ? config.global().getRandomSeed() : informationSeed,
+                "seed", informationSeed == null ? populationSeed : informationSeed,
                 "persons", cohort.information.assignments().size(),
                 "informedPersons", cohort.information.assignments().values().stream().filter(Boolean::booleanValue).count(),
                 "uninformedPersons", cohort.information.assignments().values().stream().filter(v -> !v).count(),
@@ -401,13 +404,16 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("loadedPopulation", fullPopulation); result.put("simulatedPopulation", scenario.getPopulation().getPersons().size());
         if(managerEnabled) result.put("managerControls",managerControls.context(MorningManagerEnvironment.from(scenario,this,result)));
         result.put("sampleRate", sampleRate);
+        result.put("populationSeed", populationSeed);
         result.put("actualPopulationSampleRate", (double) scenario.getPopulation().getPersons().size() / fullPopulation);
         result.put("flowCapacityFactor", config.qsim().getFlowCapFactor());
         result.put("storageCapacityFactor", config.qsim().getStorageCapFactor());
         result.put("populationSampling", Map.of("mode", sampleRate != null ? "population-and-capacity" : samplePersons > 0 ? "diagnostic-person-count" : "none",
-                "selection", "Sort person IDs, shuffle with Java Random(seed), retain a fixed subset and all its plans",
+                "seed", populationSeed,
+                "selection", "Sort person IDs, shuffle with Java Random(populationSeed), retain a fixed subset and all its plans",
                 "rounding", "floor(loadedPopulation * sampleRate)",
-                "capacityBasis", sampleRate != null ? "Absolute QSim factors of original network capacities; override configured factors" : "Keep configured QSim factors"));
+                "capacityBasis", sampleRate != null ? "Absolute QSim factors of original network capacities; override configured factors" : "Keep configured QSim factors",
+                "capacityScaling", sampleRate != null ? Map.of("scheme", "linear", "flowFormula", "r", "storageFormula", "r", "storageExponent", 1.0) : Map.of("scheme", "configured")));
         result.put("diagnosticSubsample", samplePersons > 0); result.put("cohortTrips", cohort.members.size()); result.put("cohortPersons", cohort.persons.size());
         result.put("cohortWindow", List.of(cohort.windowStart, cohort.windowEnd)); result.put("networkWindow", List.of(analysisStart, analysisEnd));
         result.put("cohortSelection", cohort.selection);
@@ -454,7 +460,7 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("llmCallsPerControlledTripDay", policyName.equals("llm") ? 2 : 0);
         result.put("personalProfiles", Map.of("mode", personalProfiles, "source", personalProfiles.equals("input") ? "input attributes only"
                         : profileFile == null ? "seeded synthetic legacy categories" : "imported fixed profiles",
-                "seed", profileSeed == null ? config.global().getRandomSeed() : profileSeed,
+                "seed", profileSeed == null ? populationSeed : profileSeed,
                 "assignment", "SHA-256 personId-derived independent RNG; same person across cohort sizes; imported profiles override sampling",
                 "calibrated", false, "changesNativeScoring", false, "changesDeadlines", false));
         if (profileFile != null) result.put("profileFileHash", inputHash(profileFile.toAbsolutePath()));

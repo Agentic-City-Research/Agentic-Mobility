@@ -68,6 +68,7 @@ param(
     [switch]$DisableNativeTimeMutation,
     [ValidateRange(0, 2147483647)][int]$SamplePersons = 0,
     [ValidateScript({ $_ -gt 0 -and $_ -le 1 })][double]$SampleRate = 1.0,
+    [Alias('SampleSeed')][long]$PopulationSeed = 4711,
     [int]$TripOutputInterval = 1,
     [int]$ContextSamples = 20,
     [ValidateRange(1, 2147483647)][int]$CandidateSearchLimit = 10000,
@@ -118,6 +119,7 @@ $taskArguments = @("-Xmx$Heap", '-cp', $taskJar, 'org.matsim.agentic.MorningExpe
     '--candidate-distance-slack-meters', $CandidateDistanceSlackMeters.ToString([System.Globalization.CultureInfo]::InvariantCulture),
     '--candidate-max-overlap', $CandidateMaxOverlap.ToString([System.Globalization.CultureInfo]::InvariantCulture))
 if ($PSBoundParameters.ContainsKey('SampleRate')) { $taskArguments += @('--sample-rate', $SampleRate.ToString([System.Globalization.CultureInfo]::InvariantCulture)) }
+$taskArguments += @('--population-seed', "$PopulationSeed")
 if ($InnovationStopDay -ge 0) { $taskArguments += @('--innovation-stop-day', "$InnovationStopDay") }
 if ($DisableNativeTimeMutation) { $taskArguments += '--no-native-time-mutation' }
 if ($Manager) {

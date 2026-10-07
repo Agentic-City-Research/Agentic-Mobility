@@ -59,11 +59,16 @@ foreach ($taskSelection in @('planned-arrival', 'planned-departure')) {
 foreach ($taskRate in @(0.1, 0.25, 1.0)) {
     [IO.File]::WriteAllText($taskSourceJar, 'original-build')
     [IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
-    & $taskRunner -Java $taskFakeJava -Days 1 -Demand 100 -SampleRate $taskRate | Out-Null
+    & $taskRunner -Java $taskFakeJava -Days 1 -Demand 100 -SampleRate $taskRate -SampleSeed 20261008 -Seed 9261 | Out-Null
     $taskCapturedArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
     $taskSampleIndex = [Array]::IndexOf($taskCapturedArguments, '--sample-rate')
     if ($taskSampleIndex -lt 0 -or $taskCapturedArguments[$taskSampleIndex + 1] -ne $taskRate.ToString([System.Globalization.CultureInfo]::InvariantCulture)) {
         throw 'SampleRate was not forwarded with an invariant decimal separator'
+    }
+    $taskSampleSeedIndex = [Array]::IndexOf($taskCapturedArguments, '--population-seed')
+    if ($taskSampleSeedIndex -lt 0 -or $taskCapturedArguments[$taskSampleSeedIndex + 1] -ne '20261008' -or
+        $taskCapturedArguments[[Array]::IndexOf($taskCapturedArguments, '--seed') + 1] -ne '9261') {
+        throw 'Independent sampling and simulation seeds were not forwarded'
     }
     if ($taskCapturedArguments[[Array]::IndexOf($taskCapturedArguments, '--sample-persons') + 1] -ne '0') {
         throw 'SampleRate also applied diagnostic population sampling'
