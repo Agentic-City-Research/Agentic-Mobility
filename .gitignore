@@ -1,20 +1,64 @@
+*.class
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+# Eclipse
+/.settings/
+/.project
+/.classpath
+
 /target/
 /output/
-/external/
-/scenarios/sioux-falls/input/
-/scenarios/sioux-falls/manager.local.json
-/scenarios/sioux-falls/*.local.xml
-/.idea/
-/.vscode/
-/.env
-/.env.*
-!/.env.example
+/output*/
+/test/output/
+/bin/
+
+# Local secrets and env files
+.env
+.env.*
+!.env.example
+
+# Logs
 *.log
-*.pid
-*.stderr
-*.stdout
+
+# IntelliJ
+/.idea/
+*.iml
+
+# Local complete code snapshots (include runnable JAR/input copies)
+/versions/
+
+# Generated Maven/shade files
+/dependency-reduced-pom.xml
+/jartmp*.tmp
+*.tmp
+
+# Python caches and local environments
 __pycache__/
 *.py[cod]
-/.venv*/
-/analysis/figures*/
-/.DS_Store
+.pytest_cache/
+.venv/
+venv/
+
+# Temporary runtime copies and local test fixtures
+/tmp/
+*.dumpstream
+*.dump
+
+# Machine-specific credentials and settings
+*.local.json
+*.local.yml
+*.local.yaml
+*.pem
+*.pfx
+*.p12
+*.key
