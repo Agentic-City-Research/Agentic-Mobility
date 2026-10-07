@@ -1,4 +1,4 @@
-# AgenticCity：MATSim 出行者与收费管理实验
+# AgenticMobility：MATSim 出行者与收费管理实验
 
 本项目在 MATSim 2026.0 上实现 LLM 出行者的路线与出发时间联合选择、个人经历与自写记忆，以及收费管理者实验。默认使用 Sioux Falls 全天活动链；核心和缓冲早高峰单程场景单独保留。
 
