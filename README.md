@@ -4,85 +4,8 @@
 
 当前运行入口是 `org.matsim.agentic.MorningExperiment`。项目以 Java 源码、场景输入和脚本分发，运行前需要构建 JAR。
 
-## 1. 上传或更新 GitHub 仓库
 
-### 已有代码的 private 仓库
-
-先克隆已有仓库，再把整理后的项目文件复制到克隆目录，保留现有 Git 历史和仓库设置。步骤参考 [GitHub 克隆说明](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) 和 [向已有仓库添加文件](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository)。
-
-下面假定仓库根目录就是本项目。将本机目录、GitHub 用户名和仓库名替换为自己的值；克隆目的地使用一个尚不存在的新目录。
-
-```powershell
-$publishSource = 'C:\path\to\github10.07'
-$publishCheckout = 'C:\path\to\AgenticCity-github'
-
-git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git $publishCheckout
-
-# 复制整理好的发布文件，包含 .github/.mvn/.gitignore。
-# 克隆目录保留自己的 .git 历史。
-Get-ChildItem -LiteralPath $publishSource -Force |
-  Where-Object { $_.Name -ne '.git' } |
-  Copy-Item -Destination $publishCheckout -Recurse -Force
-
-Set-Location $publishCheckout
-git status --short
-git diff --stat
-git add .
-git diff --cached --stat
-git commit -m "Update AgenticCity with cleaned source and usage guide"
-git push
-```
-
-私有仓库需要通过有权限的 GitHub 账号完成登录。`git clone` 自动关联远端 origin 并检出默认分支；已有提交的仓库沿用该分支，不需要重新初始化 Git 或添加 origin。Git 提示提交身份未配置时，按下一节的格式设置当前仓库的 `user.name` 和 `user.email`。
-
-复制操作更新同名文件，仓库原有的其他文件仍会保留。若原项目位于仓库子目录，将复制目的地改为对应子目录；Git 提交仍从克隆仓库根目录执行。确认不再需要的旧文件后，可在文件管理器中删除，再执行 `git add -A` 将删除纳入提交。`.gitignore` 不会自动取消旧文件的跟踪状态。
-
-如果默认分支要求通过 Pull Request 更新，可在复制前创建分支 `git switch -c update-agenticcity`；提交后执行 `git push -u origin update-agenticcity`，然后在 GitHub 创建并合并 Pull Request。
-
-正常更新代码不改变 private/public 设置。
-
-### 尚无仓库：创建空仓库
-
-登录 GitHub，打开 [新建仓库页面](https://github.com/new)。仓库名可使用 `AgenticCity`，开源时选择 **Public**。本地已经包含 README、`.gitignore` 和许可证，因此创建时保持这些初始化选项为空，然后点击 **Create repository**。步骤参考 [GitHub 官方上传说明](https://docs.github.com/en/migrations/importing-source-code/using-the-command-line-to-import-source-code/adding-locally-hosted-code-to-github)。
-
-### 提交本地代码并上传
-
-在 Windows PowerShell 中执行。将 `C:\path\to\AgenticCity` 替换为准备上传的代码根目录：该目录应直接包含 `pom.xml`、`src`、`scripts` 和 `scenarios`。其余占位符也要替换成自己的值。
-
-```powershell
-Set-Location "C:\path\to\AgenticCity"
-git init -b main
-
-# 只设置当前仓库的提交身份；显示名称可自行选择。
-git config user.name "YOUR_DISPLAY_NAME"
-git config user.email "YOUR_GITHUB_COMMIT_EMAIL"
-
-git add .
-git status --short
-git commit -m "Initial open-source release"
-
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/AgenticCity.git
-git push -u origin main
-```
-
-提交邮箱使用 GitHub 账号关联的邮箱，也可以使用 GitHub **Settings → Emails** 中显示的 noreply 地址。Git 提交身份设置参考 [官方说明](https://docs.github.com/en/get-started/git-basics/setting-your-username-in-git)。
-
-第一次上传时，按 Git Credential Manager 的浏览器登录提示完成 GitHub 认证，见 [GitHub 认证说明](https://docs.github.com/en/get-started/git-basics/caching-your-github-credentials-in-git)。推送成功后刷新仓库页面，就能看到源码和本 README。
-
-Git 仓库只需在代码根目录初始化。目录外的私人备份不纳入仓库；`.gitignore` 已忽略运行 JAR、`target/`、`output/`、缓存和本地 `.env`，保留 `.env.example`。
-
-### 后续更新代码
-
-在已经关联远端的本地仓库中，开始修改前可执行 `git pull --ff-only` 获取最新提交。修改完成后，在同一仓库目录执行：
-
-```powershell
-git status --short
-git add .
-git commit -m "Update experiment code and documentation"
-git push
-```
-
-## 2. 下载与环境准备
+## 1. 下载与环境准备
 
 其他使用者可以克隆仓库。下文以仓库名 `AgenticCity` 为例，替换 GitHub 用户名；如果仓库使用其他名字，同时替换 URL 和进入的目录名。
 
