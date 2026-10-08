@@ -140,3 +140,10 @@ $HOME/matsim-example-morning/output/hpc/qwen3.5-9b/sample0.1/job-<作业号>/<�
 ```
 
 脚本会在运行前拒绝旧版 JAR、无效采样率、模型 ID 不匹配或重复输出目录。已在本地通过 Bash 语法检查、模拟 Slurm/API 的成功与失败分支检查，以及当前真实 JAR 的 `--validate-only` 验证；尚未在服务器上提交作业或验证真实 vLLM 生成接口。
+
+
+## 更新后的容量校验与评价记录
+
+修改源码后重新构建并上传运行 JAR。新包支持 MATSim 2026 下 `flow=k`、`storage=k^0.75` 的一致性校验，schema 18 manifest 记录有效容差、各类种子、人口名单哈希、Java 环境及实际执行 JAR 的 SHA-256。作业输出的 Runtime JAR SHA256 应与 manifest 的 `codeArtifact.sha256` 一致。
+
+每日日志增加 `fullDayCarTravel`、入网前等待、最慢 5% cohort 车程、路线距离、旅行时间指数和准时率，口径见 [主 README](../README.md#新增评价指标)。本次新增记录不改变原生时间调整方式、策略权重和 manager 协议。

@@ -138,6 +138,8 @@ public final class MorningExperiment implements Callable<Integer> {
             fixedTollPolicy = MorningFixedTollPolicy.load(fixedTollPolicyFile, scenario.getNetwork(), config.qsim().getEndTime().seconds(), activation);
         }
         int fullPopulation = applySampling(scenario, actualSeed);
+        // Fail before route-pool preparation, including validate-only runs.
+        config.checkConsistency();
         if (fixed()) for (var person : scenario.getPopulation().getPersons().values()) {
             var selected = person.getSelectedPlan();
             person.getPlans().removeIf(plan -> plan != selected);
@@ -234,6 +236,8 @@ public final class MorningExperiment implements Callable<Integer> {
             // already sampled configuration (0.1 must not become 0.01).
             scenario.getConfig().qsim().setFlowCapFactor(sampleRate);
             scenario.getConfig().qsim().setStorageCapFactor(Math.pow(sampleRate, STORAGE_CAPACITY_EXPONENT));
+            // MATSim 2026 checks flow/storage equality unless this Java-only tolerance is set.
+            scenario.getConfig().global().setRelativeToleranceForSampleSizeFactors(sampleCapacityTolerance(sampleRate));
         }
         if (selected < fullPopulation) {
             var ids = new ArrayList<>(scenario.getPopulation().getPersons().keySet());
@@ -245,6 +249,12 @@ public final class MorningExperiment implements Callable<Integer> {
                 "flowCapacityFactor", scenario.getConfig().qsim().getFlowCapFactor(),
                 "storageCapacityFactor", scenario.getConfig().qsim().getStorageCapFactor())));
         return fullPopulation;
+    }
+
+    private static double sampleCapacityTolerance(double rate) {
+        double storage = Math.pow(rate, STORAGE_CAPACITY_EXPONENT);
+        // Relative difference with one ULP of allowance; full sampling retains exact equality.
+        return storage == rate ? 0.0 : Math.nextUp(Math.abs(storage - rate) / Math.max(storage, rate));
     }
 
     private void validateOptions() {
@@ -329,7 +339,7 @@ public final class MorningExperiment implements Callable<Integer> {
 
     private Map<String, Object> manifest(Config config, Scenario scenario, MorningCohort cohort, int fullPopulation) throws Exception {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("schemaVersion", 17); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
+        result.put("schemaVersion", 18); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
         result.put("requestedDemandPercent", demand); result.put("requestedChoicePolicy", policyName);
         result.put("jsonlOutput", Map.of("compression", "gzip", "suffix", ".jsonl.gz", "encoding", "UTF-8",
                 "streaming", true, "rowContentChanged", true));
@@ -401,8 +411,19 @@ public final class MorningExperiment implements Callable<Integer> {
                 + " and apply controlled joint time/route choices -> native plans dump -> QSim and payments -> factual results and policy-linked observations -> personal memory reflection. Automatic strategy intervention only in explicit controlled manager profile."
                 : "Native selection/replanning -> native plans dump -> observation preparation -> QSim; no route overlay");
         result.put("seed", config.global().getRandomSeed());
+        result.put("selectionSeeds", Map.of("population", populationSeed, "controlledRoster", populationSeed,
+                "profiles", profileSeed == null ? populationSeed : profileSeed,
+                "informationGroups", informationSeed == null ? populationSeed : informationSeed,
+                "simulation", config.global().getRandomSeed()));
+        result.put("runtime", Map.of("javaVersion", System.getProperty("java.version"), "javaVendor", System.getProperty("java.vendor"),
+                "osName", System.getProperty("os.name"), "osArch", System.getProperty("os.arch")));
+        result.put("codeArtifact", codeArtifact());
         result.put("firstIteration", config.controller().getFirstIteration()); result.put("lastIteration", config.controller().getLastIteration());
         result.put("loadedPopulation", fullPopulation); result.put("simulatedPopulation", scenario.getPopulation().getPersons().size());
+        var personDigest = MessageDigest.getInstance("SHA-256");
+        scenario.getPopulation().getPersons().keySet().stream().map(Object::toString).sorted()
+                .forEach(id -> personDigest.update((id + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        result.put("simulatedPersonIdsSha256", HexFormat.of().formatHex(personDigest.digest()));
         if(managerEnabled) result.put("managerControls",managerControls.context(MorningManagerEnvironment.from(scenario,this,result)));
         result.put("sampleRate", sampleRate);
         result.put("populationSeed", populationSeed);
@@ -414,7 +435,8 @@ public final class MorningExperiment implements Callable<Integer> {
                 "selection", "Sort person IDs, shuffle with Java Random(populationSeed), retain a fixed subset and all its plans",
                 "rounding", "floor(loadedPopulation * sampleRate)",
                 "capacityBasis", sampleRate != null ? "Absolute QSim factors of original network capacities; override configured factors" : "Keep configured QSim factors",
-                "capacityScaling", sampleRate != null ? Map.of("scheme", "power-law", "flowFormula", "k", "storageFormula", "k^0.75", "storageExponent", STORAGE_CAPACITY_EXPONENT) : Map.of("scheme", "configured")));
+                "capacityScaling", sampleRate != null ? Map.of("scheme", "power-law", "flowFormula", "k", "storageFormula", "k^0.75", "storageExponent", STORAGE_CAPACITY_EXPONENT,
+                        "consistencyRelativeTolerance", sampleCapacityTolerance(sampleRate)) : Map.of("scheme", "configured")));
         result.put("diagnosticSubsample", samplePersons > 0); result.put("cohortTrips", cohort.members.size()); result.put("cohortPersons", cohort.persons.size());
         result.put("cohortWindow", List.of(cohort.windowStart, cohort.windowEnd)); result.put("networkWindow", List.of(analysisStart, analysisEnd));
         result.put("cohortSelection", cohort.selection);
@@ -505,6 +527,12 @@ public final class MorningExperiment implements Callable<Integer> {
                 "measurement", "Original, selected and actual departure separately recorded; full-day traffic objective, fixed analysis/peak windows are auxiliary"));
         result.put("linkMeasurementBinSeconds", managerEnabled && managerControls.basic() ? MorningManagerControls.BASIC_BIN_SECONDS : LinkTrafficMetrics.BIN_SECONDS);
         result.put("deadlineTreatment", "Latest activity start is observed, not a hard guarantee; scoring parameters are unchanged");
+        result.put("evaluationProtocol", Map.of(
+                "primaryEfficiency", "Full-day PersonDeparture(car) to PersonArrival(car) person-hours, including pre-traffic waiting; complete total is null unless all planned car legs finish",
+                "failureTreatment", "Completed travel-time distributions exclude failed legs; all original cohort trips remain in completion/punctuality denominators. Aborted/unfinished elapsed time is a lower bound, without an invented failure penalty",
+                "cohortTail", "p95 and mean of the slowest ceil(5% * completedCarTrips) completed cohort car trips",
+                "routeReference", "Selected-route free flow and distance exclude the origin partial link, as in the existing excess-car-time metric",
+                "linkDelay", "Supplementary completed full-link traversal excess time; excludes pre-traffic waiting and is not total journey cost"));
         result.put("apiCalls", 0);
         if (policyName.equals("llm")) {
             var modelSettings = new LinkedHashMap<>(llmConfig.publicModelSettings());
@@ -528,6 +556,15 @@ public final class MorningExperiment implements Callable<Integer> {
         inputHashes.put("facilities", inputHash(resolveInput(config.facilities().getInputFile())));
         if (fixedTollsEnabled()) inputHashes.put("fixedTollPolicy", fixedTollPolicy.source());
         result.put("inputHashes", inputHashes);
+        return result;
+    }
+    private static Map<String, Object> codeArtifact() throws Exception {
+        var source = MorningExperiment.class.getProtectionDomain().getCodeSource();
+        if (source == null) return Map.of("type", "unknown");
+        Path path = Path.of(source.getLocation().toURI()).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(path)) return Map.of("type", "classes-directory", "path", path.toString());
+        var result = new LinkedHashMap<String, Object>(inputHash(path));
+        result.put("type", "jar");
         return result;
     }
     private Path resolveInput(String file) { return configFile.toAbsolutePath().getParent().resolve(file).normalize(); }

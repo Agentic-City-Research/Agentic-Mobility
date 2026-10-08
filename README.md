@@ -294,7 +294,8 @@ Slurm 模板为 [run_hpc_qwen.slurm](scripts/run_hpc_qwen.slurm) 和 [agentic_mo
 
 | 文件 | 内容 |
 | --- | --- |
-| `manifest.json` | 参数、输入 SHA-256、人口/容量、协议版本及模型设置 |
+| `manifest.json` | 参数、输入及运行 JAR 的 SHA-256、人口名单哈希、各类种子、Java 环境、人口/容量及模型设置 |
+| `metrics.jsonl.gz` | 每日 cohort 指标、全日汽车耗时、失败/未完成数量、入网前等待等 |
 | `status.json` | 正常实验的 `complete`、已完成天数及失败信息；ValidateOnly 使用验证状态字段 |
 | `progress.json` | 当前阶段与已完成天数；用于查看进展 |
 | `api-usage.json` | 调用数、服务返回的 token 用量等 |
@@ -311,6 +312,38 @@ python scripts/analyze_morning_choices.py --morning 'output/llm-first-run/mornin
 ```
 
 正常实验应检查 `status.json` 的 `complete=true`，并核对 `daysCompleted`。只看到 `progress.json` 里的天数不代表最终导出成功。日末完整事实与摘要存档也不代表支持交通仿真自动断点续跑。
+
+### 新增评价指标
+
+`metrics.jsonl.gz` 每行对应一个模拟日。`fullDayCarTravel` 覆盖全天所有计划汽车行程；其他下表字段统计固定目标 cohort 中已完成的汽车行程。
+
+| 字段 | 含义 |
+|---|---|
+| `fullDayCarTravel.carPersonHours` | 全天汽车总出行人时，含进入道路交通前的等待；全部计划汽车行程完成时才给出完整值 |
+| `fullDayCarTravel.completedCarPersonHours` | 已完成汽车行程的人时，存在失败时仍保留 |
+| `fullDayCarTravel.abortedCarLegs` / `unfinishedCarLegs` / `notStartedCarLegs` | 中止、仿真结束时未完成、未开始的汽车行程数量 |
+| `meanPreTrafficWaitSecondsCompleted` | 已完成 cohort 汽车行程的平均入网前等待秒数 |
+| `slowestFivePercentMeanCarSeconds` | 已完成 cohort 汽车行程中，最慢 `ceil(数量×5%)` 条的平均耗时 |
+| `meanSelectedRouteDistanceMetersCompleted` | 已完成 cohort 行程所选路线的平均距离，沿用现有自由流口径，排除起点 partial link |
+| `meanTravelTimeIndexPositiveFreeFlow` | 实际车程 / 所选路线自由流耗时的均值；仅统计自由流耗时大于零的已完成行程 |
+| `onTimePlannedArrivalFractionAll` | 实际不晚于原始计划到达时刻的 cohort 比例；分母含有计划到达时刻的全部目标行程，未完成者不算准时 |
+| `actualArrivalBeforeCohortCutoffFractionAll` | 实际在 cohort 到达截止时刻之前到达的比例，分母为全部目标行程 |
+
+失败与未完成行程不填入零车程或人为惩罚值。存在这类行程时，完整 `carPersonHours` 为 null，需同时报告完成率和失败数量；`observedCarPersonHoursLowerBound` 只表示观测耗时下界。空样本的均值/比例为 null。`trips.jsonl.gz` 与 `experiences.jsonl.gz` 也增加入网时刻、等待、所选路线距离和原始延误等字段；这些数据用于评价，原生行为和收费管理目标沿用现有协议。
+
+### 复现记录
+
+manifest 的 schemaVersion 为 `18`，新增：
+
+- `selectionSeeds`：人口、受控名单、画像、信息分组和仿真解析后的种子，含显式覆盖值；导入画像时以输入文件及其哈希为准。
+- `simulatedPersonIdsSha256`：采样后 person ID 排序，每个 ID 后追加换行，以 UTF-8 计算 SHA-256；可直接核对两次实验是否使用同一份人口名单。
+- `runtime`：Java 版本/厂商及操作系统/架构。
+- `codeArtifact`：以 JAR 运行时记录实际运行包的路径、大小和 SHA-256；以未打包 classes 运行时仅记录目录类型和路径。
+- `populationSampling.capacityScaling.consistencyRelativeTolerance`：实际用于 MATSim 容量一致性检查的容差，100% 采样时为 0。
+- `evaluationProtocol`：完整汽车耗时、失败处理、尾部耗时和路线参考值的统计口径。
+
+保存运行 JAR、输入文件和实验目录，结合已有 `inputHashes`、模型设置及请求/回答记录核查实验。仅更换仿真 Seed、保持人口种子不变时，人口名单哈希应保持一致；模型输出以实际请求/回答日志为准。采样后的配置现在也会在 `--validate-only` 阶段执行一致性检查。
+
 
 ### 固定情境回放
 

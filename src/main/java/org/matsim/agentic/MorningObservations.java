@@ -10,13 +10,14 @@ import java.util.*;
 /** Full-day events, original-trip cohort and a separate clock-time network window. */
 final class MorningObservations implements BasicEventHandler {
     static final class TripResult {
-        Double departure, carDeparture, carArrival, arrival;
+        Double departure, carDeparture, carArrival, carTrafficEntry, arrival;
         boolean stuck;
         double tollPaid;
         final List<MorningTollSystem.Receipt> tollReceipts = new ArrayList<>();
         final List<String> executedLinks = new ArrayList<>(); // Filled only for controlled trips.
         Double carSeconds() { return carDeparture == null || carArrival == null ? null : carArrival - carDeparture; }
         Double doorSeconds() { return departure == null || arrival == null ? null : arrival - departure; }
+        Double preTrafficWaitSeconds() { return carDeparture == null || carTrafficEntry == null ? null : carTrafficEntry - carDeparture; }
     }
     private final MorningCohort cohort;
     final Map<String, TripResult> trips = new LinkedHashMap<>();
@@ -25,6 +26,7 @@ final class MorningObservations implements BasicEventHandler {
     private final Map<String, String> cars = new HashMap<>();
     private final Map<String, String> vehicleByPerson = new HashMap<>();
     final LinkTrafficMetrics links;
+    final MorningCarTravelMetrics carTravel = new MorningCarTravelMetrics();
     private final double windowStart, windowEnd;
     private double lastTime, vehicleSeconds;
     private int maximumVehicles, vehiclesAtEnd, networkEntered, networkExited;
@@ -40,6 +42,7 @@ final class MorningObservations implements BasicEventHandler {
     @Override public synchronized void reset(int iteration) {
         trips.clear(); cohort.members.keySet().forEach(k -> trips.put(k, new TripResult()));
         nextTrip.clear(); activeTrip.clear(); cars.clear(); vehicleByPerson.clear(); links.reset();
+        carTravel.reset();
         lastTime = 0; vehicleSeconds = 0; maximumVehicles = vehiclesAtEnd = networkEntered = networkExited = 0;
         carTripsStarted = carTripsCompleted = carTripsAborted = 0;
     }
@@ -58,11 +61,14 @@ final class MorningObservations implements BasicEventHandler {
     @Override public synchronized void handleEvent(Event event) {
         links.handle(event);
         integrate(event.getTime());
+        carTravel.handle(event);
         boolean inWindow = event.getTime() >= windowStart && event.getTime() < windowEnd;
         if (event instanceof VehicleEntersTrafficEvent e && "car".equals(e.getNetworkMode())) {
             if (cars.put(e.getVehicleId().toString(), e.getPersonId().toString()) == null) carTripsStarted++;
             recordLink(e.getPersonId().toString(), e.getLinkId().toString(), false);
             vehicleByPerson.put(e.getPersonId().toString(), e.getVehicleId().toString());
+            var result = trips.get(activeTrip.get(e.getPersonId().toString()));
+            if (result != null) result.carTrafficEntry = e.getTime();
             if (inWindow) { networkEntered++; maximumVehicles = Math.max(maximumVehicles, cars.size()); }
         } else if (event instanceof VehicleLeavesTrafficEvent e) {
             recordLink(cars.get(e.getVehicleId().toString()), e.getLinkId().toString(), true);

@@ -29,7 +29,7 @@ final class MorningCohort {
         String routeId, previousFingerprint;
         boolean switched, controlled;
         String informationGroup = "informed";
-        double actualRouteFreeFlow, nonCarSeconds;
+        double actualRouteFreeFlow, actualRouteDistance, nonCarSeconds;
 
         Member(Person person, int index, TripStructureUtils.Trip trip, List<RouteCandidate> candidates,
                Double deadline, int history) {

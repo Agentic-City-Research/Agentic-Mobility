@@ -171,6 +171,10 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     @Override public void notifyBeforeMobsim(BeforeMobsimEvent event) {
         if (!settings.overlaysChoices()) prepareForDay(event.getIteration());
         if (!prepared || preparedDay != event.getIteration()) throw new IllegalStateException("Day routes were not prepared");
+        // EventsHandling resets observers after replanning; capture the complete planned denominator here.
+        observations.carTravel.expectCarLegs(scenario.getPopulation().getPersons().values().stream()
+                .map(Person::getSelectedPlan).flatMap(p -> p.getPlanElements().stream())
+                .filter(e -> e instanceof Leg leg && leg.getMode().equals("car")).count());
         output.progress(Map.of("day", event.getIteration(), "phase", "mobsim", "daysCompleted", daysCompleted,
                 "cohortTrips", cohort.members.size(), "apiCalls", usage.requests()));
         output.flush();
@@ -274,6 +278,8 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             if (!actual.getStartLinkId().equals(actual.getEndLinkId()) || !actual.getLinkIds().isEmpty()) ids.add(actual.getEndLinkId());
             member.actualRouteFreeFlow = ids.stream().skip(1).map(scenario.getNetwork().getLinks()::get)
                     .mapToDouble(MatsimOdCandidates::freeFlow).sum();
+            member.actualRouteDistance = ids.stream().skip(1).map(scenario.getNetwork().getLinks()::get)
+                    .mapToDouble(org.matsim.api.core.v01.network.Link::getLength).sum();
             String fingerprint = ids.toString();
             member.switched = member.previousFingerprint != null && !member.previousFingerprint.equals(fingerprint);
             member.previousFingerprint = fingerprint;
@@ -353,8 +359,10 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     @Override public void notifyAfterMobsim(AfterMobsimEvent event) {
         if (!prepared) return;
         int day = event.getIteration(), completedCar = 0, completedOd = 0, departed = 0, stuck = 0, changed = 0;
-        int workCompleted = 0, workLate = 0, actuallyInPeak = 0;
+        int workCompleted = 0, workLate = 0, actuallyInPeak = 0, arrivedBeforeCutoff = 0, arrivedByPlan = 0;
         List<Double> carTimes = new ArrayList<>(), doorTimes = new ArrayList<>(), delays = new ArrayList<>();
+        List<Double> rawDelays = new ArrayList<>(), trafficWaits = new ArrayList<>(), freeFlowTimes = new ArrayList<>(),
+                routeDistances = new ArrayList<>(), timeIndices = new ArrayList<>();
         for (var member : cohort.members.values()) {
             var result = observations.trips.get(member.key);
             if (result.departure != null) { departed++; if (result.departure >= settings.peakStart && result.departure < settings.peakEnd) actuallyInPeak++; }
@@ -389,7 +397,13 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             Double lateness = result.arrival == null || member.deadline == null ? null : Math.max(0, result.arrival - member.deadline);
             if (carSeconds != null) {
                 completedCar++; carTimes.add(carSeconds); delays.add(delay);
+                rawDelays.add(carSeconds - member.actualRouteFreeFlow);
+                freeFlowTimes.add(member.actualRouteFreeFlow); routeDistances.add(member.actualRouteDistance);
+                if (member.actualRouteFreeFlow > 0) timeIndices.add(carSeconds / member.actualRouteFreeFlow);
+                if (result.preTrafficWaitSeconds() != null) trafficWaits.add(result.preTrafficWaitSeconds());
             }
+            if (result.arrival != null && result.arrival < settings.plannedArrivalBefore) arrivedBeforeCutoff++;
+            if (result.arrival != null && member.plannedArrival != null && result.arrival <= member.plannedArrival) arrivedByPlan++;
             // Failed/unfinished trips remain visible to future policies, but must
             // never enter completed-travel-time statistics as zero or an invented duration.
             var experience = new MorningMemory.Experience(day, member.routeId, carSeconds, result.arrival, lateness,
@@ -407,6 +421,11 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             archive.put("plannedArrivalSeconds", member.plannedArrival);
             archive.put("completedCar", carSeconds != null); archive.put("completedOd", doorSeconds != null);
             archive.put("excessCarSeconds", delay);
+            archive.put("carTrafficEntrySeconds", result.carTrafficEntry);
+            archive.put("preTrafficWaitSeconds", result.preTrafficWaitSeconds());
+            archive.put("selectedRouteFreeFlowSeconds", member.actualRouteFreeFlow);
+            archive.put("selectedRouteDistanceMeters", member.actualRouteDistance);
+            archive.put("rawCarDelaySeconds", carSeconds == null ? null : carSeconds - member.actualRouteFreeFlow);
             if (tolls != null) {
                 archive.put("tollPaid", result.tollPaid); archive.put("tollReceipts", result.tollReceipts);
                 archive.put("executedPolicyId", tolls.state().policyId()); archive.put("executedPolicyVersion", tolls.state().version());
@@ -427,8 +446,12 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                 row.put("selectedDepartureSeconds", member.selectedDeparture);
                 row.put("plannedArrivalSeconds", member.plannedArrival);
                 row.put("carDepartureSeconds", result.carDeparture); row.put("carArrivalSeconds", result.carArrival);
+                row.put("carTrafficEntrySeconds", result.carTrafficEntry); row.put("preTrafficWaitSeconds", result.preTrafficWaitSeconds());
                 row.put("arrivalSeconds", result.arrival); row.put("carSeconds", carSeconds); row.put("doorSeconds", doorSeconds);
                 row.put("selectedRouteFreeFlowSeconds", member.actualRouteFreeFlow); row.put("excessCarSeconds", delay);
+                row.put("selectedRouteDistanceMeters", member.actualRouteDistance);
+                row.put("rawCarDelaySeconds", carSeconds == null ? null : carSeconds - member.actualRouteFreeFlow);
+                row.put("travelTimeIndex", carSeconds == null || member.actualRouteFreeFlow <= 0 ? null : carSeconds / member.actualRouteFreeFlow);
                 row.put("latestArrivalSeconds", member.deadline); row.put("lateSeconds", lateness); row.put("stuck", result.stuck);
                 row.put("completedCar", carSeconds != null); row.put("completedOd", doorSeconds != null);
                 if (tolls != null) { row.put("tollPaid", result.tollPaid); row.put("tollReceipts", result.tollReceipts); }
@@ -445,6 +468,20 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         metrics.put("completionRate", cohort.members.isEmpty() ? null : (double) completedOd / cohort.members.size());
         metrics.put("stuckTrips", stuck); metrics.put("meanCarSeconds", mean(carTimes)); metrics.put("p95CarSeconds", p95(carTimes));
         metrics.put("meanDoorSeconds", mean(doorTimes)); metrics.put("meanExcessCarSeconds", mean(delays));
+        metrics.put("meanRawCarDelaySeconds", mean(rawDelays));
+        metrics.put("slowestFivePercentMeanCarSeconds", slowestFivePercentMean(carTimes));
+        metrics.put("meanSelectedRouteFreeFlowSecondsCompleted", mean(freeFlowTimes));
+        metrics.put("meanSelectedRouteDistanceMetersCompleted", mean(routeDistances));
+        metrics.put("meanTravelTimeIndexPositiveFreeFlow", mean(timeIndices));
+        metrics.put("completedCarTripsWithPositiveFreeFlow", timeIndices.size());
+        metrics.put("completedCarTripsWithTrafficEntry", trafficWaits.size());
+        metrics.put("meanPreTrafficWaitSecondsCompleted", mean(trafficWaits));
+        metrics.put("actualArrivalsBeforeCohortCutoff", arrivedBeforeCutoff);
+        metrics.put("actualArrivalCutoffSeconds", settings.plannedArrivalBefore);
+        metrics.put("actualArrivalBeforeCohortCutoffFractionAll", cohort.members.isEmpty() ? null : (double) arrivedBeforeCutoff / cohort.members.size());
+        long plannedArrivalTrips = cohort.members.values().stream().filter(m -> m.plannedArrival != null).count();
+        metrics.put("cohortTripsWithPlannedArrival", plannedArrivalTrips);
+        metrics.put("onTimePlannedArrivalFractionAll", plannedArrivalTrips == 0 ? null : (double) arrivedByPlan / plannedArrivalTrips);
         metrics.put("routeSwitches", changed); metrics.put("dsr", daysCompleted == 0 || cohort.members.isEmpty() ? null : (double) changed / cohort.members.size());
         metrics.put("departureTimeSwitches", cohort.members.values().stream().filter(m -> m.controlled && m.timeSwitched).count());
         metrics.put("nativeDepartureTimeSwitches", cohort.members.values().stream().filter(m -> !m.controlled && m.timeSwitched).count());
@@ -473,6 +510,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             metrics.put("policyVersion", tolls.state().version()); tolls.writePersonalTotals();
         }
         metrics.put("publicCarTrips",observations.publicCarTrips());
+        metrics.put("fullDayCarTravel", observations.carTravel.summary(scenario.getConfig().qsim().getEndTime().seconds()));
         var linkHours = observations.links.snapshot();
         metrics.put("fullDayLinkTraffic", MorningManager.dailyTraffic(day, linkHours));
         output.metric(metrics);
@@ -560,6 +598,11 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     }
 
     private static Double mean(List<Double> values) { return values.isEmpty() ? null : values.stream().mapToDouble(Double::doubleValue).average().orElseThrow(); }
+    private static Double slowestFivePercentMean(List<Double> values) {
+        if (values.isEmpty()) return null;
+        return values.stream().sorted(Comparator.reverseOrder()).limit((long) Math.ceil(values.size() * .05))
+                .mapToDouble(Double::doubleValue).average().orElseThrow();
+    }
     private static Double p95(List<Double> values) {
         if (values.isEmpty()) return null;
         values.sort(Double::compareTo); return values.get(Math.max(0, (int) Math.ceil(values.size() * .95) - 1));
