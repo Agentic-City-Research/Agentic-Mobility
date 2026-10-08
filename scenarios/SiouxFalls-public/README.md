@@ -33,11 +33,12 @@ hybrid 默认保留原生时刻变异，LLM 目标出发时刻由其联合选择
 本目录默认配置的流量容量和存储容量系数均为 `1.0`，使用原始路网的完整基础容量。
 全量运行不抽样。`-SamplePersons` 仅用于程序冒烟测试，不同步缩放道路容量。
 
-`-SampleRate` / Java `--sample-rate` 将人口和道路容量统一采样。例如 `0.1` 从
-`-Demand` 所选全天人口固定随机抽取 10%，并把 QSim 的 flowCapacityFactor 和
-storageCapacityFactor 都设为 0.1；100pct 得到 8411 人，200pct 得到 16822 人。
-这些容量系数相对于路网 XML 原始容量，直接设为采样率；基础系数为 `1.0`。
-例如比例 `0.25` 使用 25% 人口与两个容量系数 `0.25`；比例 `1.0` 使用全量人口与完整容量。
+`-SampleRate` / Java `--sample-rate` 以采样率 `k` 固定抽取人口，并设置 QSim
+流量容量系数 `flowCapacityFactor=k`、存储容量系数 `storageCapacityFactor=k^0.75`。
+例如 `k=0.1` 使用 10% 人口，流量系数为 `0.1`，存储系数约为 `0.177828`；
+100pct 得到 8411 人，200pct 得到 16822 人。
+这些容量系数相对于路网 XML 原始容量，直接覆盖配置值；基础系数为 `1.0`。
+例如比例 `0.25` 使用 25% 人口、流量系数 `0.25` 和存储系数约 `0.353553`；比例 `1.0` 使用全量人口与完整容量。
 在本目录的默认配置中，省略参数也使用全量人口与两个容量系数 `1.0`。
 
 比例须在 `(0,1]`，人数按 `floor(总人数 × 比例)` 计算；不能得到零人，也不能与非零
@@ -45,7 +46,7 @@ storageCapacityFactor 都设为 0.1；100pct 得到 8411 人，200pct 得到 168
 相同输入人口、Demand、比例与 PopulationSeed 选中同一批 person ID，更换仿真 Seed 也不改变该人口样本。
 相同输入人口与 PopulationSeed 下，较小采样率选中的人员包含在较大采样率的样本中。
 保留入选人员的全部计划，不按天重新抽人；早高峰 cohort 在抽样后重新统计。manifest 记录
-sampleRate、populationSeed、actualPopulationSampleRate、两项有效容量系数与 populationSampling（含实际 seed 和 linear 容量公式），
+sampleRate、populationSeed、actualPopulationSampleRate、两项有效容量系数与 populationSampling（含实际 seed 和 power-law 容量公式、存储指数 0.75），
 统一采样不标为 diagnosticSubsample。默认输出放在 `sample0.1` 等独立目录中。
 
 manager 和 no manager 对照使用相同 Demand、SampleRate、Seed、Days 及其余设置：
@@ -454,7 +455,7 @@ PowerShell 脚本与直接 Java 入口默认都把每次实验直接放在项目
 不再按模式、采样比例等嵌套多层目录。无需填写 `-Output`。
 日期默认使用上海时区的当天日期，`-RunDate 2026-10-06` 可指定批次标签；不会改变仿真时间。
 
-例如，100% 原始需求、10% 人口与容量采样、500 日、seed=268 的原生基线：
+例如，100% 原始需求、10% 人口采样（流量系数 0.1、存储系数约 0.177828）、500 日、seed=268 的原生基线：
 
 ```powershell
 .\scripts\run_public_experiment.ps1 -Mode hybrid -LlmAgents 0 -Demand 100 -SampleRate 0.1 -Days 500 -Seed 268

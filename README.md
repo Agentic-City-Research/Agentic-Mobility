@@ -125,7 +125,7 @@ matsim-example-project-0.0.1-SNAPSHOT.jar
 
 `-LlmAgents 0` 表示没有由 LLM/离线策略接管的旅客，背景人口采用原生 MATSim 行为。`-SamplePersons 100` 只用于检查流程，不同步缩放道路容量，因此这个结果不代表全量拥堵。
 
-### 10% 人口与容量的原生基线
+### 10% 人口的原生基线
 
 ```powershell
 .\scripts\run_public_experiment.ps1 -Mode hybrid -Policy mnl -LlmAgents 0 -Demand 100 -SampleRate 0.1 -Days 30 -Seed 4711 -Output 'output/baseline-pct10'
@@ -133,7 +133,13 @@ matsim-example-project-0.0.1-SNAPSHOT.jar
 
 `-SampleRate 0.1` 同时采样人口并缩放 flow/storage capacity。不要与 `-SamplePersons` 同时使用。`-Demand 100` 使用恢复的 84,110 人全天人口；采样后为 8,411 人。`-Demand 200` 使用公开数据谱系中的 168,220 人需求。
 
-默认场景的 `flowCapacityFactor` 和 `storageCapacityFactor` 均为 `1.0`，使用路网的完整基础容量。设置 `-SampleRate r`（Java `--sample-rate r`）后，人口数量为 `floor(所选 Demand 的总人数 × r)`，两项有效容量系数均为 `r`。例如 `r=0.25` 使用 25% 人口和 25% 道路容量；`r=1.0` 使用全量人口和完整容量。
+默认场景的 `flowCapacityFactor` 和 `storageCapacityFactor` 均为 `1.0`，使用路网的完整基础容量。设置 `-SampleRate k`（Java `--sample-rate k`）后，人口数量为 `floor(所选 Demand 的总人数 × k)`，流量容量系数为 `k`，存储容量系数为 `k^0.75`，均相对于原始路网容量。
+
+| 采样率 k | 人口比例 | 流量容量系数 | 存储容量系数 |
+|---|---|---|---|
+| 1.0 | 100% | 1.0 | 1.0 |
+| 0.25 | 25% | 0.25 | 约 0.353553 |
+| 0.1 | 10% | 0.1 | 约 0.177828 |
 
 完整人口实验可以省略 `-SampleRate` 和 `-SamplePersons`，此时默认场景的两项容量系数均为 `1.0`。正式比较需要保持人口、容量、随机种子和其他设置一致。
 
@@ -262,7 +268,7 @@ Slurm 模板为 [run_hpc_qwen.slurm](scripts/run_hpc_qwen.slurm) 和 [agentic_mo
 | `-Policy llm` | `--policy llm` | 旅客使用真实模型；其他可选值为 mnl、shortest、mock |
 | `-LlmAgents 3` | `--llm-agents 3` | 合格目标人员中由所选策略接管的人数；支持 0/all |
 | `-Demand 100` | `--demand 100` | 选择 100pct 原始人口；200 为双倍需求 |
-| `-SampleRate 0.1` | `--sample-rate 0.1` | 人口与道路容量按同一比例采样 |
+| `-SampleRate 0.1` | `--sample-rate 0.1` | 人口按 k 采样，流量容量 k、存储容量 k^0.75 |
 | `-PopulationSeed 20261008` | `--population-seed 20261008` | 固定人口采样种子，默认 4711；独立于仿真 Seed |
 | `-SamplePersons 100` | `--sample-persons 100` | 程序诊断抽样，不缩放容量 |
 | `-Days 30` | `--days 30` | 模拟天数，含 iteration 0 |

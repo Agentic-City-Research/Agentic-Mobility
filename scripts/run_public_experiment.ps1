@@ -93,7 +93,7 @@ if ($FixedTollPolicy -and $Mode -ne 'hybrid') { throw '-FixedTollPolicy requires
 $taskSamplingSummary = $null
 if ($PSBoundParameters.ContainsKey('SampleRate')) {
     if ($SamplePersons -ne 0) { throw 'Choose either -SampleRate or -SamplePersons, not both.' }
-    $taskSamplingSummary = 'Population and road capacity sample rate: ' + $SampleRate.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+    $taskSamplingSummary = 'Population sample rate k (flow=k; storage=k^0.75): ' + $SampleRate.ToString([System.Globalization.CultureInfo]::InvariantCulture)
 }
 $taskArguments = @("-Xmx$Heap", '-cp', $taskJar, 'org.matsim.agentic.MorningExperiment',
     '--config', $taskConfig,

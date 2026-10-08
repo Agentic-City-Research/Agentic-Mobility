@@ -40,7 +40,7 @@ class MorningSamplingTest {
             assertEquals(100, experiment.applySampling(scenario, 9261));
             assertEquals(10, scenario.getPopulation().getPersons().size());
             assertEquals(0.1, scenario.getConfig().qsim().getFlowCapFactor());
-            assertEquals(0.1, scenario.getConfig().qsim().getStorageCapFactor());
+            assertEquals(0.1778279410038923, scenario.getConfig().qsim().getStorageCapFactor(), 1e-12);
             var ids = Set.copyOf(scenario.getPopulation().getPersons().keySet());
             if (selected != null) assertEquals(selected, ids);
             selected = ids;
@@ -58,7 +58,7 @@ class MorningSamplingTest {
         experiment.applySampling(rounded, 9261);
         assertEquals(2, rounded.getPopulation().getPersons().size());
         assertEquals(0.25, rounded.getConfig().qsim().getFlowCapFactor());
-        assertEquals(0.25, rounded.getConfig().qsim().getStorageCapFactor());
+        assertEquals(0.3535533905932738, rounded.getConfig().qsim().getStorageCapFactor(), 1e-12);
         // Binary double arithmetic makes 100 * 0.29 slightly smaller than 29.
         new CommandLine(experiment).parseArgs("--sample-rate", "0.29");
         var decimalRate = population(100, false);
@@ -120,7 +120,7 @@ class MorningSamplingTest {
         assertEquals(25, large.getPopulation().getPersons().size());
         assertTrue(large.getPopulation().getPersons().keySet().containsAll(small.getPopulation().getPersons().keySet()));
         assertEquals(0.25, large.getConfig().qsim().getFlowCapFactor());
-        assertEquals(0.25, large.getConfig().qsim().getStorageCapFactor());
+        assertEquals(0.3535533905932738, large.getConfig().qsim().getStorageCapFactor(), 1e-12);
     }
 
     @Test void invalidRatesAndConflictingPopulationSamplingFailBeforeLoading() {

@@ -25,6 +25,7 @@ import java.util.function.BiFunction;
 @Command(name = "morning-experiment", mixinStandardHelpOptions = true,
         description = "Native full-day MATSim with optional morning LLM choices; reference and frozen-route controls.")
 public final class MorningExperiment implements Callable<Integer> {
+    static final double STORAGE_CAPACITY_EXPONENT = 0.75;
     @Option(names = "--config", defaultValue = "scenarios/SiouxFalls-public/config.xml") Path configFile;
     @Option(names = "--mode", defaultValue = "hybrid", description = "hybrid (main experiment) | reference | fixed-routes (auxiliary control)") String mode;
     @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl | shortest | mock; llm requires hybrid") String policyName;
@@ -94,7 +95,7 @@ public final class MorningExperiment implements Callable<Integer> {
             description = "Hybrid: retain TimeAllocationMutator (default); --no-native-time-mutation restores original activity ends")
     boolean nativeTimeMutation = true;
     @Option(names = "--sample-persons", defaultValue = "0", description = "Diagnostic ONLY: seeded subsample without capacity scaling; 0 means all") int samplePersons;
-    @Option(names = "--sample-rate", description = "Fixed population sample in (0,1]; set QSim flow/storage capacity factors to the same rate, relative to original network capacities") Double sampleRate;
+    @Option(names = "--sample-rate", description = "Fixed population sample k in (0,1]; absolute QSim factors: flow=k, storage=k^0.75, relative to original network capacities") Double sampleRate;
     @Option(names = "--validate-only", description = "Validate inputs and export cohort/candidates, no QSim") boolean validateOnly;
 
     boolean fixed() { return mode.equals("fixed-routes"); }
@@ -232,7 +233,7 @@ public final class MorningExperiment implements Callable<Integer> {
             // Absolute factors of the original network, not a multiplier of an
             // already sampled configuration (0.1 must not become 0.01).
             scenario.getConfig().qsim().setFlowCapFactor(sampleRate);
-            scenario.getConfig().qsim().setStorageCapFactor(sampleRate);
+            scenario.getConfig().qsim().setStorageCapFactor(Math.pow(sampleRate, STORAGE_CAPACITY_EXPONENT));
         }
         if (selected < fullPopulation) {
             var ids = new ArrayList<>(scenario.getPopulation().getPersons().keySet());
@@ -413,7 +414,7 @@ public final class MorningExperiment implements Callable<Integer> {
                 "selection", "Sort person IDs, shuffle with Java Random(populationSeed), retain a fixed subset and all its plans",
                 "rounding", "floor(loadedPopulation * sampleRate)",
                 "capacityBasis", sampleRate != null ? "Absolute QSim factors of original network capacities; override configured factors" : "Keep configured QSim factors",
-                "capacityScaling", sampleRate != null ? Map.of("scheme", "linear", "flowFormula", "r", "storageFormula", "r", "storageExponent", 1.0) : Map.of("scheme", "configured")));
+                "capacityScaling", sampleRate != null ? Map.of("scheme", "power-law", "flowFormula", "k", "storageFormula", "k^0.75", "storageExponent", STORAGE_CAPACITY_EXPONENT) : Map.of("scheme", "configured")));
         result.put("diagnosticSubsample", samplePersons > 0); result.put("cohortTrips", cohort.members.size()); result.put("cohortPersons", cohort.persons.size());
         result.put("cohortWindow", List.of(cohort.windowStart, cohort.windowEnd)); result.put("networkWindow", List.of(analysisStart, analysisEnd));
         result.put("cohortSelection", cohort.selection);

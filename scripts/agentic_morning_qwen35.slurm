@@ -151,7 +151,7 @@ OUTPUT_DIR="${OUTPUT_DIR:-$OUTPUT_ROOT/job-${SLURM_JOB_ID}/$RUN_NAME}"
 [[ ! -e "$OUTPUT_DIR" ]] || fail "Output already exists: $OUTPUT_DIR"
 cd "$PROJECT_DIR"
 printf 'Qwen job/node: %s / %s\nAPI: %s\nModel: %s\n' "$QWEN_JOB_ID" "$QWEN_NODE" "$AGENTIC_BASE_URL" "$MODEL_NAME"
-printf 'Days: %s\nLLM people: %s\nDemand: %s%%\nPopulation/capacity sample rate: %s\nManager: %s\nConcurrency: %s\n' \
+printf 'Days: %s\nLLM people: %s\nDemand: %s%%\nPopulation sample rate k (flow=k; storage=k^0.75): %s\nManager: %s\nConcurrency: %s\n' \
     "$DAYS" "$LLM_AGENTS" "$DEMAND" "$SAMPLE_RATE" "$ENABLE_MANAGER" "$CONCURRENCY"
 printf 'Population sampling seed: %s\nSimulation seed: %s\n' "$POPULATION_SEED" "$SEED"
 printf 'Information scope/share/seed: %s / %s / %s\nMemory: %s\nResponse format: %s\nOutput: %s\n' \
