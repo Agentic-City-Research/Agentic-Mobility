@@ -8,18 +8,37 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** The manager sees an explicit public-traffic projection, never the cohort, profiles or traveler memory. */
 final class MorningManager {
-    static final String VERSION = "morning-pricing-v6-basic";
+    static final String VERSION = "morning-pricing-v8-compact-prefix";
     static final String FEEDBACK_MODE = "combined";
     static final int FREE_DAYS = 20, UPDATE_INTERVAL = 30, MEMORY_MAX_CHARS = 2000;
     static final int MEMORY_MAX_WORDS = 1000;
+    static final int MEMORY_TARGET_MIN_WORDS = 400, MEMORY_TARGET_MAX_WORDS = 600;
     static final String BASIC_SYSTEM = """
             You manage congestion pricing for this car network. Your single objective is to reduce total network congestion delay.
             World model: fixed OD demand uses a capacity-constrained road network. Queues can propagate upstream.
             Route and permitted departure-time choices redistribute demand across roads and times; effects may be delayed and uncertain.
-            A link's raw capacity and sampled simulation flow capacity differ; read publicEnvironment for the actual environment.
+            Read publicEnvironment for actual population/capacity factors and enabled traveler responses.
+            network retains every car link; rows follow networkColumns. lengthType indexes lengthsMeters; roadType indexes roadTypes,
+            whose rows follow roadTypeColumns. All indexes are zero-based; dictionaries remove repeated values without rounding.
+            Nominal flow vehicles/hour = rawCapacity * flowCapacityFactor * 3600 / networkCapacityPeriodSeconds.
+            Storage uses length, lanes, networkEffectiveCellSizeMeters and storageCapacityFactor; QSim discretization still applies.
+            roadCorridors.networkRowChains contains ordered network row indexes. Charges accumulate along a chain;
+            common-time sums are conditional entry costs, not observed personal payments.
+            Actual departures/arrivals may still be delayed by activities and congestion even when planned times are fixed.
             Total delay and travel seconds measure completed full-link traversals, not door-to-door journeys. Aborted, unfinished,
             partial traversals and aggregate car-leg completions are reported separately; missing completions cannot establish improvement.
             Traversals are not persons. Your observations contain only completed past simulation days, with the executed policy identified.
+            trafficSummary contains the observation period and recent/previous up-to-seven-day aggregates instead of daily rows.
+            All totals vectors follow trafficMetricColumns. Divide by observedDays for daily means, or completed full-link traversals
+            for weighted travel/delay means; never average daily ratios. Derive car-leg completion rate from completed/started counts;
+            empty car-trip counts mean unavailable, not zero. Inspect pricingSpatialTotals for displacement to other roads or times.
+            linkTrafficTotals and entryTimeTraffic are tables with declared columns. Top delay/failure observations are selected;
+            current and recently withdrawn charged roads/windows remain visible. Unlisted roads are not assumed uncongested.
+            policyFeedback retains the last two executed policy-version effects and pools older, non-overlapping days once;
+            a version change alone is not a price intervention. Free-period references overlap older summaries and must not be added.
+            Tracked phases report the same link/window before, during and after pricing, with counts divided by each phase's observedDays.
+            executedOverlappingRules rows follow their declared columns; an overlap does not mean the entire tracked window was charged.
+            Tracked windows can overlap each other; their observations must not be summed as independent network traffic.
             Compare policyFeedback and trackedChargingWindows with your notes; period changes are descriptive, not matched causal effects.
             Travelers learn from their own executed outcomes. You cannot read individual travel information, payments, profiles or memory.
             Actions: return the complete policy for today, choosing hold, test, adjust or remove. You decide when to wait, where and when
@@ -37,8 +56,9 @@ final class MorningManager {
             decision contains only action (hold|test|adjust|remove), evidenceBasis (untested|observational|observedTrial),
             hypothesis, expectedNetworkEffect, uncertainty, evaluationPlan and revisitCondition; explanations are nonempty strings,
             at most 400 Unicode characters each. Keep review plans consistent with the scheduled decision opportunities.
-            memory is your complete replacement management memory in English, at most 1000 words, including retained unfinished ideas
-            and revised interpretations. Separate measured facts from hypotheses. Do not merely append to the old memory.
+            memory is your complete replacement management memory in English. Target 400-600 words; at most 1000 words (hard maximum).
+            Use fewer words when evidence is limited; do not pad to fill the limit or repeat supplied public tables.
+            Retain unfinished ideas and revised interpretations. Separate measured facts from hypotheses; replace, do not append.
             """;
     static final String SYSTEM = """
             You manage congestion pricing for the supplied car network. Reduce total network congestion delay.
@@ -212,7 +232,7 @@ final class MorningManager {
     Map<String, Object> context(int day, int firstIteration, MorningTollSystem.State state) {
         if (window.stream().anyMatch(row -> ((Number) row.get("day")).intValue() >= day))
             throw new IllegalArgumentException("Manager cannot see same-day or future traffic outcomes");
-        var history = feedback.managerContext(day, firstIteration);
+        var history = controls.basic() ? feedback.context(day, firstIteration) : feedback.managerContext(day, firstIteration);
         if (controls.basic()) history.remove("successCriteria");
         Map<String, double[]> byLink = new TreeMap<>();
         var daily = new ArrayList<Map<String, Object>>();
@@ -302,7 +322,8 @@ final class MorningManager {
     private void writeEvaluation(int day, int firstIteration, String reason) {
         output.appendLine("manager-policy-evaluations.jsonl", Map.of("day", day, "simulationDay", day - firstIteration + 1,
                 "reason", reason, "includedInManagerContext", false, "scheduledManagerUpdate", reason.equals("scheduled_update"),
-                "historyPresentation", "Full version history archive. The actual manager input uses recent versions plus equivalent-price episodes; see manager-contexts.",
+                "historyPresentation", controls.basic() ? "Full version/window history archive. Actual input retains two recent versions and an older-day summary; see manager-contexts."
+                        : "Full version history archive. Actual controlled input uses recent versions plus equivalent-price episodes; see manager-contexts.",
                 "feedback", feedback.context(day, firstIteration)));
     }
 
@@ -312,10 +333,21 @@ final class MorningManager {
     }
 
     Result update(int day, int firstIteration, MorningTollSystem.State state) {
-        var context = context(day, firstIteration, state);
+        var full = context(day, firstIteration, state);
+        var context = controls.basic() ? MorningManagerCompactContext.render(full,
+                feedback.windowSummary(window.isEmpty() ? day : ((Number) window.getFirst().get("day")).intValue()),
+                feedback.compactContext((Map<String, Object>) full.get("policyFeedback"), state.policy()),
+                window, feedback.recentPricingWindows(state.policy()), state.policy()) : full;
         String base = Json.write(context), hash = MorningPromptRenderer.hash(base);
         String system = controls.basic() ? BASIC_SYSTEM : SYSTEM;
         output.appendLine("manager-contexts.jsonl", context);
+        if (controls.basic()) output.appendLine("manager-contexts-full.jsonl", full);
+        String fullJson = Json.write(full);
+        output.appendLine("manager-input-sizes.jsonl", Map.of("day", day, "contextHash", hash,
+                "fullContextHash", MorningPromptRenderer.hash(fullJson), "fullContextCharacters", fullJson.length(),
+                "sentContextCharacters", base.length(), "systemCharacters", system.length(),
+                "inputProjectionVersion", controls.basic() ? MorningManagerCompactContext.VERSION : "legacy-controlled",
+                "characterCountsAreTokens", false));
         writeEvaluation(day, firstIteration, "scheduled_update");
         String error = null;
         Pending pending = null;
@@ -330,7 +362,7 @@ final class MorningManager {
             attemptedCalls.incrementAndGet(); calls++;
             var schema = memoryOnly ? memorySchema() : schema();
             String requestSystem = memoryOnly ? "Rewrite management notes only. Preserve the decision and uncertainty. Do not repeat public facts. "
-                    + (controls.basic() ? "Complete replacement English memory, maximum 1000 words. " : "Target 800-1200 Unicode characters; hard maximum 2000. ")
+                    + (controls.basic() ? "Complete replacement English memory. Target 400-600 words; hard maximum 1000. Do not pad short notes. " : "Target 800-1200 Unicode characters; hard maximum 2000. ")
                     + "Return exactly {\"memory\":\"notes\"}." : system;
             String user = memoryOnly ? Json.write(Map.of("validatedPolicyFingerprint", pending.policy().fingerprint(),
                     "decision", pending.decision(), "notesToShorten", pending.notes(), "previousError", error))
@@ -340,6 +372,8 @@ final class MorningManager {
             log.put("day", day); log.put("role", memoryOnly ? "manager-memory" : "manager");
             log.put("attempt", attempt); log.put("templateVersion", VERSION);
             log.put("contextHash", hash); log.put("system", requestSystem); log.put("user", user);
+            log.put("requestHash", MorningPromptRenderer.hash(requestSystem + "\n" + user));
+            log.put("systemCharacters", requestSystem.length()); log.put("userCharacters", user.length());
             log.put("policyLocked", memoryOnly);
             if (memoryOnly) log.put("lockedPolicyFingerprint", pending.policy().fingerprint());
             log.put("modelSettings", MorningOutputContract.requestSettings(modelSettings, schema)); log.put("outputSchema", schema);
@@ -348,7 +382,7 @@ final class MorningManager {
                 var response = client.complete(memoryOnly ? "manager-memory" : "manager", requestSystem, user, schema);
                 log.put("response", response.content()); MorningOutputContract.responseMetadata(log, response);
                 log.put("usageReported", response.usageReported());
-                log.put("usage", response.usageReported() ? Map.of("promptTokens", response.promptTokens(), "completionTokens", response.completionTokens()) : null);
+                log.put("usage", MorningOutputContract.usage(response));
                 try {
                     MorningOutputContract.requireNotTruncated(response);
                     var node = strictJson(response.content());

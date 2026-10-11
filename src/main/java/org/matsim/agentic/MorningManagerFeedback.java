@@ -150,6 +150,79 @@ final class MorningManagerFeedback {
         return result;
     }
 
+    /** Recent executed versions plus a pooled summary of every older, non-overlapping observed day. */
+    Map<String, Object> compactContext(Map<String, Object> full, TollPolicy current) {
+        var periods = (List<Map<String, Object>>) full.get("policyPeriods");
+        int omitted = Math.max(0, periods.size() - 2);
+        var recent = periods.subList(omitted, periods.size());
+        int olderEnd = recent.isEmpty() ? -1
+                : ((Number) ((Map<?, ?>) recent.getFirst().get("observations")).get("firstObservedDay")).intValue();
+        var older = samples.stream().filter(s -> s.day() < olderEnd).toList();
+        var result = new LinkedHashMap<String, Object>();
+        for (String key : List.of("version", "observationsThroughDay", "observedDays", "freePeriodReference",
+                "matchedNoPricingCounterfactualAvailable")) result.put(key, full.get(key));
+        result.put("totalObservedPolicyPeriods", periods.size());
+        result.put("policyPeriods", recent);
+        var summary = new LinkedHashMap<String, Object>();
+        summary.put("policyPeriods", omitted);
+        summary.put("pricedObservedDays", older.stream().filter(s -> positivePrices(s.state().policy())).count());
+        summary.put("observations", older.isEmpty() ? null : statistics(older));
+        result.put("olderPolicySummary", summary);
+        var definitions = recentPricingWindows(current);
+        var tracked = new ArrayList<Map<String, Object>>();
+        for (var source : (List<Map<String, Object>>) full.get("trackedChargingWindows")) {
+            if (!definitions.stream().anyMatch(r -> r.linkId().toString().equals(source.get("linkId"))
+                    && r.startSec() == ((Number) source.get("startSeconds")).doubleValue()
+                    && r.endSec() == ((Number) source.get("endSeconds")).doubleValue())) continue;
+            var row = new LinkedHashMap<>(source);
+            var phases = (List<Map<String, Object>>) source.get("phases");
+            var kept = new ArrayList<Map<String, Object>>();
+            // Retain the original pre-pricing reference as well as the last two executed phases.
+            if (phases.size() > 2 && phases.getFirst().get("stage").equals("before_first_pricing")) kept.add(phases.getFirst());
+            kept.addAll(phases.subList(Math.max(0, phases.size() - 2), phases.size()));
+            row.put("phases", kept); row.put("omittedPhases", phases.size() - kept.size());
+            tracked.add(row);
+        }
+        result.put("trackedChargingWindows", tracked);
+        result.put("historyPresentation", "Last two executed policy-version periods; older days pooled once. Version changes alone are not price interventions. Tracked windows cover current prices and the last two distinct consecutive price episodes; retained pre-pricing reference and last two phases. Full history archived separately.");
+        return result;
+    }
+
+    /** Failed updates do not clear the input window; summarize exactly the same observed days. */
+    Map<String, Object> windowSummary(int firstObservedDay) {
+        var period = samples.stream().filter(s -> s.day() >= firstObservedDay).toList();
+        var result = new LinkedHashMap<String, Object>();
+        if (period.isEmpty()) return result;
+        int split = Math.max(0, period.size() - 7);
+        var recent = period.subList(split, period.size());
+        var previous = period.subList(Math.max(0, split - 7), split);
+        result.put("period", statistics(period));
+        result.put("recentUpTo7ObservedDays", statistics(recent));
+        result.put("previousUpTo7ObservedDays", previous.isEmpty() ? null : statistics(previous));
+        result.put("recentChangeFromPrevious", previous.isEmpty() ? null : changes(statistics(recent), statistics(previous)));
+        return result;
+    }
+
+    List<TollPolicy.TollRule> recentPricingWindows(TollPolicy current) {
+        var episodes = new ArrayList<List<Sample>>();
+        for (var sample : samples) {
+            if (episodes.isEmpty() || !episodes.getLast().getLast().state().policy().fingerprint().equals(sample.state().policy().fingerprint()))
+                episodes.add(new ArrayList<>());
+            episodes.getLast().add(sample);
+        }
+        var definitions = new TreeMap<String, TollPolicy.TollRule>();
+        var policies = new ArrayList<TollPolicy>(); policies.add(current);
+        for (var episode : episodes.subList(Math.max(0, episodes.size() - 2), episodes.size()))
+            policies.add(episode.getLast().state().policy());
+        for (var policy : policies) for (var rule : policy.rules()) if (rule.amount() > 0)
+            definitions.putIfAbsent(rule.linkId() + "/" + rule.startSec() + "/" + rule.endSec(), rule);
+        return List.copyOf(definitions.values());
+    }
+
+    private static boolean positivePrices(TollPolicy policy) {
+        return policy.rules().stream().anyMatch(r -> r.amount() > 0);
+    }
+
     private static boolean samePolicy(MorningTollSystem.State a, MorningTollSystem.State b) {
         return a.version() == b.version() && a.policyId().equals(b.policyId());
     }

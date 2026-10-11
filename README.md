@@ -333,7 +333,7 @@ python scripts/analyze_morning_choices.py --morning 'output/llm-first-run/mornin
 
 ### 复现记录
 
-manifest 的 schemaVersion 为 `18`，新增：
+manifest 的 schemaVersion 为 `20`（评价及种子记录自 v18 引入，v20 增加提示词编码说明），包含：
 
 - `selectionSeeds`：人口、受控名单、画像、信息分组和仿真解析后的种子，含显式覆盖值；导入画像时以输入文件及其哈希为准。
 - `simulatedPersonIdsSha256`：采样后 person ID 排序，每个 ID 后追加换行，以 UTF-8 计算 SHA-256；可直接核对两次实验是否使用同一份人口名单。
@@ -344,6 +344,48 @@ manifest 的 schemaVersion 为 `18`，新增：
 
 保存运行 JAR、输入文件和实验目录，结合已有 `inputHashes`、模型设置及请求/回答记录核查实验。仅更换仿真 Seed、保持人口种子不变时，人口名单哈希应保持一致；模型输出以实际请求/回答日志为准。采样后的配置现在也会在 `--validate-only` 阶段执行一致性检查。
 
+### Manager 输入精简（默认 basic 模式）
+
+`morning-pricing-v8-compact-prefix` 自动使用 `morning-manager-compact-v2-prefix`，无需新增命令行参数。适用于原生旅客 + manager 与 LLM 旅客 + manager。
+
+| 内容 | 实际发送给 manager |
+|---|---|
+| 路网 | 保留全部 car link 的 ID、起终点；长度、速度、车道数和原始容量通过共享参数表精确恢复；保留实际 flow/storage 系数、容量周期和有效单元长度 |
+| 每日交通 | 当前观测周期、最近最多 7 个观测日、此前最多 7 个观测日及日均变化；保留全网延误、通行时间、进入/完成/失败/部分次数和汽车行程完成数量 |
+| 道路统计 | 延误最高 20 条、失败/未完成最多 10 条，再加入全部当前收费及近期撤销收费道路；收费窗口另给周期汇总，峰值时间箱独立保留 |
+| 策略反馈 | 最近两个实际执行版本的效果，较早版本的观测日合并为摘要；保留原免费期参照。相同收费函数的新版本不等于新干预 |
+| 记忆 | 目标 400–600 英文词，硬上限仍为 1000 词；证据少时可以更短，不要求填满。记忆修复沿用此目标 |
+
+“近期撤销”以最近两个连续且收费函数不同的政策期及当前政策确定；长期 hold 不会仅因版本编号变化而把最近撤销的收费道路挤掉。历史收费窗口保留首次收费前参照（如有）及最近两个执行阶段。道路筛选只决定统计展示，全部合法 car link 仍可收费。无记录的道路/时间箱明确标识，不据此推断畅通。
+
+`network` 的 `lengthType` 对应 `lengthsMeters` 下标，`roadType` 对应 `roadTypes` 行号，均从 0 开始，仅用于共享参数编码。`roadCorridors.networkRowChains` 是有序的 network 行号列表。`trafficSummary`、`policyFeedback` 的 `totals` 及空间统计数组依照 `trafficMetricColumns` 解释；日均值 = totals / observedDays，每次完整通行的平均延误 = 总延误 / 完成完整路段次数。不会把每日比率直接平均，也不对非整数统计数值取整。
+
+复现文件位于实验输出的 `morning/`：
+
+- `manager-contexts.jsonl.gz`：实际发送的精简上下文。
+- `manager-contexts-full.jsonl.gz`：精简前的公开输入，含全部逐日汇总、道路总量、政策版本及历史窗口；原始逐时间箱统计仍在 `metrics.jsonl.gz`。
+- `manager-input-sizes.jsonl.gz`：精简前后字符数、上下文 SHA-256 和投影版本；字符数不等于 token 数。
+- `manager-attempts.jsonl.gz`：真实 system/user、请求哈希、回答及服务报告的 prompt/completion/cache token 用量。
+- `manifest.json`：输入版本、筛选口径、日志路径和记忆目标。
+
+`--manager-profile controlled` 保留原有输入及 2000 字符记忆协议。更换代码后须重新构建或替换服务器 JAR。上下文上限依旧需要覆盖输入、服务聊天模板/结构化输出开销及 `--manager-max-output-tokens`；精简不等于任何模型长度都必然足够。
+
+
+### 提示词精简与前缀缓存验证
+
+旅客决策模板为 `morning-information-v8-compact-prefix`，记忆更新模板为 `morning-reflection-v8-compact-prefix`。共同的事实边界、单位、缺失值和缴费含义放在共享 system 前部；固定旅客属性、原计划、日程、候选 ID 和路线固定属性放在每日内容之前。只保留一份合法选项列表，候选展示顺序、采样与种子、个人历史窗口及输出校验沿用原有逻辑。
+
+表格使用“columns + 每行一个 JSON 数组”。候选属性保留距离和已提供的基础费用，选择表完整列出每个合法出发时间与路线的组合、驾驶时间、预计到达、收费和总费用。相同的可见收费规则按路线合并展示，保留对应出发时间；历史费用保留自身缴费依据和缺失道路，不把历史估计当成当前报价。联合模式原出发时间的一份估计已在选择表中时，不再重复；旧保存上下文若包含不同的原计划参考估计，仍明确保留它。
+
+历史行保留 day、routeId、选择/实际出发、驾驶/门到门时间、到达、迟到、未完成、stuck、实际支付总额及逐次道路进入缴费。表格时间采用精确数值秒，不通过四舍五入删减数据；`null` 表示未知或未提供，不能当作零耗时或免费。非知情旅客仍看不到最新策略和长期精确缴费表。记忆更新的最近五次事实、240 字符目标与 500 字符硬上限不变。
+
+默认 basic manager 先发送完整路网、共享参数表和走廊拓扑，再发送 day、当前策略、反馈和 memory。`publicEnvironment.travelerResponse` 包含当日评估及可能变化的原生策略开关，仍随每日数据发送，不能冻结为静态信息。此顺序只为更长的相同 token 前缀创造条件；是否启用缓存、模型支持、缓存淘汰和实例间复用取决于模型服务。
+
+旅客 `attempts.jsonl.gz`、`memory-attempts.jsonl.gz` 和 `manager-attempts.jsonl.gz` 都记录 `elapsedMillis`、`usage` 及 `promptCacheUsageReported`。服务不返回缓存计数时，后者为 false，usage 中缓存字段为 null；明确报告零命中时为 true 且计数为 0。兼容 `prompt_tokens_details.cached_tokens` 与 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`；仅报告命中数且提供总输入数时，未命中数由二者相减得到。
+
+验证时固定一组包含不同旅客、不同日期、不同信息组的保存上下文，分别比较当前/精简模板与服务端缓存关闭/开启的四种组合。模板对照应保存各自 JAR 或使用各自的实际请求日志；当前回放程序会用当前版本重新渲染保存事实。保持模型、聊天模板、生成参数与请求负载一致，冷缓存和预热测量分开，避免仅重复同一条完整请求而高估真实命中。
+
+已有 `MorningReplay` 可做顺序的固定情境回放和单请求对照，不模拟生产并发吞吐。生产负载另需按真实旅客/记忆请求顺序与并发测量。比较输入 token、服务端缓存命中、首 token 延迟、端到端耗时中位数/P95、输出长度和非法 JSON/修复率，并检查决策及实验指标是否变化。首 token 延迟和 prefill/decode 分项需查模型服务 metrics；Java 的 elapsedMillis 是完整调用耗时。前缀缓存仅减少共享输入的处理计算，不缩小上下文占用或直接提高输出生成速度。
 
 ### 固定情境回放
 

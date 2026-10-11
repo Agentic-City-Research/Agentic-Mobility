@@ -163,11 +163,13 @@ class MorningPricingTest {
             }
             if (role.equals("traveler_memory")) {
                 memoryCalls.incrementAndGet();
-                if (user.contains("SIMULATION DAY 20")) assertTrue(user.contains("Actual congestion toll paid on this trip: 2.125"));
+                if (user.contains("SIMULATION DAY 20")) assertEquals(2.125,
+                        MorningJointTestSupport.tableRows(user,"RECENT ACTUAL EXPERIENCES").getLast().get(10).asDouble());
                 return response("{\"memory\":\"private-memory-marker\"}");
             }
             travelerCalls.incrementAndGet();
-            if (user.contains("Day 21")) assertTrue(user.contains("Actual congestion toll paid on this trip: 2.125"));
+            if (user.contains("SIMULATION DAY 21")) assertEquals(2.125,
+                    MorningJointTestSupport.tableRows(user,"YOUR MOST RECENT PERSONAL EXPERIENCES").getLast().get(10).asDouble());
             return response(MorningJointTestSupport.withDeparture("{\"routeId\":\"c0\",\"reason\":\"Choose my available route\"}", user));
         };
         assertEquals(0, new CommandLine(settings).execute("--config", config.toString(), "--output", out.toString(), "--mode", "hybrid",

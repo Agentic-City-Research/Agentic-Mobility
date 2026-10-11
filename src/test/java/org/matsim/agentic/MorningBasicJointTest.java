@@ -150,10 +150,10 @@ class MorningBasicJointTest {
         var calls = new AtomicInteger();
         settings.clientFactory=(c,usage) -> (role,system,user) -> {
             if(role.equals("traveler_memory")) return response("{\"memory\":\"I remember actual departures, arrivals and delays.\"}");
-            var routes=java.util.regex.Pattern.compile("- Route ([A-Za-z0-9_-]+): predicted").matcher(user); assertTrue(routes.find());
+            String route=MorningJointTestSupport.firstRoute(user);
             var grid=java.util.regex.Pattern.compile("Allowed departureSeconds: (\\[[^\\n]+?\\])").matcher(user); assertTrue(grid.find());
             var times=Json.readTree(grid.group(1)); int index=calls.getAndIncrement()%2==0?0:times.size()-1;
-            return response(Json.write(Map.of("routeId",routes.group(1),"departureSeconds",times.get(index).asDouble(),"reason","Offline early or late choice")));
+            return response(Json.write(Map.of("routeId",route,"departureSeconds",times.get(index).asDouble(),"reason","Offline early or late choice")));
         };
         var out=directory.resolve("enriched-joint");
         assertEquals(0,new CommandLine(settings).execute("--policy","llm","--llm-agents","2","--demand","100",

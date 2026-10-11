@@ -72,8 +72,7 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
             }
             log.put("elapsedMillis", elapsed(callStart)); log.put("response", response.content());
             MorningOutputContract.responseMetadata(log, response);
-            log.put("usage", response.usageReported() ? Map.of("promptTokens", response.promptTokens(), "completionTokens", response.completionTokens(),
-                    "promptCacheHitTokens", response.promptCacheHitTokens(), "promptCacheMissTokens", response.promptCacheMissTokens()) : null);
+            log.put("usage", MorningOutputContract.usage(response));
             log.put("usageReported", response.usageReported());
             Decision decision = null;
             try {

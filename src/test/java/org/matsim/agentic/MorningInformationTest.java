@@ -74,7 +74,8 @@ class MorningInformationTest {
         var unknown = option(information, "own", links, times, tolls, 20);
         assertNull(unknown.estimatedToll()); assertNull(unknown.estimatedMonetaryCost());
         String prompt = new MorningPromptRenderer().render(context(information, "own", 20, unknown));
-        assertTrue(prompt.contains("Full route cost: unknown")); assertTrue(prompt.contains("Unknown does not mean free"));
+        assertTrue(MorningJointTestSupport.tableRows(prompt,"ROUTE ESTIMATES").getFirst().get(5).isNull());
+        assertTrue(prompt.contains("Unknown does not mean free"));
         assertFalse(prompt.contains("71.123456")); assertFalse(prompt.contains("pricing-v1"));
         information.observe(20, "other", receipt("road", 25210, 71.123456));
         assertNull(option(information, "own", links, times, tolls, 21).estimatedToll());
@@ -91,7 +92,8 @@ class MorningInformationTest {
         assertEquals(2.125, stale.estimatedToll());
         prompt = new MorningPromptRenderer().render(context(information, "own", 50, stale));
         assertFalse(prompt.contains("98.876543")); assertFalse(prompt.contains("pricing-v2"));
-        assertTrue(prompt.contains("Current toll: unknown")); assertTrue(prompt.contains("Historical full-route cost estimate 3.125"));
+        assertTrue(prompt.contains("Current toll: unknown"));
+        assertEquals(3.125,MorningJointTestSupport.tableRows(prompt,"ROUTE ESTIMATES").getFirst().get(5).asDouble());
         var saved = Json.MAPPER.readValue(Json.write(context(information, "own", 50, stale)), MorningRoutePolicy.Context.class);
         assertEquals(prompt, new MorningPromptRenderer().render(saved));
         information.observe(50, "own", receipt("road", 25210, 98.876543));
@@ -105,7 +107,7 @@ class MorningInformationTest {
         var announced = option(yes, "in", List.of("road"), List.of(25210.0), tolls, 20);
         String prompt = new MorningPromptRenderer().render(context(yes, "in", 20, announced));
         assertTrue(prompt.contains("71.123456")); assertTrue(prompt.contains("pricing-v1-it20"));
-        assertTrue(prompt.contains("Current announced rules on this route"));
+        assertTrue(prompt.contains("announcedRuleRows"));
         assertThrows(IllegalArgumentException.class, () -> MorningPromptRenderer.validate(context(no, "out", 20, announced)));
         var hidden = option(no, "out", List.of("road"), List.of(25210.0), tolls, 20);
         var zero = new MorningRoutePolicy.Option("c0", hidden.links(), 10, 25210, 100, 1.0, "static_free_flow", 0, 0,
@@ -222,7 +224,7 @@ class MorningInformationTest {
         }
         return network;
     }
-    private Path writeScenario() {
+    Path writeScenario() {
         var config=ConfigUtils.createConfig(); config.qsim().setEndTime(108000); config.global().setNumberOfThreads(1);config.qsim().setNumberOfThreads(1);
         config.routing().setAccessEgressType(RoutingConfigGroup.AccessEgressType.none);
         config.scoring().addActivityParams(new ScoringConfigGroup.ActivityParams("home").setTypicalDuration(12*3600));

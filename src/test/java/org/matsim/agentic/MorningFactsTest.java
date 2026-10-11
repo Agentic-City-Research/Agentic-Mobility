@@ -40,15 +40,18 @@ class MorningFactsTest {
         assertEquals(text, renderer.render(c));
         assertTrue(text.contains("Planned departure: 07:00:00"));
         assertTrue(text.contains("Required arrival by: 09:00:00"));
-        assertTrue(text.contains("predicted driving time 10.00 minutes"));
-        assertTrue(text.contains("predicted arrival 07:12:00"));
-        assertTrue(text.contains("estimated cost 1.5000"));
-        assertTrue(text.contains("Based on traffic observed on simulation day 2"));
+        var estimates = MorningJointTestSupport.tableRows(text,"ROUTE ESTIMATES AT PLANNED DEPARTURE");
+        assertEquals(600,estimates.getFirst().get(2).asDouble());
+        assertEquals(25920,estimates.getFirst().get(3).asDouble());
+        assertEquals(1.5,estimates.getFirst().get(5).asDouble());
+        assertEquals(2,estimates.getFirst().get(6).asInt());
         assertFalse(text.contains("YOUR LONG-TERM ROUTE USE"));
         assertFalse(text.contains("chosen 3 times"));
         assertFalse(text.contains("completed driving 2 times"));
-        assertTrue(text.contains("actual driving time 20.00 minutes"));
-        assertTrue(text.contains("unknown (driving not completed)"));
+        var history = MorningJointTestSupport.tableRows(text,"YOUR MOST RECENT PERSONAL EXPERIENCES");
+        assertEquals(1200,history.getFirst().get(4).asDouble());
+        assertTrue(history.getLast().get(4).isNull()); assertTrue(history.getLast().get(8).asBoolean());
+        assertTrue(renderer.system(240).contains("unknown; null lateness"));
         assertTrue(text.contains("Income (units as supplied): 1000"));
         assertFalse(text.contains("secret-person")); assertFalse(text.contains("secret-link"));
         assertFalse(text.contains("matsimScore")); assertFalse(text.contains("expectedCarSeconds"));
@@ -136,7 +139,7 @@ class MorningFactsTest {
         List<String> prompts = new ArrayList<>(); var replay = new MorningReplay();
         replay.clientFactory = (config, usage) -> (r,s,u) -> {
             prompts.add(s + u);
-            int begin = u.indexOf("- Route ") + 8; String first = u.substring(begin, u.indexOf(":", begin));
+            String first = MorningJointTestSupport.firstRoute(u);
             return new LlmResponse("{\"routeId\":\"" + (config.model.equals("a") ? first : "c1")
                     + "\",\"reason\":\"Test choice\"}", 0, 0, 0, 0);
         };

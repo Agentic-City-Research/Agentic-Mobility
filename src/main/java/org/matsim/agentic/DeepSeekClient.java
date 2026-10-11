@@ -149,8 +149,12 @@ public final class DeepSeekClient implements LlmClient {
         }
         if (usageNode != null && usageNode.path("prompt_tokens_details").has("cached_tokens"))
             cacheHit = usageNode.path("prompt_tokens_details").path("cached_tokens").asLong();
+        boolean cacheReported = usageNode != null && (usageNode.path("prompt_cache_hit_tokens").isNumber()
+                || usageNode.path("prompt_cache_miss_tokens").isNumber() || usageNode.path("prompt_tokens_details").path("cached_tokens").isNumber());
+        if (cacheReported && !usageNode.path("prompt_cache_miss_tokens").isNumber()
+                && usageNode.path("prompt_tokens").isNumber()) cacheMiss = Math.max(0,prompt-cacheHit);
         return new LlmResponse(content, prompt, completion, cacheHit, cacheMiss,
-                usageNode != null && !usageNode.isNull(), finishReason, reasoningCharacters);
+                usageNode != null && !usageNode.isNull(), finishReason, reasoningCharacters, cacheReported);
     }
 
     private static String stripTrailingSlash(String url) {

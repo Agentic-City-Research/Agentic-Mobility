@@ -198,7 +198,11 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
 
 当前 Basic 不提供行为成本指导、避让优先位置或自动保护，只提供事实及执行协议；详见顶部当前协议。
 
-`morning-pricing-v4-public-exploration` 将公共环境和历史反馈合并为一个 manager 输入，
+默认 basic 的 `morning-pricing-v8-compact-prefix` 使用精简输入，细节见 [根目录 README 的输入精简说明](../../README.md#manager-输入精简默认-basic-模式)。保留完整拓扑与必要容量参数，按观测周期和近期趋势汇总交通；道路细节筛选主要拥堵、当前收费和近期撤销收费道路，较早策略合并为摘要。目标记忆 400–600 英文词，硬上限 1000 词，允许更短。路网与参数表提前，变化的策略和每日数据后置，前缀缓存测试方法见根目录 README。
+
+以下 `morning-pricing-v4-public-exploration` 的详细环境/诊断及 2000 字符记忆说明对应 legacy controlled 模式；basic 不发送 `routingCostScale`、`chargingSuitability`、`routeAlternatives` 或 `safetyMonitoring`。
+
+公共环境和历史反馈合并为一个 manager 输入，
 启用 `-Manager` 即同时提供公共环境说明、当前交通观测和历史政策事实反馈。
 保留原有所有合法 car link、连续金额和时窗动作空间。
 默认仍为 20 天免费、之后每 30 天更新。可通过 `-ManagerUpdateInterval N` / `--manager-update-interval N`
@@ -236,7 +240,7 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
   不注入个人记录、研究者预先跑好的 baseline、私人记忆或支付；不增加硬限价、自动政策回退或预设优选路段。
 
 不再区分两轮信息模式，也无需指定反馈模式参数。
-manifest schemaVersion=17，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
+manifest schemaVersion=19，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
 `informationComponents` 记录实际组合的信息类别，模板/环境/反馈版本分别记录。
 
 ```powershell
@@ -248,7 +252,8 @@ manifest schemaVersion=17，`pricing.mode` 区分 `none`、`fixed` 与 `manager`
 ```
 
 `morning/manager-public-environment.json` 在启动/validate-only 时保存公共环境与初始道路链，便于运行前检查。
-`manager-contexts.jsonl.gz` 保存模型实际输入。`manager-policy-evaluations.jsonl.gz` 在每次更新前与退出时
+`manager-contexts.jsonl.gz` 保存模型实际输入。basic 另存 `manager-contexts-full.jsonl.gz`，保留精简前全部公开统计；`manager-input-sizes.jsonl.gz` 记录字符长度、哈希与输入版本。
+`manager-policy-evaluations.jsonl.gz` 在每次更新前与退出时
 保存完整公共政策期事实，包括最后一次政策后的尾段；`scheduledManagerUpdate` 标明是否在预定更新时归档。
 v4 的完整归档与模型中的压缩历史不是同一对象，`includedInManagerContext=false`；实际输入以 contexts 为准。
 `manager-attempts.jsonl.gz` 记录实际请求和校验结果；记忆修复的 role 为 `manager-memory`。

@@ -158,6 +158,8 @@ class MorningHybridTest {
         }
         config.controller().setWritePlansInterval(1);
         Path file = directory.resolve("native-reroute.xml"); new ConfigWriter(config).write(file.toString());
+        // Keep schema validation, but resolve the bundled DTD without matsim.org.
+        MorningJointTestSupport.useBundledDtd(file);
         for (String controlled : List.of("0", "5", "all")) {
             Path output = directory.resolve("hybrid-" + controlled);
             var settings = new MorningExperiment();

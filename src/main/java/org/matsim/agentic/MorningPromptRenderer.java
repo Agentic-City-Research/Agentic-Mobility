@@ -6,18 +6,22 @@ import java.util.*;
 
 /** A versioned, deterministic information interface shared by live runs and replay. */
 public final class MorningPromptRenderer {
-    public static final String VERSION = "morning-information-v7-joint-bounded-memory";
-    public static final String SYSTEM = """
+    public static final String VERSION = "morning-information-v8-compact-prefix";
+    static final String FACT_RULES = """
+            Use only supplied facts. Missing preferences, numeric income, value of time, lateness tolerance and earlier experiences are unknown; do not invent them.
+            Synthetic profiles are fixed experiment assumptions, not measured demographics. Explicit attributes and schedules take precedence over profiles and subjective memory.
+            The listed route pool is complete, even if old notes suggest another route. Untried routes have no personally observed outcome.
+            Tables are JSON-array rows in their stated column order. Time fields ending in _s are numeric seconds within the day or durations; distances are metres; costs are scenario monetary units, not an asserted real currency.
+            null means unknown or not supplied, never zero or free. For unfinished trips, complete duration and arrival are unknown; null lateness can also mean no supplied deadline.
+            Payment rows are [day,linkId,entry_s,amount]: actual historical point observations, not current tariff windows or evidence that other roads are free.
+            """;
+    public static final String SYSTEM = FACT_RULES + """
             You are the individual traveler described below, choosing a route for your own trip.
             Use the supplied facts to make your own decision. Only the route can be changed.
             Departure time, origin, destination, travel mode and other activities are fixed.
-            Traffic-service predictions are uncertain estimates, not personal experiences or guarantees.
-            Missing personal preferences and earlier experiences are unknown; do not invent them.
-            A supplied synthetic profile is a fixed experiment assumption, not measured demographic data.
-            Your self-written memory is a subjective interpretation; factual records and stated schedules take precedence.
-            The current available-route list is the complete action space for this trip, even if old notes suggest another route.
-            Do not invent alternative routes or claim an untried route has a personally observed result.
-            An unfinished trip has unknown complete duration, not zero duration.
+            Choose only listed actions; never shift yesterday's choice to create new departure options or invent routes.
+            Predictions are uncertain estimates, not personal experiences or guarantees. Predicted arrival includes access/egress; driving duration does not. Predictions can miss delays such as waiting to enter traffic.
+            Estimated tolls use predicted road-entry times; actual charges use executed entries. Announced windows are [start_s,end_s).
             Reply with exactly one JSON object containing only routeId and reason:
             {"routeId":"<one listed route identifier>","reason":"<brief explanation>"}
             """;
@@ -46,25 +50,24 @@ public final class MorningPromptRenderer {
         if (c.latestArrivalSeconds() != null) s.append("Required arrival by: ").append(clock(c.latestArrivalSeconds()))
                 .append(". Arrival later than this is late. Choosing a route does not guarantee punctuality.\n");
         else s.append("No arrival deadline is supplied for this destination.\n");
-        appendActionSpace(s, c);
         appendPersonalInformation(s, c.personAttributes(), c.profile(), c.destinationPurpose());
         s.append("PERSONAL DAILY SCHEDULE\n");
         Object activities = c.schedule().get("activities");
         if (activities instanceof List<?> list && !list.isEmpty()) {
+            s.append("columns=[purpose,plannedStart_s,plannedEnd_s,opening_s,closing_s,latestStart_s]\n");
             for (Object item : list) if (item instanceof Map<?, ?> a) {
-                s.append("- ").append(purpose(String.valueOf(a.get("purpose"))));
-                appendTime(s, a, "plannedStartSeconds", "; planned start ");
-                appendTime(s, a, "plannedEndSeconds", "; planned end ");
-                appendTime(s, a, "openingSeconds", "; opens ");
-                appendTime(s, a, "closingSeconds", "; closes ");
-                appendTime(s, a, "latestStartSeconds", "; required start by ");
-                s.append(".\n");
+                s.append(Json.write(Arrays.asList(purpose(String.valueOf(a.get("purpose"))),
+                        scheduleTime(a,"plannedStartSeconds"), scheduleTime(a,"plannedEndSeconds"),
+                        scheduleTime(a,"openingSeconds"), scheduleTime(a,"closingSeconds"), scheduleTime(a,"latestStartSeconds")))).append('\n');
             }
         } else s.append("No additional daily schedule is supplied.\n");
-        s.append("YOUR SELF-WRITTEN LONG-TERM MEMORY, BEFORE TODAY\n");
-        if (c.memorySummary().isBlank()) s.append("No self-written memory yet; no pre-experiment experiences are assumed.\n");
-        else s.append("Last updated after simulation day ").append(c.memorySummaryDay()).append(".\n")
-                .append(c.memorySummary()).append('\n');
+        // Candidate display order can be shuffled; keep it after invariant personal facts.
+        appendActionSpace(s, c);
+        s.append("ROUTE ATTRIBUTES\ncolumns=[routeId,distance_m,baseDistanceCost]\n");
+        for (var o : c.candidates()) s.append(Json.write(Arrays.asList(o.routeId(),o.distanceMeters(),
+                o.pricingKnowledge()==null?null:o.pricingKnowledge().baseMonetaryCost()))).append('\n');
+        // All daily data follows the fixed trip/profile/schedule/pool prefix.
+        s.append("SIMULATION DAY ").append(c.day()).append('\n');
         if (c.information() != null) {
             s.append("INFORMATION AVAILABLE BEFORE DEPARTURE\n")
                     .append("No network historical or live traffic is available. Both groups receive the same static route distances and free-flow times; only your own past traffic outcomes are known.\n");
@@ -73,67 +76,105 @@ public final class MorningPromptRenderer {
             else if (c.information().currentAnnouncementVisible()) s.append("You can read the current manager toll announcement before departure.\n");
             else s.append("You cannot read the current manager toll announcement. Current tolls are unknown. Use only your own past actual payments as uncertain historical estimates, never as guaranteed current prices. Unknown does not mean free.\n");
             if (c.departureOptions().isEmpty()) {
-                s.append("YOUR OWN ACTUAL PAYMENT OBSERVATIONS BEFORE TODAY\n");
+                s.append("YOUR OWN ACTUAL PAYMENT OBSERVATIONS BEFORE TODAY\ncolumns=[day,linkId,entry_s,amount]\n");
                 c.information().personalPayments().forEach(e -> appendPayment(s, e));
             } else s.append("Past payments are available only in your recent personal experiences and bounded self-written summary. No separate long-term exact-payment table is supplied.\n");
         }
-        s.append(c.information() == null ? "TRAFFIC INFORMATION SERVICE: AVAILABLE ROUTES\n" : "BASIC PATH INFORMATION AND VISIBLE COST COMPONENTS\n")
-                .append("Predicted driving time and destination arrival are estimates. Arrival includes the supplied access/egress time; driving time does not.\n")
-                .append("Predictions can miss delays such as waiting to enter traffic. They are not guaranteed door-to-door durations.\n")
-                .append("Costs below are estimates in scenario monetary units, not an asserted real-world currency.\n");
-        for (var o : c.candidates()) {
-            s.append("- Route ").append(o.routeId()).append(": predicted driving time ").append(minutes(o.expectedCarSeconds()))
-                    .append(" minutes; predicted arrival ").append(clock(o.expectedArrivalSeconds()))
-                    .append("; distance ").append(Double.toString(o.distanceMeters())).append(" metres. ");
-            var knowledge = o.pricingKnowledge();
-            if (knowledge != null) {
-                s.append("Base distance cost ").append(Double.toString(knowledge.baseMonetaryCost())).append(" units. ");
-                if (knowledge.source().equals("bounded_personal_memory")) {
-                    s.append("Current toll and total cost are unknown. Interpret your own recent experiences and summary; unknown does not mean free. ");
-                } else if (knowledge.source().equals("own_historical_payments")) {
-                    s.append("Current toll: unknown. Historical paid toll component ")
-                            .append(Double.toString(knowledge.knownTollSubtotal())).append(" units; cost subtotal including observed historical tolls ")
-                            .append(Double.toString(knowledge.baseMonetaryCost() + knowledge.knownTollSubtotal())).append(" units. ")
-                            .append("Historical estimates use only your latest own paid entry on the same road and in the same ")
-                            .append(c.information().tollHistoryBinSeconds()).append("-second time-of-day bin. They may be outdated. ");
-                    if (!knowledge.unknownLinks().isEmpty()) s.append("Full route cost: unknown; missing historical toll observations for road IDs ")
-                            .append(Json.write(knowledge.unknownLinks())).append(". These roads are not assumed free. ");
-                    else s.append("Historical full-route cost estimate ").append(Double.toString(o.estimatedMonetaryCost()))
-                            .append(" units; this is not the current announced cost. ");
-                    knowledge.observations().forEach(e -> appendPayment(s, e));
-                } else {
-                    s.append("Estimated route cost ").append(Double.toString(o.estimatedMonetaryCost())).append(" units. ");
-                    if (knowledge.source().equals("charging_disabled")) s.append("Charging is disabled in this run. ");
-                    if (!knowledge.announcement().isEmpty()) s.append("Current announced rules on this route: ")
-                            .append(Json.write(knowledge.announcement())).append(". Time windows are [startSeconds,endSeconds). ");
-                }
-            } else s.append("estimated cost ").append(String.format(Locale.ROOT, "%.4f", o.estimatedMonetaryCost())).append(" units. ");
-            if (o.tollPolicyId() != null) s.append("This includes an estimated congestion toll of ")
-                    .append(Double.toString(o.estimatedToll())).append(" units under public policy ")
-                    .append(o.tollPolicyId()).append(" (version ").append(o.tollPolicyVersion())
-                    .append("). Actual payment depends on the actual road-entry times. ");
-            if (c.information() != null) s.append("Static free-flow estimate; contains no observed network congestion.");
-            else if (o.forecastObservedDay() == null) s.append("Initial estimate without prior traffic observations.");
-            else s.append("Based on traffic observed on simulation day ").append(o.forecastObservedDay()).append(".");
-            s.append("\n");
-        }
-        s.append("YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST\n");
-        if (c.history().isEmpty()) s.append("No previous personal experiences are recorded. No pre-experiment habits are assumed.\n");
-        for (var e : c.history()) appendExperience(s, e);
-        if (!c.departureOptions().isEmpty()) {
-            s.append("JOINT TIME AND ROUTE OPTIONS (numeric seconds within the day)\n")
-                    .append("The route table above uses original departure. For each selectable departure, the following static estimates use that time; toll estimates use predicted link-entry times, actual charges use executed entries.\n");
-            for (var d : c.departureOptions()) {
-                s.append("Departure ").append(d.departureSeconds()).append(" (").append(clock(d.departureSeconds())).append("):\n");
-                for (var o : d.routes()) s.append("  Route ").append(o.routeId()).append("; free-flow arrival ")
-                        .append(clock(o.expectedArrivalSeconds())).append("; estimated toll ").append(o.estimatedToll())
-                        .append("; estimated total monetary cost ").append(o.estimatedMonetaryCost()).append(".\n");
-            }
-        }
-        appendActionSpace(s, c);
+        appendChoices(s,c);
+        s.append("YOUR SELF-WRITTEN LONG-TERM MEMORY, BEFORE TODAY\n");
+        if (c.memorySummary().isBlank()) s.append("No self-written memory yet; no pre-experiment experiences are assumed.\n");
+        else s.append("Last updated after simulation day ").append(c.memorySummaryDay()).append(".\n").append(c.memorySummary()).append('\n');
+        appendExperiences(s,c.history(),"YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST");
         s.append(c.departureOptions().isEmpty() ? "Choose one of these routes for this trip; return routeId and one short reason only.\n"
                 : "Choose one listed departureSeconds and one listed routeId together; return those two fields and one short reason only.\n");
         return s.toString();
+    }
+
+    private static void appendChoices(StringBuilder s, MorningRoutePolicy.Context c) {
+        boolean joint = !c.departureOptions().isEmpty();
+        s.append(joint ? "JOINT TIME AND ROUTE OPTIONS\n" : "ROUTE ESTIMATES AT PLANNED DEPARTURE\n");
+        s.append(c.information()==null ? "forecastDay=null: initial estimate without prior traffic observations; otherwise the simulation day supplying traffic observations.\n"
+                : "Static free-flow estimates; no observed network congestion.\n");
+        var choices = joint ? c.departureOptions() : List.of(new MorningRoutePolicy.DepartureOption(c.plannedDepartureSeconds(),c.candidates()));
+        appendChoiceRows(s,choices,c);
+        // Saved/hand-written contexts may have a distinct original-plan reference estimate.
+        // Omit it only when every original reference fact is already represented in the grid.
+        if (joint && !sameOriginalEstimates(c)) {
+            s.append("ORIGINAL PLAN REFERENCE ESTIMATES (not additional actions)\n");
+            appendChoiceRows(s,List.of(new MorningRoutePolicy.DepartureOption(c.plannedDepartureSeconds(),c.candidates())),c);
+        }
+    }
+
+    private static boolean sameOriginalEstimates(MorningRoutePolicy.Context c) {
+        var original = c.departureOptions().stream().filter(d -> d.departureSeconds()==c.plannedDepartureSeconds()).findFirst().orElseThrow().routes();
+        for (int i=0;i<original.size();i++) {
+            var a=original.get(i); var b=c.candidates().get(i);
+            if (a.expectedCarSeconds()!=b.expectedCarSeconds() || a.expectedArrivalSeconds()!=b.expectedArrivalSeconds()
+                    || a.distanceMeters()!=b.distanceMeters() || !Objects.equals(a.estimatedMonetaryCost(),b.estimatedMonetaryCost())
+                    || !Objects.equals(a.estimatedToll(),b.estimatedToll()) || !Objects.equals(a.tollPolicyId(),b.tollPolicyId())
+                    || a.tollPolicyVersion()!=b.tollPolicyVersion() || !Objects.equals(a.forecastObservedDay(),b.forecastObservedDay())
+                    || !Objects.equals(a.pricingKnowledge(),b.pricingKnowledge())) return false;
+        }
+        return true;
+    }
+
+    private static void appendChoiceRows(StringBuilder s, List<MorningRoutePolicy.DepartureOption> choices, MorningRoutePolicy.Context c) {
+        var options = choices.stream().flatMap(d -> d.routes().stream()).toList();
+        var sources = options.stream().map(o -> o.pricingKnowledge()==null ? "traffic_service" : o.pricingKnowledge().source()).distinct().toList();
+        boolean sourceColumn = sources.size()>1;
+        var policies = options.stream().map(o -> Arrays.asList(o.tollPolicyId(),o.tollPolicyVersion())).distinct().toList();
+        boolean policyPresent = options.stream().anyMatch(o -> o.tollPolicyId()!=null), policyColumn = policyPresent && policies.size()>1;
+        boolean forecastColumn = c.information()==null;
+        if (!sourceColumn) s.append("Cost source: ").append(sources.getFirst()).append('\n');
+        if (policyPresent && !policyColumn) s.append("Public policy (id,version) for this estimate table: ").append(Json.write(policies.getFirst())).append('\n');
+        if (sources.contains("own_historical_payments")) s.append("Current toll: unknown. Toll/total estimates use your latest own paid entry on each road in the same ")
+                .append(c.information().tollHistoryBinSeconds()).append("-second time-of-day bin; they may be outdated. Unknown does not mean free.\n");
+        var columns = new ArrayList<>(List.of("departure_s","routeId","drive_s","arrival_s","estimatedToll","estimatedTotalCost"));
+        if (sourceColumn) columns.add("costSource");
+        if (forecastColumn) columns.add("forecastDay");
+        if (policyColumn) columns.addAll(List.of("publicPolicyId","publicPolicyVersion"));
+        s.append("columns=").append(Json.write(columns)).append('\n');
+        for (var d : choices) for (var o : d.routes()) {
+            var row = new ArrayList<>(Arrays.asList(d.departureSeconds(),o.routeId(),o.expectedCarSeconds(),o.expectedArrivalSeconds(),o.estimatedToll(),o.estimatedMonetaryCost()));
+            if (sourceColumn) row.add(o.pricingKnowledge()==null ? "traffic_service" : o.pricingKnowledge().source());
+            if (forecastColumn) row.add(o.forecastObservedDay());
+            if (policyColumn) row.addAll(Arrays.asList(o.tollPolicyId(),o.tollPolicyVersion()));
+            s.append(Json.write(row)).append('\n');
+        }
+        appendPricingDetails(s,choices,c);
+    }
+
+    private record PricingDetail(Double historicalToll, Double historicalCostSubtotal, List<String> unknownLinks,
+                                 List<MorningRoutePolicy.TollObservation> observations, List<MorningRoutePolicy.AnnouncedToll> announcement,
+                                 Double differentBaseCost, Double differentDistance) {}
+
+    private static void appendPricingDetails(StringBuilder s, List<MorningRoutePolicy.DepartureOption> choices, MorningRoutePolicy.Context c) {
+        boolean header = false;
+        for (var original : c.candidates()) {
+            var groups = new LinkedHashMap<PricingDetail,List<Double>>();
+            for (var d : choices) {
+                var o = d.routes().stream().filter(r -> r.routeId().equals(original.routeId())).findFirst().orElseThrow();
+                var k = o.pricingKnowledge(); boolean history = k!=null && k.source().equals("own_historical_payments");
+                var detail = new PricingDetail(history?k.knownTollSubtotal():null, history?k.baseMonetaryCost()+k.knownTollSubtotal():null,
+                        history?k.unknownLinks():List.of(),history?k.observations():List.of(),k==null?List.of():k.announcement(),
+                        k!=null && (original.pricingKnowledge()==null || k.baseMonetaryCost()!=original.pricingKnowledge().baseMonetaryCost())?k.baseMonetaryCost():null,
+                        o.distanceMeters()!=original.distanceMeters()?o.distanceMeters():null);
+                if (history || !detail.announcement().isEmpty() || detail.differentBaseCost()!=null || detail.differentDistance()!=null)
+                    groups.computeIfAbsent(detail, ignored -> new ArrayList<>()).add(d.departureSeconds());
+            }
+            for (var entry : groups.entrySet()) {
+                if (!header) {
+                    s.append("VISIBLE ROUTE COST DETAILS\ncolumns=[routeId,departures_s,historicalToll,historicalCostSubtotal,unknownRoads,ownPaymentRows,announcedRuleRows,overrideBaseCost,overrideDistance_m]\n")
+                            .append("departures_s=\"all_listed\" applies to every departure in the preceding estimate table. Announced rule rows=[linkId,start_s,end_s,amount]. Empty unknownRoads does not certify a current price; read costSource. Null overrides use ROUTE ATTRIBUTES.\n");
+                    header = true;
+                }
+                var detail = entry.getKey();
+                s.append(Json.write(Arrays.asList(original.routeId(),entry.getValue().size()==choices.size()?"all_listed":entry.getValue(),
+                        detail.historicalToll(),detail.historicalCostSubtotal(),detail.unknownLinks(),detail.observations().stream().map(MorningPromptRenderer::paymentRow).toList(),
+                        detail.announcement().stream().map(r -> List.of(r.linkId(),r.startSeconds(),r.endSeconds(),r.amount())).toList(),
+                        detail.differentBaseCost(),detail.differentDistance()))).append('\n');
+            }
+        }
     }
 
     private static void appendActionSpace(StringBuilder s, MorningRoutePolicy.Context c) {
@@ -145,7 +186,7 @@ public final class MorningPromptRenderer {
                         : ". Only this route is legal; departure-time options are still available.\n");
         if (!c.departureOptions().isEmpty()) s.append("Allowed departureSeconds: ")
                 .append(Json.write(c.departureOptions().stream().map(MorningRoutePolicy.DepartureOption::departureSeconds).toList()))
-                .append(". Choose only one listed value; never shift yesterday's choice to build new options.\n");
+                .append(".\n");
     }
 
     static void appendPersonalInformation(StringBuilder s, Map<String, Object> attributes, Profile profile, String destination) {
@@ -174,29 +215,29 @@ public final class MorningPromptRenderer {
                 case EARLY_ARRIVAL -> "You prefer time to settle before work; no numerical preparation period is assumed.";
             }).append('\n');
             else s.append("Work-timeliness preferences do not create a work deadline for this non-work destination.\n");
-            s.append("Supplied input attributes and schedules take precedence over conflicting synthetic descriptions. No numerical income, tolerance or value-of-time is inferred from a category.\n");
+        }
+    }
+
+    static void appendExperiences(StringBuilder s, List<MorningMemory.Experience> experiences, String title) {
+        s.append(title).append('\n');
+        if (experiences.isEmpty()) s.append("No previous personal experiences are recorded. No pre-experiment habits are assumed.\n");
+        else {
+            s.append("columns=[day,routeId,selectedDeparture_s,actualDeparture_s,drive_s,door_s,arrival_s,late_s,unfinished,stuck,tollPaid,paymentRows]\n");
+            experiences.forEach(e -> appendExperience(s,e));
         }
     }
 
     static void appendExperience(StringBuilder s, MorningMemory.Experience e) {
-        s.append("- Simulation day ").append(e.day()).append(", route ").append(e.routeId());
-        if (e.selectedDepartureSeconds() != null) s.append("; selected departure ").append(clock(e.selectedDepartureSeconds()));
-        if (e.departureSeconds() != null) s.append("; actual departure ").append(clock(e.departureSeconds()));
-        s.append("; actual driving time ").append(e.carSeconds() == null ? "unknown (driving not completed)" : minutes(e.carSeconds()) + " minutes");
-        if (e.doorSeconds() != null) s.append("; actual total trip time ").append(minutes(e.doorSeconds())).append(" minutes");
-        s.append("; destination arrival ").append(e.arrivalSeconds() == null ? "not recorded (destination not reached)" : clock(e.arrivalSeconds()));
-        s.append("; lateness ").append(e.lateSeconds() == null ? "unknown or no deadline" : minutes(e.lateSeconds()) + " minutes");
-        s.append("; trip unfinished: ").append(e.arrivalSeconds() == null ? "yes" : "no");
-        s.append("; trip terminated while stuck: ").append(e.stuck() ? "yes" : "no").append(".\n");
-        if (e.tollPaid() != null) s.append("  Actual congestion toll paid on this trip: ")
-                .append(Double.toString(e.tollPaid())).append(" scenario monetary units.\n");
-        e.tollObservations().forEach(p -> appendPayment(s, p));
+        s.append(Json.write(Arrays.asList(e.day(),e.routeId(),e.selectedDepartureSeconds(),e.departureSeconds(),e.carSeconds(),e.doorSeconds(),
+                e.arrivalSeconds(),e.lateSeconds(),e.arrivalSeconds()==null,e.stuck(),e.tollPaid(),e.tollObservations().stream().map(MorningPromptRenderer::paymentRow).toList()))).append('\n');
     }
 
     static void appendPayment(StringBuilder s, MorningRoutePolicy.TollObservation e) {
-        s.append("  Own payment: simulation day ").append(e.day()).append(", road ").append(e.linkId())
-                .append(", entry at ").append(clock(e.time())).append(", paid ").append(Double.toString(e.amount()))
-                .append(" units. This is a historical point observation, not a tariff window.\n");
+        s.append(Json.write(paymentRow(e))).append('\n');
+    }
+
+    private static List<Object> paymentRow(MorningRoutePolicy.TollObservation e) {
+        return List.of(e.day(),e.linkId(),e.time(),e.amount());
     }
 
     static void validatePayment(MorningRoutePolicy.TollObservation e, int beforeDay) {
@@ -330,13 +371,13 @@ public final class MorningPromptRenderer {
     private static void requireTime(double value) {
         if (!Double.isFinite(value) || value < 0) throw new IllegalArgumentException("Invalid time fact");
     }
-    private static void appendTime(StringBuilder s, Map<?, ?> a, String key, String label) {
-        if (a.get(key) instanceof Number n) { requireTime(n.doubleValue()); s.append(label).append(clock(n.doubleValue())); }
+    private static Double scheduleTime(Map<?, ?> a, String key) {
+        if (a.get(key) instanceof Number n) { requireTime(n.doubleValue()); return n.doubleValue(); }
+        return null;
     }
     private static String purpose(String p) {
         return switch (p) { case "home" -> "home"; case "work" -> "work"; case "secondary" -> "other activity"; default -> p; };
     }
-    private static String minutes(double seconds) { return String.format(Locale.ROOT, "%.2f", seconds / 60); }
     private static String clock(double seconds) {
         long t = Math.round(seconds);
         return String.format(Locale.ROOT, "%02d:%02d:%02d", t / 3600, t / 60 % 60, t % 60);

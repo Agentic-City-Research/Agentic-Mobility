@@ -59,8 +59,18 @@ final class MorningOutputContract {
     }
 
     static void responseMetadata(Map<String, Object> log, LlmResponse response) {
+        log.put("promptCacheUsageReported",response.promptCacheUsageReported());
         log.put("finishReason", response.finishReason());
         log.put("reasoningCharacters", response.reasoningCharacters());
+    }
+
+    static Map<String,Object> usage(LlmResponse response) {
+        if (!response.usageReported()) return null;
+        var result = new LinkedHashMap<String,Object>();
+        result.put("promptTokens",response.promptTokens()); result.put("completionTokens",response.completionTokens());
+        result.put("promptCacheHitTokens",response.promptCacheUsageReported()?response.promptCacheHitTokens():null);
+        result.put("promptCacheMissTokens",response.promptCacheUsageReported()?response.promptCacheMissTokens():null);
+        return result;
     }
 
     static void requireNotTruncated(LlmResponse response) {

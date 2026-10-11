@@ -33,8 +33,7 @@ class MorningFullTrafficValidationTest {
             String content;
             if (reflection) content = Json.write(Map.of("memory", "Loopback fixture notes; not evidence of model habits."));
             else {
-                var match = Pattern.compile("- Route ([A-Za-z0-9_-]+): predicted").matcher(prompt);
-                List<String> ids = new ArrayList<>(); while (match.find()) ids.add(match.group(1));
+                List<String> ids = MorningJointTestSupport.routeIds(prompt);
                 String selected = ids.get(decisionCalls.getAndIncrement() % ids.size());
                 content = Json.write(Map.of("routeId", selected, "reason", "Loopback validation fixture; not model evidence"));
             }

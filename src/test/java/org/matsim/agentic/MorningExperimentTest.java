@@ -158,7 +158,8 @@ class MorningExperimentTest {
             assertTrue(Json.readTree(Files.readString(output.resolve("morning/status.json"))).get("complete").asBoolean());
             assertEquals(0, Json.readTree(Files.readString(output.resolve("morning/manifest.json"))).get("apiCalls").asInt());
             var manifest = Json.readTree(Files.readString(output.resolve("morning/manifest.json")));
-            assertEquals(18, manifest.get("schemaVersion").asInt());
+            assertEquals(20, manifest.get("schemaVersion").asInt());
+            assertEquals(MorningPromptRenderer.VERSION,manifest.at("/promptEncoding/travelerVersion").asText());
             assertEquals("gzip", manifest.get("jsonlOutput").get("compression").asText());
             assertEquals(1, manifest.get("tripOutputInterval").asInt());
             assertEquals(scoring.getLateArrival_utils_hr(), manifest.get("lateArrivalUtilsPerHour").asDouble());

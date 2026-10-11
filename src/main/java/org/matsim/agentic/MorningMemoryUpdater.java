@@ -5,31 +5,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Post-QSim reflection; returns a proposal, never mutates trip state inside a worker. */
 final class MorningMemoryUpdater {
-    static final String VERSION = "morning-reflection-v7-joint-bounded-tolls";
+    static final String VERSION = "morning-reflection-v8-compact-prefix";
     static final int RECENT_EXPERIENCE_LIMIT = 5;
     static final int TARGET_CHARACTERS = 240;
     static final int MAX_CHARACTERS = 500;
-    static final String SYSTEM = """
+    static final String SYSTEM = MorningPromptRenderer.FACT_RULES + """
             You are the individual traveler reflecting on a trip.
-            Update your own first-person long-term memory from your previous notes and the supplied actual experiences.
-            Decide what to retain, revise or forget: familiarity, important events, uncertainty and your current interpretations.
-            Update your previous memory into compact first-person notes.
-            Rewrite and consolidate it; do not append a daily diary.
+            Rewrite your previous first-person memory using the supplied actual experiences: retain, revise or forget familiarity, important events, beliefs and uncertainty. Consolidate repeated observations; do not append a daily diary.
             All lasting information, including remembered charging roads and payments, shares this one summary budget.
-            Recent factual experiences may contain selected and actual departure times and actual paid road entries.
-            Remember their implications in your own words; exact tariff reconstruction or a permanent receipt list is not required.
-            
-            Use one paragraph of 3–4 short sentences, targeting no more than
-            240 characters. A much shorter memory is acceptable, especially
-            during the first few days.
-            
-            Describe what you now remember, your familiarity,
-            revised beliefs and remaining uncertainty.
-            Merge repeated observations and remove redundant explanations.
+            Remember the implications of selected/actual departures and paid road entries in your own words; exact tariff reconstruction or a permanent receipt list is not required.
+            Use one paragraph of 3–4 short sentences, targeting no more than 240 characters. Much shorter notes are acceptable, especially during the first few days.
             Do not repeat your fixed profile, schedule or the full recent trip log.
             Do not force a preference for familiar routes, a switching rule, an exploration rate or a numerical habit weight.
             You may preserve earlier important events mentioned in your old notes, even when outside the recent factual window.
-            Use the supplied inputs to form your own interpretation. Your fixed profile and schedules do not change.
+            Your profile, schedules and route pool remain fixed. Untried routes have no personal outcome; slow or late trips do not create new routes.
+            No latest policy or network traffic is supplied here. The last experience is today's actual result, not a traffic-service forecast.
             Do not propose or execute a route choice here. Return exactly one JSON object with only a nonempty memory string:
             {"memory":"<your updated personal notes>"}
             """;
@@ -69,25 +59,23 @@ final class MorningMemoryUpdater {
 
     static String render(Context c) {
         validate(c);
-        var s = new StringBuilder("REFLECT AFTER SIMULATION DAY ").append(c.day()).append("\n");
-        s.append("AVAILABLE ROUTE IDENTIFIERS FOR THIS TRIP: ").append(Json.write(c.availableRouteIds())).append(".\n")
-                .append("This fixed route pool does not expand because a trip was slow or late. Untried alternatives have no personal outcome.\n");
+        var s = new StringBuilder();
+        s.append("AVAILABLE ROUTE IDENTIFIERS FOR THIS TRIP: ").append(Json.write(c.availableRouteIds())).append(".\n");
         if (c.availableRouteIds().size() == 1) s.append("Only one route is available; do not plan to switch to an invented alternative.\n");
         MorningPromptRenderer.appendPersonalInformation(s, c.personAttributes(), c.profile(), c.destinationPurpose());
         if (c.latestArrivalSeconds() != null)
             s.append("The fixed required arrival time is ").append(c.latestArrivalSeconds()).append(" seconds after midnight; it is unchanged.\n");
         else s.append("No arrival deadline is supplied for this destination.\n");
+        s.append("REFLECT AFTER SIMULATION DAY ").append(c.day()).append('\n');
         s.append("YOUR PREVIOUS SELF-WRITTEN MEMORY\n");
         if (c.previousMemory().isBlank()) s.append("Empty; no pre-experiment experiences are assumed.\n");
         else s.append("Last updated after simulation day ").append(c.previousMemoryDay()).append(".\n").append(c.previousMemory()).append('\n');
-        s.append("RECENT ACTUAL EXPERIENCES INCLUDING TODAY, OLDEST FIRST\n");
-        c.recentExperiences().forEach(e -> MorningPromptRenderer.appendExperience(s, e));
+        MorningPromptRenderer.appendExperiences(s,c.recentExperiences(),"RECENT ACTUAL EXPERIENCES INCLUDING TODAY, OLDEST FIRST");
         if (c.personalPayments() != null && !c.personalPayments().isEmpty()) {
-            s.append("YOUR OWN ACTUAL PAID ROAD ENTRIES, INCLUDING OTHER TRIPS\n");
+            s.append("YOUR OWN ACTUAL PAID ROAD ENTRIES, INCLUDING OTHER TRIPS\ncolumns=[day,linkId,entry_s,amount]\n");
             c.personalPayments().forEach(e -> MorningPromptRenderer.appendPayment(s, e));
         }
-        s.append("Paid amounts are past observations at those entry times, not current tariffs or evidence that other roads are free. No latest policy or network traffic is supplied here.\n");
-        s.append("The last experience above is today's observed result, not a traffic-service forecast. Update your notes for future days.\n");
+        s.append("Update your notes for future days.\n");
         return s.toString();
     }
 
@@ -146,8 +134,7 @@ final class MorningMemoryUpdater {
             log.put("elapsedMillis", elapsed(callStart)); log.put("response", response.content());
             MorningOutputContract.responseMetadata(log, response);
             log.put("usageReported", response.usageReported());
-            log.put("usage", response.usageReported() ? Map.of("promptTokens", response.promptTokens(), "completionTokens", response.completionTokens(),
-                    "promptCacheHitTokens", response.promptCacheHitTokens(), "promptCacheMissTokens", response.promptCacheMissTokens()) : null);
+            log.put("usage", MorningOutputContract.usage(response));
             String text = null;
             try {
                 MorningOutputContract.requireNotTruncated(response);

@@ -54,7 +54,8 @@ class MorningSummaryTest {
         AtomicInteger calls = new AtomicInteger();
         try (var writer = new OutputWriter(directory.resolve("repairs"))) {
             var updater = new MorningMemoryUpdater((r,s,u) -> {
-                assertEquals("traveler_memory", r); assertTrue(u.contains("unknown (driving not completed)"));
+                assertEquals("traveler_memory", r);
+                assertTrue(MorningJointTestSupport.tableRows(u,"RECENT ACTUAL EXPERIENCES").getLast().get(4).isNull());
                 assertFalse(u.contains("predicted driving time")); assertFalse(u.contains("secret-link"));
                 return new LlmResponse(calls.incrementAndGet() == 1 ? "{\"memory\":\"bad\",\"routeId\":\"c0\"}"
                         : "{\"memory\":\"I did not complete this trip; its duration is unknown.\"}", 10, 5, 0, 0);
@@ -90,8 +91,9 @@ class MorningSummaryTest {
         assertTrue(prompt.contains("Age: 35")); assertTrue(prompt.contains("FIXED SYNTHETIC PROFILE"));
         assertTrue(prompt.contains("32400.0 seconds after midnight"));
         assertTrue(prompt.contains("AVAILABLE ROUTE IDENTIFIERS FOR THIS TRIP: [\"c0\",\"c1\"]"));
-        assertFalse(prompt.contains("Simulation day 2, route"));
-        assertTrue(prompt.contains("Simulation day 7, route c1"));
+        var records = MorningJointTestSupport.tableRows(prompt,"RECENT ACTUAL EXPERIENCES");
+        assertEquals(5,records.size()); assertEquals(3,records.getFirst().get(0).asInt());
+        assertEquals(7,records.getLast().get(0).asInt()); assertEquals("c1",records.getLast().get(1).asText());
         assertFalse(prompt.contains("CUMULATIVE")); assertFalse(prompt.contains("completed driving"));
         assertFalse(prompt.contains("secret-person")); assertFalse(prompt.contains("secret-link"));
         assertFalse(prompt.contains("predicted driving time")); assertFalse(prompt.contains("matsimScore"));
@@ -206,8 +208,7 @@ class MorningSummaryTest {
                 assertEquals(1024, config.maxOutputTokens); assertFalse(u.contains("predicted driving time"));
             } else {
                 decisions.incrementAndGet();
-                var route = Pattern.compile("- Route ([A-Za-z0-9_-]+): predicted").matcher(u); assertTrue(route.find());
-                content = Json.write(Map.of("routeId", route.group(1), "reason", "Offline plumbing fixture, not model evidence"));
+                content = Json.write(Map.of("routeId", MorningJointTestSupport.firstRoute(u), "reason", "Offline plumbing fixture, not model evidence"));
             }
             var response = new LlmResponse(MorningJointTestSupport.withDeparture(content, u), 10, 5, 0, 0); usage.record(response); return response;
         };
@@ -293,19 +294,24 @@ class MorningSummaryTest {
     }
 
     @Test void failedReflectionStopsExperimentAndNeverCommitsSummary() throws Exception {
+        // Two members suffice to test atomic failure; do not depend on remote DTDs
+        // embedded in the full Sioux Falls input files for this failure-path test.
+        var fixture=new MorningInformationTest(); fixture.directory=directory;
+        Path configFile=fixture.writeScenario();
+        for(String name:List.of("network.xml","population.xml","facilities.xml","config.xml"))
+            MorningJointTestSupport.useBundledDtd(directory.resolve(name));
         var settings = new MorningExperiment(); settings.llmConfig.apiKey = "offline-fixture";
         var reflectionCalls = new AtomicInteger();
         settings.clientFactory = (config, usage) -> (r,s,u) -> {
             String content;
             if (r.equals("traveler_memory")) content = reflectionCalls.incrementAndGet() == 1
                     ? "{\"memory\":\"Valid proposal from one member\"}" : "{\"memory\":\"\"}";
-            else { var route = Pattern.compile("- Route ([A-Za-z0-9_-]+): predicted").matcher(u); assertTrue(route.find());
-                content = Json.write(Map.of("routeId", route.group(1), "reason", "Fixture")); }
+            else { content = Json.write(Map.of("routeId", MorningJointTestSupport.firstRoute(u), "reason", "Fixture")); }
             var response = new LlmResponse(MorningJointTestSupport.withDeparture(content, u), 0,0,0,0); usage.record(response); return response;
         };
         Path out = directory.resolve("failed-reflection");
-        assertNotEquals(0, new CommandLine(settings).execute("--policy", "llm", "--llm-agents", "2", "--demand", "100",
-                "--sample-persons", "40", "--days", "2", "--seed", "4711", "--concurrency", "1", "--repair-attempts", "1", "--output", out.toString()));
+        assertNotEquals(0, new CommandLine(settings).execute("--config",configFile.toString(),"--policy", "llm", "--llm-agents", "2", "--demand", "100",
+                "--days", "2", "--seed", "4711", "--concurrency", "1", "--repair-attempts", "1", "--output", out.toString()));
         var status = Json.readTree(Files.readString(out.resolve("morning/status.json")));
         assertFalse(status.get("complete").asBoolean()); assertEquals(0, status.get("daysCompleted").asInt());
         assertFalse(Files.exists(out.resolve("morning/memory-updates.jsonl.gz")));
@@ -337,8 +343,7 @@ class MorningSummaryTest {
                 content = Json.write(Map.of("memory", "I retain my latest travel experience."));
             } else {
                 assertEquals("traveler", r); calls.incrementAndGet();
-                var route = Pattern.compile("- Route ([A-Za-z0-9_-]+): predicted").matcher(u); assertTrue(route.find());
-                content = Json.write(Map.of("routeId", route.group(1), "reason", "Fixture"));
+                content = Json.write(Map.of("routeId", MorningJointTestSupport.firstRoute(u), "reason", "Fixture"));
             }
             var response = new LlmResponse(MorningJointTestSupport.withDeparture(content, u), 0,0,0,0);
             usage.record(response); return response;

@@ -197,6 +197,8 @@ public final class MorningReplay implements Callable<Integer> {
     }
 
     private static String firstRoute(String user) {
+        var actions = java.util.regex.Pattern.compile("AVAILABLE ACTIONS FOR THIS TRIP: (\\[[^\\n]+?\\])").matcher(user);
+        if (actions.find()) return Json.readTree(actions.group(1)).get(0).asText();
         int section = user.indexOf("TRAFFIC INFORMATION SERVICE: AVAILABLE ROUTES");
         var match = java.util.regex.Pattern.compile("(?m)^- Route ([A-Za-z0-9_-]+): predicted driving time")
                 .matcher(user.substring(Math.max(0, section)));

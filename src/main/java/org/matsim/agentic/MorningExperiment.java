@@ -339,7 +339,11 @@ public final class MorningExperiment implements Callable<Integer> {
 
     private Map<String, Object> manifest(Config config, Scenario scenario, MorningCohort cohort, int fullPopulation) throws Exception {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("schemaVersion", 18); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
+        result.put("schemaVersion", 20); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
+        result.put("promptEncoding",Map.of("travelerVersion",MorningPromptRenderer.VERSION,"reflectionVersion",MorningMemoryUpdater.VERSION,
+                "tables","JSON-array rows with declared columns; exact numeric seconds and explicit nulls",
+                "prefixLayout","Common rules first; fixed personal facts before daily data; manager topology before daily policy/traffic",
+                "cacheTelemetry","Per-attempt promptCacheUsageReported distinguishes unavailable cache counters from reported zero; server caching configuration is not inferred"));
         result.put("requestedDemandPercent", demand); result.put("requestedChoicePolicy", policyName);
         result.put("jsonlOutput", Map.of("compression", "gzip", "suffix", ".jsonl.gz", "encoding", "UTF-8",
                 "streaming", true, "rowContentChanged", true));
@@ -375,17 +379,31 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("pricing", pricing);
         if (managerEnabled) result.put("managerSettings", llmConfig.withOutputLimit(managerMaxOutputTokens).publicModelSettings());
         if (managerEnabled) {
-            result.put("managerContext", Map.of("templateVersion", MorningManager.VERSION,
+            var managerContext = new LinkedHashMap<String, Object>(Map.of("templateVersion", MorningManager.VERSION,
                     "environmentVersion", MorningManagerEnvironment.VERSION, "feedbackVersion", MorningManagerFeedback.VERSION,
                     "feedbackMode", MorningManager.FEEDBACK_MODE, "matchedNoPricingCounterfactualAvailable", false,
                     "informationComponents", managerControls.basic() ? List.of("publicEnvironment", "roadCorridors", "currentTraffic", "executionSchedule", "policyFeedback", "trackedChargingWindows", "pricingControls", "managerMemory", "previousDecision") : List.of("publicEnvironment", "roadCorridors", "chargingSuitability", "currentTraffic", "routeAlternatives", "executionSchedule", "policyFeedback", "pricingControls", "safetyMonitoring", "managerMemory", "previousDecision"),
                     "environmentOutput", "morning/manager-public-environment.json",
                     "evaluationOutput", "morning/manager-policy-evaluations.jsonl.gz",
                     "decisionOutput", "morning/manager-decisions.jsonl.gz",
-                    "historySemantics", "Combined public observations: latest three version periods and all equivalent-price episodes; every version is archived in evaluations. Structured decisions are interpretations, not measurements."));
+                    "historySemantics", managerControls.basic() ? "Latest two executed policy-version effects plus pooled older days; all versions/windows archived. Structured decisions are interpretations, not measurements."
+                            : "Latest three version periods and all equivalent-price episodes; every version archived. Structured decisions are interpretations, not measurements."));
+            managerContext.put("inputProjectionVersion", managerControls.basic() ? MorningManagerCompactContext.VERSION : "legacy-controlled");
+            managerContext.put("sentContextOutput", "morning/manager-contexts.jsonl.gz");
+            managerContext.put("fullContextOutput", managerControls.basic() ? "morning/manager-contexts-full.jsonl.gz" : "morning/manager-contexts.jsonl.gz");
+            managerContext.put("inputSizeOutput", "morning/manager-input-sizes.jsonl.gz");
+            if (managerControls.basic()) managerContext.put("compression", Map.of("network", "All car links; shared length and speed/lanes/raw-capacity dictionaries; no numerical rounding",
+                    "traffic", "Period and recent/previous up-to-seven-day sufficient statistics",
+                    "roads", "Top 20 delay and top 10 failed links/bins plus current/recently withdrawn charged links/windows",
+                    "history", "Two recent actual versions; older days pooled once; retained pre-pricing and last two tracked phases",
+                    "recentPricingEpisodes", 2));
+            result.put("managerContext", managerContext);
             result.put("managerOutputContract", Map.of("requiredFields", List.of("rules", "decision", "memory"),
                     "memoryLimitUnit", managerControls.basic() ? "English words" : "Unicode characters", "memoryMaximum", managerControls.basic() ? MorningManager.MEMORY_MAX_WORDS : MorningManager.MEMORY_MAX_CHARS,
                     "maximumRules", MorningManagerControls.MAX_RULES,
+                    "memoryTarget", Map.of("minimum", managerControls.basic() ? MorningManager.MEMORY_TARGET_MIN_WORDS : 800,
+                            "maximum", managerControls.basic() ? MorningManager.MEMORY_TARGET_MAX_WORDS : 1200,
+                            "enforcedMinimum", false, "paddingRequired", false),
                     "memoryRepair", "Validated rules and decision are locked; shorten memory only within repair-attempt/request budget. If repair fails retain old memory and accept validated policy with explicit audit.",
                     "alternativesVersion", MorningManagerAlternatives.VERSION));
         }
