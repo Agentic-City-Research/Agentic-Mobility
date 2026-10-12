@@ -213,7 +213,13 @@ LLM 旅客在每一天联合选择路线与出发时刻，仿真结束后再调�
 
 管理者默认前 20 个模拟日不收费，第 21 日首次调用，此后每 30 日更新一次。这个 30 天示例包含一次计划更新机会；若只运行 7 天，即使加了 `-Manager` 也尚未到调用日期。
 
-当前默认管理者为 **Basic**：完整记忆最多 1000 英文词、政策最多 40 条规则、收费时窗按 15 分钟分箱对齐。显式 `-ManagerProfile controlled` 启用旧监测/回退条件，详见 [manager_v5.md](scripts/manager_v5.md)。当前信息边界和默认协议见 [manager_basic_joint.md](scripts/manager_basic_joint.md)。
+当前默认管理者为 **Basic**：完整记忆最多 1000 英文词、政策最多 40 个收费 link，每个 link 全天使用一个固定金额。显式 `-ManagerProfile controlled` 启用旧监测/回退条件，收费仍为全天，详见 [manager_v5.md](scripts/manager_v5.md)。当前信息边界和默认协议见 [manager_basic_joint.md](scripts/manager_basic_joint.md)。
+
+Manager 每个仿真日结束后更新管理记忆，包括前 20 个免费观察日；仅在固定政策更新日调整收费。政策调用输出 `rules` 和 `decision`，日末反思只输出 `memory`。两种 profile 的记忆均以 400–600 英文词为目标，硬上限 1000 词。失败时保留旧记忆，下次输入包含缺失期间的汇总。完整说明见 [每日 Manager 记忆协议](scripts/manager_daily_memory.md)。
+
+新增 `--manager-memory-max-output-tokens`（默认 2048；PowerShell 为 `-ManagerMemoryMaxOutputTokens`），与政策调用的 `--manager-max-output-tokens`（默认 8192）独立。默认 100 日 manager 实验至少需要 100 次反思加 3 次政策调用；LLM Traveler 的选择/反思及重试另计。前 20 天 manager 模式也需要可用 API 服务。
+
+Manager 收费规则固定为 `start=0`、`end=QSim endTime`，每个 link 最多出现一次，金额仍按每次实际进入该 link 收取。当前公共场景 `endTime=30:00:00`，对应 `[0,108000)`；跨 24:00 的行程也适用同一金额。模型不能选择仅早高峰收费或分时价格，非法时窗经过有限修复仍不合格时保留旧政策。15 分钟/整小时分箱继续用于交通观测，不限制全天窗口的结束时刻。前 20 天免费及政策更新间隔沿用现有设置；固定收费 JSON 文件仍按文件指定的时窗执行。
 
 要同时启用 LLM 旅客与管理者，可在上一节旅客命令中增加 `-Manager`，将天数设置为至少 21，并相应调整调用预算。
 
@@ -333,7 +339,7 @@ python scripts/analyze_morning_choices.py --morning 'output/llm-first-run/mornin
 
 ### 复现记录
 
-manifest 的 schemaVersion 为 `20`（评价及种子记录自 v18 引入，v20 增加提示词编码说明），包含：
+manifest 的 schemaVersion 为 `22`（v21 记录全天收费，v22 拆分每日管理记忆与周期政策调用并记录独立生成设置），包含：
 
 - `selectionSeeds`：人口、受控名单、画像、信息分组和仿真解析后的种子，含显式覆盖值；导入画像时以输入文件及其哈希为准。
 - `simulatedPersonIdsSha256`：采样后 person ID 排序，每个 ID 后追加换行，以 UTF-8 计算 SHA-256；可直接核对两次实验是否使用同一份人口名单。
@@ -346,7 +352,7 @@ manifest 的 schemaVersion 为 `20`（评价及种子记录自 v18 引入，v20 
 
 ### Manager 输入精简（默认 basic 模式）
 
-`morning-pricing-v8-compact-prefix` 自动使用 `morning-manager-compact-v2-prefix`，无需新增命令行参数。适用于原生旅客 + manager 与 LLM 旅客 + manager。
+`morning-pricing-v10-daily-memory` 自动使用 `morning-manager-compact-v2-prefix`，无需新增命令行参数。适用于原生旅客 + manager 与 LLM 旅客 + manager。
 
 | 内容 | 实际发送给 manager |
 |---|---|
@@ -354,7 +360,7 @@ manifest 的 schemaVersion 为 `20`（评价及种子记录自 v18 引入，v20 
 | 每日交通 | 当前观测周期、最近最多 7 个观测日、此前最多 7 个观测日及日均变化；保留全网延误、通行时间、进入/完成/失败/部分次数和汽车行程完成数量 |
 | 道路统计 | 延误最高 20 条、失败/未完成最多 10 条，再加入全部当前收费及近期撤销收费道路；收费窗口另给周期汇总，峰值时间箱独立保留 |
 | 策略反馈 | 最近两个实际执行版本的效果，较早版本的观测日合并为摘要；保留原免费期参照。相同收费函数的新版本不等于新干预 |
-| 记忆 | 目标 400–600 英文词，硬上限仍为 1000 词；证据少时可以更短，不要求填满。记忆修复沿用此目标 |
+| 记忆 | 目标 400–600 英文词，硬上限仍为 1000 词；证据少时可以更短，不要求填满。每日反思沿用此目标 |
 
 “近期撤销”以最近两个连续且收费函数不同的政策期及当前政策确定；长期 hold 不会仅因版本编号变化而把最近撤销的收费道路挤掉。历史收费窗口保留首次收费前参照（如有）及最近两个执行阶段。道路筛选只决定统计展示，全部合法 car link 仍可收费。无记录的道路/时间箱明确标识，不据此推断畅通。
 
@@ -368,7 +374,7 @@ manifest 的 schemaVersion 为 `20`（评价及种子记录自 v18 引入，v20 
 - `manager-attempts.jsonl.gz`：真实 system/user、请求哈希、回答及服务报告的 prompt/completion/cache token 用量。
 - `manifest.json`：输入版本、筛选口径、日志路径和记忆目标。
 
-`--manager-profile controlled` 保留原有输入及 2000 字符记忆协议。更换代码后须重新构建或替换服务器 JAR。上下文上限依旧需要覆盖输入、服务聊天模板/结构化输出开销及 `--manager-max-output-tokens`；精简不等于任何模型长度都必然足够。
+`--manager-profile controlled` 保留政策决策输入与监测/回退机制；每日记忆同样使用 400–600 英文词目标、1000 词硬上限。更换代码后须重新构建或替换服务器 JAR。上下文上限依旧需要覆盖输入、服务聊天模板/结构化输出开销及 `--manager-max-output-tokens`；精简不等于任何模型长度都必然足够。
 
 
 ### 提示词精简与前缀缓存验证

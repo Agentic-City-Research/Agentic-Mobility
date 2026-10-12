@@ -16,72 +16,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class MorningManagerExplorationTest {
     @TempDir Path directory;
 
-    @Test void memoryOnlyRepairLocksValidatedRulesAndDecision() throws Exception {
-        var network = network(); var calls = new AtomicInteger();
-        try (var output = new OutputWriter(directory)) {
-            var manager = manager(network, output, (role, system, user) -> {
-                if (calls.incrementAndGet() == 1) return response(policy(1.23, "x".repeat(2100)));
-                assertEquals("manager-memory", role);
-                var repair = Json.readTree(user);
-                assertTrue(repair.has("validatedPolicyFingerprint")); assertFalse(repair.has("network"));
-                assertEquals("test", repair.get("decision").get("action").asText());
-                return response("{\"memory\":\"Test route redistribution, review at the scheduled update\"}");
-            }, 2, 2);
-            manager.observe(19, List.of(row("a", 10, 100)), initial());
-            var accepted = manager.update(20, 0, initial());
-            assertTrue(accepted.accepted()); assertEquals(1.23, accepted.policy().amountAt(Id.createLinkId("a"), 10));
-            assertEquals(2, calls.get()); assertEquals(1, accepted.repairCount());
-            assertTrue(manager.context(21, 0, initial()).get("managerMemory").toString().contains("redistribution"));
-            output.flush();
-            var logs = JsonlTestSupport.readLines(directory.resolve("manager-attempts.jsonl")).stream().map(Json::readTree).toList();
-            assertFalse(logs.getFirst().get("valid").asBoolean()); assertTrue(logs.getFirst().get("policyValidated").asBoolean());
-            assertTrue(logs.getLast().get("policyLocked").asBoolean());
-            assertEquals("repaired", decisionLog().get("memoryStatus").asText());
-        }
-    }
-
-    @Test void failedMemoryRepairCannotReplaceRulesAndPreservesPreviousMemory() throws Exception {
-        var network = network(); var replies = new ArrayDeque<>(List.of(policy(1, "previous notes"), policy(2, "x".repeat(2001)), policy(999, "changed rules")));
-        try (var output = new OutputWriter(directory)) {
-            var manager = manager(network, output, (r,s,u) -> response(replies.remove()), 2, 3);
-            var first = manager.update(20, 0, initial());
-            var state = new MorningTollSystem.State(first.policy(), "v1", 1);
-            var next = manager.update(50, 0, state);
-            assertTrue(next.accepted()); assertEquals(2, next.policy().amountAt(Id.createLinkId("a"), 10));
-            assertEquals("previous notes", manager.context(51, 0, state).get("managerMemory"));
-            var metadata=Json.readTree(Json.write(manager.context(51,0,state))).get("managerMemoryMetadata");
-            assertEquals("retained_previous",metadata.get("status").asText());
-            assertEquals(20,metadata.get("writtenAtDay").asInt());
-            output.flush();
-            var decisions = JsonlTestSupport.readLines(directory.resolve("manager-decisions.jsonl")).stream().map(Json::readTree).toList();
-            assertEquals("retained_previous", decisions.getLast().get("memoryStatus").asText());
-            assertEquals(1, JsonlTestSupport.readLines(directory.resolve("manager-memory-fallbacks.jsonl")).size());
-        }
-    }
-
-    @Test void exhaustedRepairBudgetStillAcceptsAlreadyValidatedPolicy() throws Exception {
-        var network = network(); var calls = new AtomicInteger();
-        try (var output = new OutputWriter(directory)) {
-            var manager = manager(network, output, (r,s,u) -> { calls.incrementAndGet(); return response(policy(3, "x".repeat(2100))); }, 3, 1);
-            var result = manager.update(20, 0, initial());
-            assertTrue(result.accepted()); assertEquals(1, calls.get()); assertEquals(1, manager.attemptedCalls());
-            assertEquals(3, result.policy().amountAt(Id.createLinkId("a"), 10));
-        }
-    }
-
-    @Test void memoryRepairTransportFailureKeepsValidatedAction() throws Exception {
-        var network = network(); var calls = new AtomicInteger();
-        try (var output = new OutputWriter(directory)) {
-            var manager = manager(network, output, (r,s,u) -> {
-                if (calls.incrementAndGet() == 1) return response(policy(4, "x".repeat(2100)));
-                throw new LlmException("offline repair transport failure");
-            }, 3, 3);
-            var result = manager.update(20, 0, initial());
-            assertTrue(result.accepted()); assertEquals(4, result.policy().amountAt(Id.createLinkId("a"), 10));
-            assertEquals(2, calls.get());
-        }
-    }
-
     @Test void illegalPolicyDoesNotEnterMemoryRepairAndMalformedJsonCannotExecute() throws Exception {
         var network = network(); var calls = new AtomicInteger();
         try (var output = new OutputWriter(directory)) {
@@ -98,7 +32,7 @@ class MorningManagerExplorationTest {
             assertFalse(manager.update(20, 0, initial()).accepted());
         }
         try (var output = new OutputWriter(directory.resolve("duplicate"))) {
-            var manager = manager(network, output, (r,s,u) -> response(policy(8, "notes").replace("\"memory\":", "\"memory\":\"extra\",\"memory\":")), 1, 1);
+            var manager = manager(network, output, (r,s,u) -> response(policy(8, "notes").replace("\"rules\":", "\"rules\":[],\"rules\":")), 1, 1);
             assertFalse(manager.update(20, 0, initial()).accepted());
         }
         try (var output = new OutputWriter(directory.resolve("truncated"))) {
@@ -107,15 +41,11 @@ class MorningManagerExplorationTest {
         }
     }
 
-    @Test void memoryLimitCountsUnicodeCharactersAndDecisionIsRequired() throws Exception {
-        var network = network();
-        try (var output = new OutputWriter(directory)) {
-            var manager = manager(network, output, (r,s,u) -> response(policy(0, "😀".repeat(2000))), 1, 1);
-            assertTrue(manager.update(20, 0, initial()).accepted());
-        }
-        try (var output = new OutputWriter(directory.resolve("missing-decision"))) {
-            var manager = manager(network, output, (r,s,u) -> response("{\"rules\":[],\"memory\":\"notes\"}"), 1, 1);
-            assertFalse(manager.update(20, 0, initial()).accepted());
+    @Test void policyOutputRequiresDecisionAndRejectsMemoryFields() throws Exception {
+        var network=network();
+        try(var output=new OutputWriter(directory)) {
+            var manager=manager(network,output,(r,sys,u) -> new LlmResponse("{\"rules\":[],\"memory\":\"notes\"}",0,0,0,0),1,1);
+            assertFalse(manager.update(20,0,initial()).accepted());
         }
     }
 
@@ -210,8 +140,8 @@ class MorningManagerExplorationTest {
         return Json.readTree(JsonlTestSupport.readLines(directory.resolve("manager-decisions.jsonl")).getLast());
     }
     private static String policy(double amount,String memory) {
-        return Json.write(Map.of("rules",List.of(Map.of("link_id","a","start",0,"end",3600,"amount",amount)),
-                "decision",MorningManagerTestResponses.decision(amount==0?"hold":"test"),"memory",memory));
+        return Json.write(Map.of("rules",List.of(Map.of("link_id","a","start",0,"end",7200,"amount",amount)),
+                "decision",MorningManagerTestResponses.decision(amount==0?"hold":"test")));
     }
     private static LlmResponse response(String value) { return new LlmResponse(value,0,0,0,0); }
     private static MorningTollSystem.State initial() { return new MorningTollSystem.State(TollPolicy.empty(-1),"no-toll",0); }

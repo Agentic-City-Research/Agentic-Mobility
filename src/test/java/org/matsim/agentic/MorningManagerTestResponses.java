@@ -15,6 +15,7 @@ final class MorningManagerTestResponses {
             var object = (com.fasterxml.jackson.databind.node.ObjectNode) node;
             object.set("decision", Json.MAPPER.valueToTree(decision(node.get("rules").isEmpty() ? "hold" : "test")));
         }
+        if(node.isObject() && node.has("rules")) ((com.fasterxml.jackson.databind.node.ObjectNode)node).remove("memory");
         return Json.write(node);
     }
 }

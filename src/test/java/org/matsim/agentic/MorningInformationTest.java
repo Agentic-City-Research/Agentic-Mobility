@@ -150,6 +150,7 @@ class MorningInformationTest {
                 double price = managerCalls.incrementAndGet() == 1 ? 2.125 : 98.876543;
                 return response("{\"rules\":[{\"link_id\":\"road\",\"start\":0,\"end\":108000,\"amount\":" + price + "}],\"memory\":\"Public network only\"}");
             }
+            if(role.equals("manager-memory")) return response("{\"memory\":\"Only aggregate public traffic is visible.\"}");
             if (role.equals("traveler_memory")) {
                 assertFalse(user.contains("Current announced rules"));
                 return response("{\"memory\":\"OWN_NOTES: only personal observations\"}");
@@ -158,7 +159,7 @@ class MorningInformationTest {
             return response(MorningJointTestSupport.withDeparture("{\"routeId\":\"c0\",\"reason\":\"My available route\"}", user));
         };
         assertEquals(0, new CommandLine(settings).execute("--config", config.toString(), "--output", out.toString(),
-                "--mode", "hybrid", "--policy", "llm", "--llm-agents", "all", "--manager", "--days", "52", "--seed", "4711", "--max-requests", "220",
+                "--mode", "hybrid", "--policy", "llm", "--llm-agents", "all", "--manager", "--days", "52", "--seed", "4711", "--max-requests", "270",
                 "--manager-max-corridor-minutes", "1000", "--manager-max-step-minutes", "1000", "--manager-max-unavoidable-share", "1"));
         var assignments = rows(out.resolve("morning/information-groups.jsonl.gz"));
         assertEquals(2, assignments.size()); assertEquals(1, assignments.stream().filter(r -> r.get("informationGroup").asText().equals("informed")).count());

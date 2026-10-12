@@ -37,10 +37,10 @@ class MorningPricingTest {
         assertEquals(2, MorningManager.minimumCalls(0, 50));
     }
 
-    @Test void unroundedPricesAndHourlyWindowsWithinTrialLimitsAreAcceptedWithoutPrivateInputs() throws Exception {
+    @Test void unroundedAllDayPricesAreAcceptedWithoutPrivateInputs() throws Exception {
         Network network = network();
         var rules = new ArrayList<Map<String, Object>>();
-        for (int i = 0; i < 15; i++) rules.add(Map.of("link_id", "road", "start", i * 7200, "end", i * 7200 + 3600, "amount", .123456789));
+        rules.add(Map.of("link_id", "road", "start", 0, "end", 108000, "amount", .123456789));
         var users = new ArrayList<String>();
         try (var output = new OutputWriter(directory.resolve("manager"))) {
             var manager = new MorningManager(network, 108000, environment(network), (role, system, user) -> {
@@ -52,7 +52,7 @@ class MorningPricingTest {
             dirty.put("personId", "PRIVATE_PERSON"); dirty.put("memory", "PRIVATE_MEMORY"); dirty.put("profile", "PRIVATE_PROFILE");
             manager.observe(19, List.of(dirty), initial());
             var result = manager.update(20, 0, initial());
-            assertTrue(result.accepted()); assertEquals(15, result.policy().rules().size());
+            assertTrue(result.accepted()); assertEquals(1, result.policy().rules().size());
             assertEquals(.123456789, result.policy().amountAt(Id.createLinkId("road"), 100));
             var context = Json.readTree(users.getFirst());
             assertEquals(19, context.get("observationsThroughDay").asInt());
@@ -78,7 +78,7 @@ class MorningPricingTest {
             var rejected = manager.update(50, 0, current);
             assertFalse(rejected.accepted()); assertSame(current.policy(), rejected.policy());
             assertEquals(.123, rejected.policy().amountAt(Id.createLinkId("road"), 5));
-            assertEquals("accepted notes", manager.context(51, 0, current).get("managerMemory"));
+            assertEquals("", manager.context(51, 0, current).get("managerMemory"));
             assertEquals(3, budget.attemptedCalls());
             assertThrows(LlmException.class, () -> manager.update(80, 0, current));
             manager.observe(51, List.of(linkHour()), current);
@@ -134,7 +134,7 @@ class MorningPricingTest {
         var error = new java.io.StringWriter();
         int code = new CommandLine(settings).setErr(new java.io.PrintWriter(error)).execute("--config", file.toString(), "--manager", "--days", "51",
                 "--max-requests", "1", "--llm-agents", "0", "--output", directory.resolve("budget-rejected").toString());
-        assertEquals(1, code); assertTrue(error.toString().contains("Minimum LLM calls 2")); assertEquals(0, calls.get());
+        assertEquals(1, code); assertTrue(error.toString().contains("Minimum LLM calls 53")); assertEquals(0, calls.get());
         var validation = new MorningExperiment(); validation.llmConfig.apiKey = null; validation.clientFactory = settings.clientFactory;
         Path validationOut = directory.resolve("validation");
         assertEquals(0, new CommandLine(validation).execute("--config", file.toString(), "--manager", "--days", "51", "--validate-only",
@@ -161,6 +161,7 @@ class MorningPricingTest {
                 return response("{\"rules\":[{\"link_id\":\"road\",\"start\":0,\"end\":108000,\"amount\":" + (call == 1 ? "2.125" : "3.375")
                         + "}],\"memory\":\"Only public traffic feedback\"}");
             }
+            if(role.equals("manager-memory")) return response("{\"memory\":\"Observe public traffic and retain uncertainty.\"}");
             if (role.equals("traveler_memory")) {
                 memoryCalls.incrementAndGet();
                 if (user.contains("SIMULATION DAY 20")) assertEquals(2.125,
@@ -173,7 +174,7 @@ class MorningPricingTest {
             return response(MorningJointTestSupport.withDeparture("{\"routeId\":\"c0\",\"reason\":\"Choose my available route\"}", user));
         };
         assertEquals(0, new CommandLine(settings).execute("--config", config.toString(), "--output", out.toString(), "--mode", "hybrid",
-                "--policy", "llm", "--llm-agents", "all", "--manager", "--days", "52", "--seed", "4711", "--max-requests", "110",
+                "--policy", "llm", "--llm-agents", "all", "--manager", "--days", "52", "--seed", "4711", "--max-requests", "160",
                 "--manager-max-corridor-minutes","1000","--manager-max-step-minutes","1000","--manager-max-unavoidable-share","1"));
         assertEquals(2, managerCalls.get()); assertEquals(52, travelerCalls.get()); assertEquals(52, memoryCalls.get());
         var applications = readLines(out.resolve("morning/policy-applications.jsonl.gz")).stream().map(Json::readTree).toList();
@@ -188,7 +189,7 @@ class MorningPricingTest {
         assertEquals(2.125, contexts.get(20).get("candidates").get(0).get("estimatedToll").asDouble());
         assertEquals(2.125, contexts.get(21).get("history").get(contexts.get(21).get("history").size() - 1).get("tollPaid").asDouble());
         var usage = Json.readTree(Files.readString(out.resolve("morning/api-usage.json")));
-        assertEquals(106, usage.get("attemptedTotalCalls").asInt()); assertEquals(2, usage.get("attemptedManagerCalls").asInt());
+        assertEquals(158, usage.get("attemptedTotalCalls").asInt()); assertEquals(54, usage.get("attemptedManagerCalls").asInt());
         var manifest = Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
         assertTrue(manifest.get("managerEnabled").asBoolean()); assertEquals(2, manifest.get("minimumManagerCalls").asInt());
         assertEquals("combined", manifest.get("managerContext").get("feedbackMode").asText());
@@ -204,7 +205,7 @@ class MorningPricingTest {
         assertEquals(3, readLines(out.resolve("morning/policies.jsonl.gz")).size());
     }
 
-    @Test void sevenDayUpdatesRepairMemoryAndRemovePricesOnTheExecutedSchedule() throws Exception {
+    @Test void sevenDayPoliciesAndDailyMemoryFollowSeparateSchedules() throws Exception {
         Path config = writeScenario(), out = directory.resolve("seven-day-integration");
         var settings = new MorningExperiment(); settings.llmConfig.apiKey = "offline-test-placeholder";
         var policyCalls = new AtomicInteger(); var memoryCalls = new AtomicInteger();
@@ -214,6 +215,7 @@ class MorningPricingTest {
             }
             assertEquals("manager",role);
             int call = policyCalls.incrementAndGet(); var input = Json.readTree(user);
+            assertEquals(call==1?19:26,input.at("/managerMemoryMetadata/writtenAtDay").asInt());
             assertEquals(call == 1 ? 20 : 27,input.get("day").asInt());
             assertEquals(7,input.get("executionSchedule").get("updateIntervalDays").asInt());
             if (call == 1) assertEquals(27,input.get("executionSchedule").get("nextScheduledUpdateDay").asInt());
@@ -223,11 +225,11 @@ class MorningPricingTest {
                     "memory",call == 1 ? "word ".repeat(1001) : "Prices removed after review")));
         };
         assertEquals(0,new CommandLine(settings).execute("--config",config.toString(),"--output",out.toString(),"--manager",
-                "--manager-update-interval","7","--days","29","--llm-agents","0","--max-requests","3",
+                "--manager-update-interval","7","--days","29","--llm-agents","0","--max-requests","31",
                 "--manager-max-corridor-minutes","1000","--manager-max-step-minutes","1000","--manager-max-unavoidable-share","1"));
-        assertEquals(2,policyCalls.get()); assertEquals(1,memoryCalls.get());
+        assertEquals(2,policyCalls.get()); assertEquals(29,memoryCalls.get());
         var manifest=Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
-        assertEquals(2,manifest.get("minimumManagerCalls").asInt()); assertEquals(7,manifest.get("pricing").get("updateIntervalDays").asInt());
+        assertEquals(2,manifest.get("minimumManagerCalls").asInt()); assertEquals(29,manifest.get("minimumManagerMemoryCalls").asInt()); assertEquals(7,manifest.get("pricing").get("updateIntervalDays").asInt());
         var applications=readLines(out.resolve("morning/policy-applications.jsonl.gz")).stream().map(Json::readTree).toList();
         for (int day=0;day<29;day++) {
             assertEquals(day<20 ? 0 : day<27 ? 1 : 2,applications.get(day).get("policyVersion").asInt());
@@ -236,10 +238,10 @@ class MorningPricingTest {
         var experiences=readLines(out.resolve("morning/experiences.jsonl.gz")).stream().map(Json::readTree).toList();
         for (int day=0;day<29;day++) assertEquals(day>=20 && day<27 ? 1.25 : 0,experiences.get(day).get("experience").get("tollPaid").asDouble());
         var accepted=readLines(out.resolve("morning/manager-decisions.jsonl.gz")).stream().map(Json::readTree).toList();
-        assertEquals(2,accepted.size()); assertEquals("repaired",accepted.getFirst().get("memoryStatus").asText());
+        assertEquals(2,accepted.size()); assertEquals("unchanged_until_day_end",accepted.getFirst().get("memoryStatus").asText());
         assertTrue(accepted.getFirst().get("pricingChanged").asBoolean()); assertTrue(accepted.getLast().get("pricingChanged").asBoolean());
         assertEquals(7,readLines(out.resolve("morning/toll-payments.jsonl.gz")).size());
-        assertEquals(3,Json.readTree(Files.readString(out.resolve("morning/api-usage.json"))).get("attemptedManagerCalls").asInt());
+        assertEquals(31,Json.readTree(Files.readString(out.resolve("morning/api-usage.json"))).get("attemptedManagerCalls").asInt());
     }
 
     @Test void dailyWithdrawalChangesActualBillingAndSkipsAScheduledModelCallDuringCooldown() throws Exception {
@@ -253,6 +255,7 @@ class MorningPricingTest {
         var settings=new MorningExperiment();new CommandLine(settings).parseArgs("--manager","--manager-profile","controlled","--manager-update-interval","2",
                 "--manager-review-days","2","--manager-adaptation-days","0","--manager-breach-days","1","--manager-max-unavoidable-share","1");
         var calls=new AtomicInteger();settings.clientFactory=(c,u) -> (role,system,user) -> {
+            if(role.equals("manager-memory")) return response("{\"memory\":\"Safety withdrawal was executed; continue observing.\"}");
             calls.incrementAndGet();return response("{\"rules\":[{\"link_id\":\"road\",\"start\":0,\"end\":108000,\"amount\":0.125}],\"memory\":\"Observe the one-road trial\"}");
         };
         var cohort=new MorningCohort(scenario,25200,32400,2);cohort.selectControlledPeople(0,4711);

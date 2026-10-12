@@ -25,6 +25,7 @@ POPULATION_SEED="${POPULATION_SEED:-${SAMPLE_SEED:-4711}}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-0}"
 NATIVE_TIME_MUTATION="${NATIVE_TIME_MUTATION:-1}"
 MANAGER_MAX_OUTPUT_TOKENS="${MANAGER_MAX_OUTPUT_TOKENS:-8192}"
+MANAGER_MEMORY_MAX_OUTPUT_TOKENS="${MANAGER_MEMORY_MAX_OUTPUT_TOKENS:-2048}"
 MANAGER_UPDATE_INTERVAL="${MANAGER_UPDATE_INTERVAL:-30}"
 INFORMED_SHARE="${INFORMED_SHARE:-0.5}"
 INFORMATION_SCOPE="${INFORMATION_SCOPE:-controlled}"
@@ -110,7 +111,7 @@ RUNTIME_SHA="$(sha256sum "$RUNTIME_JAR")"; RUNTIME_SHA="${RUNTIME_SHA%% *}"
 JAR_HELP="$("$JAVA_BIN" -cp "$RUNTIME_JAR" org.matsim.agentic.MorningExperiment --help)" || fail 'Cannot read MorningExperiment help.'
 for option in --sample-rate --population-seed --informed-share --information-scope --manager-max-output-tokens --manager-update-interval --response-format \
     --candidate-pool-size --candidate-time-slack-seconds --candidate-distance-slack-meters \
-    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile native-time-mutation; do
+    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens native-time-mutation; do
     [[ "$JAR_HELP" == *"$option"* ]] || fail "Uploaded JAR is too old: missing $option"
 done
 [[ "$JAR_HELP" == *json_schema* ]] || fail 'Uploaded JAR lacks json_schema support.'
@@ -179,7 +180,7 @@ experiment_args=(
     --candidate-max-distance-ratio "$CANDIDATE_MAX_DISTANCE_RATIO" --candidate-distance-slack-meters "$CANDIDATE_DISTANCE_SLACK_METERS"
     --candidate-max-overlap "$CANDIDATE_MAX_OVERLAP"
 )
-if [[ "$ENABLE_MANAGER" == 1 ]]; then experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS"); fi
+if [[ "$ENABLE_MANAGER" == 1 ]]; then experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS" --manager-memory-max-output-tokens "$MANAGER_MEMORY_MAX_OUTPUT_TOKENS"); fi
 if [[ "$NATIVE_TIME_MUTATION" == 0 ]]; then experiment_args+=(--no-native-time-mutation); fi
 if [[ "$VALIDATE_ONLY" == 1 ]]; then experiment_args+=(--validate-only); fi
 for entry in CANDIDATE_FILE PROFILE_FILE; do

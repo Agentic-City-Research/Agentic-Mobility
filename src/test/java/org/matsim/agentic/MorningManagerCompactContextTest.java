@@ -30,7 +30,7 @@ class MorningManagerCompactContextTest {
         Path out = directory.resolve("network");
         try (var output = new OutputWriter(out)) {
             var manager = new MorningManager(network, 108000, environment, (role, system, user) -> {
-                assertTrue(system.contains("Target 400-600 words")); request.set(user); return response("hold", "Brief evidence is sufficient.");
+                assertTrue(system.contains("Memory is updated separately")); request.set(user); return response("hold", "Brief evidence is sufficient.");
             }, output, new MorningRequestBudget(2), 1, Map.of());
             var initial = state(TollPolicy.empty(-1), 0);
             for (int day = 0; day < 20; day++) {
@@ -150,19 +150,6 @@ class MorningManagerCompactContextTest {
         }
     }
 
-    @Test void memoryRepairKeepsTheFourHundredToSixHundredWordTargetWithoutMakingItAMinimum() throws Exception {
-        var network = network(); var systems = new ArrayList<String>();
-        try (var output = new OutputWriter(directory.resolve("memory"))) {
-            var manager = new MorningManager(network, 108000, environment(network), (role, system, user) -> {
-                systems.add(system);
-                return role.equals("manager") ? response("hold", "word ".repeat(1001))
-                        : new LlmResponse("{\"memory\":\"Short evidence, no padding.\"}", 0, 0, 0, 0);
-            }, output, new MorningRequestBudget(2), 2, Map.of());
-            assertTrue(manager.update(20, 0, state(TollPolicy.empty(-1), 0)).accepted());
-            assertEquals(2, systems.size()); systems.forEach(s -> assertTrue(s.contains("Target 400-600 words")));
-        }
-    }
-
     private MorningManager manager(Network network, OutputWriter output, AtomicReference<String> request, int attempts) {
         return new MorningManager(network, 108000, environment(network), (role, system, user) -> {
             request.set(user); return response("hold", "Concise notes.");
@@ -170,7 +157,7 @@ class MorningManagerCompactContextTest {
     }
 
     private static LlmResponse response(String action, String memory) {
-        return new LlmResponse(Json.write(Map.of("rules", List.of(), "decision", MorningManagerTestResponses.decision(action), "memory", memory)), 0, 0, 0, 0);
+        return new LlmResponse(Json.write(Map.of("rules", List.of(), "decision", MorningManagerTestResponses.decision(action))), 0, 0, 0, 0);
     }
     private static MorningTollSystem.State state(TollPolicy policy, int version) { return new MorningTollSystem.State(policy, "v" + version, version); }
     private static TollPolicy price(String link, int day) { return new TollPolicy(List.of(new TollPolicy.TollRule(Id.createLinkId(link), 0, 900, 1)), day); }

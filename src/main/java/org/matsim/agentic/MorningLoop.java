@@ -67,12 +67,14 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             var managerConfig = settings.llmConfig.withOutputLimit(settings.managerMaxOutputTokens);
             var environment = MorningManagerEnvironment.from(scenario, settings, manifest);
             var publicEnvironment=new LinkedHashMap<>(environment.context(scenario.getConfig().controller().getFirstIteration(),tolls.state().policy(),settings.managerControls.basic()));
-            publicEnvironment.put("pricingControls",settings.managerControls.context(environment));
+            publicEnvironment.put("pricingControls",settings.managerControls.context(environment,scenario.getConfig().qsim().getEndTime().seconds()));
             output.writeDoc("manager-public-environment.json",publicEnvironment);
             manager = new MorningManager(scenario.getNetwork(), scenario.getConfig().qsim().getEndTime().seconds(),
                     environment,
                     settings.clientFactory.apply(managerConfig, usage), output, budget, settings.repairAttempts, managerConfig.publicModelSettings(),
                     settings.managerUpdateInterval, scenario.getConfig().controller().getLastIteration(),settings.managerControls);
+            var managerMemoryConfig=settings.llmConfig.withOutputLimit(settings.managerMemoryMaxOutputTokens);
+            manager.setMemoryClient(settings.clientFactory.apply(managerMemoryConfig,usage),managerMemoryConfig.publicModelSettings());
         }
         if (settings.policyName.equals("llm") && !cohort.controlledPersons.isEmpty()) {
             if (policy == null) policy = new MorningLlmPolicy(settings.clientFactory.apply(settings.llmConfig, usage), output,
@@ -515,12 +517,33 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         metrics.put("fullDayLinkTraffic", MorningManager.dailyTraffic(day, linkHours));
         output.metric(metrics);
         if(manager!=null && daysCompleted==0) manager.captureReferenceDemand(scenario,day,tolls.state());
-        if (manager != null) manager.observe(day, linkHours, tolls.state(),observations.publicCarTrips());
+        if (manager != null) manager.observe(day, linkHours, tolls.state(),observations.publicCarTrips(),
+                ((Number)tolls.summary().get("totalPaid")).doubleValue());
         for (var link : linkHours) {
             Map<String, Object> row = new LinkedHashMap<>(link); row.put("day", day);
             output.appendLine("link-hours.jsonl", row);
         }
         daysCompleted++;
+        if(manager!=null) updateManagerMemory(day);
+    }
+
+    private void updateManagerMemory(int day) {
+        var context=manager.memoryContext(day,scenario.getConfig().controller().getFirstIteration(),tolls.state());
+        long callsBefore=manager.attemptedCalls();
+        var future=pool.submit(() -> manager.reflect(context));
+        MorningManagerMemory.Update update;
+        try {
+            update=future.get(settings.stallSeconds,TimeUnit.SECONDS);
+        } catch(InterruptedException interrupted) {
+            future.cancel(true); Thread.currentThread().interrupt(); throw new LlmException("Interrupted during manager reflection",interrupted);
+        } catch(TimeoutException | ExecutionException failure) {
+            future.cancel(true);
+            update=new MorningManagerMemory.Update(false,null,failure.toString(),(int)(manager.attemptedCalls()-callsBefore),MorningPromptRenderer.hash(Json.write(context)));
+        }
+        manager.commitMemory(day,update);
+        output.progress(Map.of("day",day,"phase","manager_memory","daysCompleted",daysCompleted,
+                "memoryUpdated",update.accepted(),"apiCalls",usage.requests()));
+        output.apiUsage(usageSummary());
     }
 
     private void updateMemories(int day) {
@@ -649,6 +672,8 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         result.put("attemptedDecisionCalls", policy instanceof MorningLlmPolicy llm ? llm.attemptedCalls() : 0L);
         result.put("attemptedMemoryCalls", memoryUpdater == null ? 0L : memoryUpdater.attemptedCalls());
         result.put("attemptedManagerCalls", manager == null ? 0L : manager.attemptedCalls());
+        result.put("attemptedManagerPolicyCalls", manager == null ? 0L : manager.attemptedPolicyCalls());
+        result.put("attemptedManagerMemoryCalls", manager == null ? 0L : manager.attemptedMemoryCalls());
         result.put("attemptedTotalCalls", budget.attemptedCalls());
         result.put("requestBudgetUnit", "client.complete invocations including output repair/task retry; HTTP-level retries are internal");
         return result;

@@ -175,7 +175,9 @@ class MorningHybridTest {
             var populations = new HashMap<Integer, Population>();
             for (int day = 0; day < 3; day++) {
                 var saved = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-                new PopulationReader(saved).readFile(output.resolve("ITERS/it." + day + "/" + day + ".plans.xml.zst").toString());
+                Path savedPlans=output.resolve("ITERS/it." + day + "/" + day + ".plans.xml.zst");
+                MorningJointTestSupport.useBundledDtd(savedPlans);
+                new PopulationReader(saved).readFile(savedPlans.toString());
                 populations.put(day, saved.getPopulation());
             }
             assertTrue(populations.get(1).getPersons().values().stream().allMatch(p -> p.getPlans().size() > 1), "Native ReRoute must copy plans for background AND controlled persons");

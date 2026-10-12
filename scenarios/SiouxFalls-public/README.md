@@ -2,8 +2,8 @@
 
 本目录是当前全天场景入口；`SiouxFalls-AM` 保留独立的早高峰单程场景。
 
-**2026-10-07 当前协议**：LLM 联合选择路线与出发时间，原始时刻前 90 分钟至后 30 分钟，间隔 15 分钟。
-Manager 默认 Basic，完整记忆最多 1000 英文词、最多 40 条规则，收费时窗与 15 分钟观测分箱对齐，无自动策略干预。
+**2026-10-12 当前协议**：LLM 联合选择路线与出发时间，原始时刻前 90 分钟至后 30 分钟，间隔 15 分钟；Manager 按 link 全天定价。
+Manager 默认 Basic，完整记忆最多 1000 英文词、最多 40 个收费 link，每个 link 全天使用一个固定金额，无自动策略干预。
 完整接口、信息边界及输出字段见 [当前协议](../../scripts/manager_basic_joint.md)。
 下文历史 Manager 策略诊断及精确收费检索只适用于显式 controlled 条件/原生路由，不能混用于当前 Basic + LLM。
 
@@ -157,10 +157,11 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
 - 前 20 个仿真日不收费，第 21、51、81……天在原生重规划之前更新政策。
   MATSim 从 0 编号，因此迭代号为 20、50、80……；若 firstIteration 非零，
   节奏相对于该次运行的首日计算。政策持续到下次通过校验的更新。
-- Manager 可从全部允许 car 的路段自主选择路段、时段及有限非负金额；
-  Basic 没有候选收费路段表、价格档位或金额上限；完整政策最多 40 条规则。
-  同一路段可有多个不重叠收费时窗，范围为 `[0, QSim endTime]`，支持跨 24:00 的时刻。
-  检查只约束 JSON、路段可执行性、时间、金额及同路段时窗不重叠，合法报价不重设、不取整。
+- Manager 可从全部允许 car 的路段自主选择收费 link 及有限非负金额；
+  Basic 没有候选收费路段表、价格档位或金额上限；完整政策最多 40 条规则，每个 link 只能出现一次。
+  basic / controlled 均固定 `start=0`、`end=QSim endTime`，每个收费 link 全天使用一个金额。
+  当前公共配置结束于 30:00，即 `[0,108000)`；覆盖跨 24:00 的行程，不能选择高峰时窗或分时价格。
+  检查约束 JSON、路段可执行性、全天时窗、金额、每个 link 一条规则及动作含义，合法报价不重设、不取整。
 - 单位为场景货币单位。每次实际进入收费 car 路段收一次，含
   `VehicleEntersTrafficEvent` 对应的起点 partial link；其他进入由 `LinkEnterEvent` 计费。
   同一次进入的重复通知只收一次，离开后再经过同一路段再次收费；时窗按 `[start,end)` 查询。
@@ -198,9 +199,9 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
 
 当前 Basic 不提供行为成本指导、避让优先位置或自动保护，只提供事实及执行协议；详见顶部当前协议。
 
-默认 basic 的 `morning-pricing-v8-compact-prefix` 使用精简输入，细节见 [根目录 README 的输入精简说明](../../README.md#manager-输入精简默认-basic-模式)。保留完整拓扑与必要容量参数，按观测周期和近期趋势汇总交通；道路细节筛选主要拥堵、当前收费和近期撤销收费道路，较早策略合并为摘要。目标记忆 400–600 英文词，硬上限 1000 词，允许更短。路网与参数表提前，变化的策略和每日数据后置，前缀缓存测试方法见根目录 README。
+默认 basic 的 `morning-pricing-v10-daily-memory` 使用精简输入，细节见 [根目录 README 的输入精简说明](../../README.md#manager-输入精简默认-basic-模式)。保留完整拓扑与必要容量参数，按观测周期和近期趋势汇总交通；道路细节筛选主要拥堵、当前收费和近期撤销收费道路，较早策略合并为摘要。目标记忆 400–600 英文词，硬上限 1000 词，允许更短。路网与参数表提前，变化的策略和每日数据后置，前缀缓存测试方法见根目录 README。
 
-以下 `morning-pricing-v4-public-exploration` 的详细环境/诊断及 2000 字符记忆说明对应 legacy controlled 模式；basic 不发送 `routingCostScale`、`chargingSuitability`、`routeAlternatives` 或 `safetyMonitoring`。
+以下详细环境/诊断说明对应 controlled 模式；每日管理记忆按当前独立反思协议执行；basic 不发送 `routingCostScale`、`chargingSuitability`、`routeAlternatives` 或 `safetyMonitoring`。
 
 公共环境和历史反馈合并为一个 manager 输入，
 启用 `-Manager` 即同时提供公共环境说明、当前交通观测和历史政策事实反馈。
@@ -228,19 +229,19 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
   缺少完整通行观测时明确标为自由流估计，不能据此宣称畅通或存在剩余容量。
   这是路段时间之和的诊断代理，不是实际 OD 路径、用户可用替代或收费效果预测，也不限制收费动作空间。
 - `executionSchedule` 给出真实更新间隔、下一次可执行更新日和剩余实验日。
-  rules 的 start/end 是每日内秒数；最近 7 天统计不赋予 7 天后撤销政策的能力。政策更新失败时继续原政策。
-- 输出要求 `rules`、`decision`、`memory` 三个字段。decision 记录 `action=hold/test/adjust/remove`、
+  rules 的 start/end 固定覆盖整个仿真日；最近 7 天统计不赋予 7 天后撤销政策的能力。非法政策经过有限修复仍不合格时继续原政策；请求失败仍可能中止实验。
+- 政策调用输出要求 `rules`、`decision` 两个字段；日末反思另行输出 `memory`。decision 记录 `action=hold/test/adjust/remove`、
   `evidenceBasis=untested/observational/observedTrial`、hypothesis、expectedNetworkEffect、uncertainty、evaluationPlan、revisitCondition。
   每项说明最多 400 个 Unicode 字符。允许不收费，但须区分尚未试验与已观察收费试验；缺少反事实不禁止开展试验。
   主目标仍是全网延误，不要求路段通行数必须下降，也不擅自将目标替换成最小化支付。
-- memory 目标 800–1,200 字符、硬上限 2,000。完整 JSON、rules 与 decision 合法后，若仅记忆不合格则锁定政策，
-  后续只请求记忆修复，计入原 repair-attempts 和请求预算。修复失败保留旧记忆并执行已验证政策，显式记录降级行为。
+- 每日日末 memory 目标 400–600 英文词、硬上限 1000 词。反思调用只返回 memory，不能改动收费政策。
+  失败保留旧记忆并记录；下次输入补充未成功反思期间的汇总。政策与记忆调用各有独立的输出校验及 repair-attempts。
   非法规则、缺失 decision、非法/重复键 JSON 和截断响应仍不能执行。
 - 免费前 20 天参照与相邻政策期变化均明确为描述性比较，没有匹配无收费反事实；不把自然学习改善当成收费因果效果。
   不注入个人记录、研究者预先跑好的 baseline、私人记忆或支付；不增加硬限价、自动政策回退或预设优选路段。
 
 不再区分两轮信息模式，也无需指定反馈模式参数。
-manifest schemaVersion=19，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
+manifest schemaVersion=22，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；Manager 的 `pricing.chargingMode=full_day` 和 `pricing.chargingWindow` 记录全天窗口。启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
 `informationComponents` 记录实际组合的信息类别，模板/环境/反馈版本分别记录。
 
 ```powershell
@@ -256,9 +257,9 @@ manifest schemaVersion=19，`pricing.mode` 区分 `none`、`fixed` 与 `manager`
 `manager-policy-evaluations.jsonl.gz` 在每次更新前与退出时
 保存完整公共政策期事实，包括最后一次政策后的尾段；`scheduledManagerUpdate` 标明是否在预定更新时归档。
 v4 的完整归档与模型中的压缩历史不是同一对象，`includedInManagerContext=false`；实际输入以 contexts 为准。
-`manager-attempts.jsonl.gz` 记录实际请求和校验结果；记忆修复的 role 为 `manager-memory`。
+`manager-attempts.jsonl.gz` 记录政策请求和校验；每日 `manager-memory` 调用独立记录在 `manager-memory-attempts.jsonl.gz`。
 `manager-decisions.jsonl.gz` 是最终接受决策，记录实际 policy fingerprint、是否改变收费、规则来源 attempt 和 memoryStatus。
-`manager-memory-fallbacks.jsonl.gz` 记录合法政策保留旧记忆的情形；`manager-fallbacks.jsonl.gz` 记录整次政策更新跳过。
+`manager-memory-fallbacks.jsonl.gz` 记录每日反思失败而保留旧记忆的情形；`manager-fallbacks.jsonl.gz` 记录整次政策更新跳过。
 原始响应的 valid=false 不一定表示政策更新跳过，需要结合最终接受决策判断。
 实际输入的 `managerMemoryMetadata` 标明记忆状态及最后写入迭代，保留旧记忆时 `previousDecision` 仍给出最新接受决策。
 统计只覆盖已记录的过去日；完整路段时间不等于完整 OD 耗时，link 通行次数也不等于出行需求。

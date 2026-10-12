@@ -1,7 +1,7 @@
 package org.matsim.agentic;
 
 /**
- * A chat-completions client. {@code role} is one of "traveler" or "manager" so
+ * A chat-completions client. {@code role} identifies traveler/manager decisions or their reflection tasks so
  * the mock implementation can return role-appropriate deterministic outputs.
  */
 public interface LlmClient {

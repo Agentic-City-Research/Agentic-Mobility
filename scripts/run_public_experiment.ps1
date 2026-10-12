@@ -8,6 +8,7 @@ param(
     [ValidateRange(0, 2147483647)][int]$FixedTollFreeDays = 20,
     [ValidateRange(1, 2147483647)][int]$ManagerUpdateInterval = 30,
     [int]$ManagerMaxOutputTokens = 8192,
+    [ValidateRange(1, 2147483647)][int]$ManagerMemoryMaxOutputTokens = 2048,
     [ValidateSet('basic', 'controlled')][string]$ManagerProfile = 'basic',
     [double]$ManagerMaxCorridorMinutes = 5,
     [double]$ManagerMaxStepMinutes = 2,
@@ -123,7 +124,7 @@ $taskArguments += @('--population-seed', "$PopulationSeed")
 if ($InnovationStopDay -ge 0) { $taskArguments += @('--innovation-stop-day', "$InnovationStopDay") }
 if ($DisableNativeTimeMutation) { $taskArguments += '--no-native-time-mutation' }
 if ($Manager) {
-    $taskArguments += @('--manager', '--manager-profile', $ManagerProfile, '--manager-update-interval', "$ManagerUpdateInterval", '--manager-max-output-tokens', "$ManagerMaxOutputTokens")
+    $taskArguments += @('--manager', '--manager-profile', $ManagerProfile, '--manager-update-interval', "$ManagerUpdateInterval", '--manager-max-output-tokens', "$ManagerMaxOutputTokens", '--manager-memory-max-output-tokens', "$ManagerMemoryMaxOutputTokens")
     $taskManagerOptions = [ordered]@{
         'max-corridor-minutes'=$ManagerMaxCorridorMinutes; 'max-step-minutes'=$ManagerMaxStepMinutes;
         'max-priced-corridors'=$ManagerMaxPricedCorridors; 'max-unavoidable-share'=$ManagerMaxUnavoidableShare;

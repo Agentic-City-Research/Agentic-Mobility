@@ -75,20 +75,20 @@ class MorningManagerSafetyTest {
         }
     }
 
-    @Test void constraintsEnforceRealActionsStepCapsCorridorCapsAndWholeHourWindows() {
+    @Test void constraintsEnforceRealActionsStepCapsCorridorCapsAndAllDayWindows() {
         var environment=environment();var c=MorningManagerControls.controlled();var zero=TollPolicy.empty(-1);
-        assertDoesNotThrow(() -> c.check(zero,priced(20,.2),MorningManagerTestResponses.decision("test"),environment));
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,1),MorningManagerTestResponses.decision("test"),environment));
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,2),MorningManagerTestResponses.decision("test"),environment));
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,.2),MorningManagerTestResponses.decision("hold"),environment));
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,zero,MorningManagerTestResponses.decision("adjust"),environment));
-        assertThrows(IllegalArgumentException.class,() -> c.check(priced(20,.1),priced(50,.2),MorningManagerTestResponses.decision("remove"),environment));
-        assertDoesNotThrow(() -> c.check(priced(20,.2),zero,MorningManagerTestResponses.decision("remove"),environment));
+        assertDoesNotThrow(() -> c.check(zero,priced(20,.2),MorningManagerTestResponses.decision("test"),environment,3600));
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,1),MorningManagerTestResponses.decision("test"),environment,3600));
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,2),MorningManagerTestResponses.decision("test"),environment,3600));
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,priced(20,.2),MorningManagerTestResponses.decision("hold"),environment,3600));
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,zero,MorningManagerTestResponses.decision("adjust"),environment,3600));
+        assertThrows(IllegalArgumentException.class,() -> c.check(priced(20,.1),priced(50,.2),MorningManagerTestResponses.decision("remove"),environment,3600));
+        assertDoesNotThrow(() -> c.check(priced(20,.2),zero,MorningManagerTestResponses.decision("remove"),environment,3600));
         var two=new TollPolicy(List.of(rule("a",.1),rule("b",.1)),20);
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,two,MorningManagerTestResponses.decision("test"),environment));
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,two,MorningManagerTestResponses.decision("test"),environment,3600));
         var partial=new TollPolicy(List.of(new TollPolicy.TollRule(Id.createLinkId("a"),10,3600,.1)),20);
-        assertThrows(IllegalArgumentException.class,() -> c.check(zero,partial,MorningManagerTestResponses.decision("test"),environment));
-        assertEquals(1,((List<?>)c.check(zero,priced(20,.1),MorningManagerTestResponses.decision("test"),environment).get("changes")).size());
+        assertThrows(IllegalArgumentException.class,() -> c.check(zero,partial,MorningManagerTestResponses.decision("test"),environment,3600));
+        assertEquals(1,((List<?>)c.check(zero,priced(20,.1),MorningManagerTestResponses.decision("test"),environment,3600).get("changes")).size());
     }
 
     @Test void spatialFeedbackSeparatesChargingHoursAndUsesPooledCompletedTraversals() {
@@ -121,7 +121,7 @@ class MorningManagerSafetyTest {
         var settings=new MorningExperiment();new picocli.CommandLine(settings).parseArgs("--manager","--manager-profile","controlled");
         var environment=MorningManagerEnvironment.from(scenario,settings,Map.of("loadedPopulation",2,"controlledPersons",0,"travelerInformation",Map.of()));
         var limits=MorningManagerControls.controlled();limits.maxUnavoidableShare=.4;
-        assertThrows(IllegalArgumentException.class,() -> limits.check(TollPolicy.empty(-1),priced(20,.1),MorningManagerTestResponses.decision("test"),environment));
+        assertThrows(IllegalArgumentException.class,() -> limits.check(TollPolicy.empty(-1),priced(20,.1),MorningManagerTestResponses.decision("test"),environment,3600));
         environment.captureReferenceDemand(scenario,0);
         assertTrue(Json.write(environment.context(20,TollPolicy.empty(-1))).contains("first completed simulation iteration"));
         assertThrows(IllegalStateException.class,() -> environment.captureReferenceDemand(scenario,1));

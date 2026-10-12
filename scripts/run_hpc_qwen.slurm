@@ -34,6 +34,7 @@ MANAGER_PROFILE="${MANAGER_PROFILE:-basic}"
 ENABLE_MANAGER="${ENABLE_MANAGER:-0}"
 MANAGER_UPDATE_INTERVAL="${MANAGER_UPDATE_INTERVAL:-30}"
 MANAGER_MAX_OUTPUT_TOKENS="${MANAGER_MAX_OUTPUT_TOKENS:-8192}"
+MANAGER_MEMORY_MAX_OUTPUT_TOKENS="${MANAGER_MEMORY_MAX_OUTPUT_TOKENS:-2048}"
 MEMORY_MAX_CHARS="${MEMORY_MAX_CHARS:-500}"
 MEMORY_MAX_OUTPUT_TOKENS="${MEMORY_MAX_OUTPUT_TOKENS:-1024}"
 MAX_OUTPUT_TOKENS="${MAX_OUTPUT_TOKENS:-512}"
@@ -88,7 +89,7 @@ command -v "$PYTHON_BIN" >/dev/null || fail "Python not found: $PYTHON_BIN"
 JAR_HELP="$("$JAVA_BIN" -cp "$JAR" org.matsim.agentic.MorningExperiment --help)" \
     || fail 'The JAR must include the current MorningExperiment entry point.'
 for option in --candidate-pool-size --candidate-time-slack-seconds --candidate-distance-slack-meters \
-    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile; do
+    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens; do
     [[ "$JAR_HELP" == *"$option"* ]] || fail "Uploaded JAR is too old: missing $option"
 done
 
@@ -167,7 +168,7 @@ experiment_args=(
     --trip-output-interval 1 --context-samples 20
 )
 if [[ "$ENABLE_MANAGER" == 1 ]]; then
-    experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS")
+    experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS" --manager-memory-max-output-tokens "$MANAGER_MEMORY_MAX_OUTPUT_TOKENS")
 elif [[ "$ENABLE_MANAGER" != 0 ]]; then fail 'ENABLE_MANAGER must be 0 or 1.'; fi
 if [[ -n "${CANDIDATE_FILE:-}" ]]; then
     [[ -f "$CANDIDATE_FILE" ]] || fail "Candidate file not found: $CANDIDATE_FILE"

@@ -4,13 +4,13 @@ import java.util.*;
 
 /** Factual public aggregates are independent of the manager's self-written notes. */
 final class MorningManagerFeedback {
-    static final String VERSION = "morning-public-policy-feedback-v4-continuous-windows";
+    static final String VERSION = "morning-public-policy-feedback-v5-daily-memory";
     private static final List<String> METRICS = List.of("totalLinkDelaySeconds", "totalLinkTravelSeconds",
             "enteredFullLinkTraversals", "completedFullLinkTraversals", "abortedFullLinkTraversals",
             "unfinishedFullLinkTraversals", "partialLinkTraversals");
     private record Sample(int day, MorningTollSystem.State state, Map<String, Double> metrics,
                           Map<String,Map<String,Double>> spatial, Map<String,Object> carTrips,
-                          List<Map<String,Object>> linkRows) {}
+                          List<Map<String,Object>> linkRows, Double revenue) {}
     private final List<Sample> samples = new ArrayList<>();
     private final int populationSize;
 
@@ -32,11 +32,77 @@ final class MorningManagerFeedback {
         }
         var spatial = (Map<String,Map<String,Double>>)publicDaily.getOrDefault("pricingSpatial",Map.of("network",Collections.unmodifiableMap(clean)));
         var carTrips = (Map<String,Object>)publicDaily.getOrDefault("publicCarTrips",Map.of());
+        Double revenue = publicDaily.get("tollRevenue") instanceof Number n ? n.doubleValue() : null;
+        if(revenue != null && (!Double.isFinite(revenue) || revenue < 0)) throw new IllegalArgumentException("Invalid public toll revenue");
         samples.add(new Sample(day, state, Collections.unmodifiableMap(clean),spatial,carTrips,
-                rows == null ? null : rows.stream().map(r -> Collections.unmodifiableMap(new LinkedHashMap<>(r))).toList()));
+                rows == null ? null : rows.stream().map(r -> Collections.unmodifiableMap(new LinkedHashMap<>(r))).toList(), revenue));
     }
 
     int observationsThroughDay() { return samples.isEmpty() ? -1 : samples.getLast().day(); }
+
+    /** Bounded reflection facts: no topology, individual records or expansion of every historical road window. */
+    Map<String,Object> reflectionContext(int day, int firstIteration, Integer previousMemoryDay) {
+        if(samples.isEmpty() || samples.getLast().day()!=day || samples.getFirst().day()<firstIteration)
+            throw new IllegalArgumentException("Reflect only after the current day is observed");
+        var episodes=new ArrayList<List<Sample>>();
+        for(var sample:samples) {
+            if(episodes.isEmpty() || !episodes.getLast().getLast().state().policy().fingerprint().equals(sample.state().policy().fingerprint()))
+                episodes.add(new ArrayList<>());
+            episodes.getLast().add(sample);
+        }
+        var current=episodes.getLast(); int olderCount=Math.max(0,episodes.size()-2);
+        var history=new ArrayList<Map<String,Object>>();
+        for(var episode:episodes.subList(olderCount,episodes.size())) {
+            var row=new LinkedHashMap<String,Object>();
+            row.put("policyFingerprint",episode.getFirst().state().policy().fingerprint());
+            row.put("firstPolicyVersion",episode.getFirst().state().version()); row.put("lastPolicyVersion",episode.getLast().state().version());
+            row.put("observations",reflectionStatistics(episode)); history.add(row);
+        }
+        var free=samples.stream().filter(s -> s.day()<firstIteration+MorningManager.FREE_DAYS && !positivePrices(s.state().policy())).toList();
+        var newSamples=samples.stream().filter(s -> previousMemoryDay==null || s.day()>previousMemoryDay).toList();
+        int split=Math.max(0,samples.size()-7); var recent=samples.subList(split,samples.size());
+        var previous=samples.subList(Math.max(0,split-7),split);
+        var result=new LinkedHashMap<String,Object>();
+        result.put("today",reflectionStatistics(List.of(samples.getLast())));
+        result.put("newObservations",newSamples.isEmpty()?null:reflectionStatistics(newSamples));
+        result.put("recentUpTo7ObservedDays",reflectionStatistics(recent));
+        result.put("previousUpTo7ObservedDays",previous.isEmpty()?null:reflectionStatistics(previous));
+        result.put("recentChangeFromPrevious",previous.isEmpty()?null:reflectionChanges(reflectionStatistics(recent),reflectionStatistics(previous)));
+        result.put("freePeriodReference",free.isEmpty()?null:reflectionStatistics(free));
+        result.put("currentPriceEpisode",history.getLast());
+        result.put("previousPriceEpisode",history.size()<2?null:history.getFirst());
+        var older=olderCount==0?List.<Sample>of():samples.stream().filter(s -> s.day()<episodes.get(olderCount).getFirst().day()).toList();
+        result.put("olderPriceEpisodeCount",olderCount); result.put("olderObservations",older.isEmpty()?null:reflectionStatistics(older));
+        result.put("currentChangeFromFreeReference",free.isEmpty()?null:reflectionChanges(reflectionStatistics(current),reflectionStatistics(free)));
+        result.put("matchedNoPricingCounterfactualAvailable",false);
+        return result;
+    }
+
+    private Map<String,Object> reflectionStatistics(List<Sample> period) {
+        var full=statistics(period);
+        var result=new LinkedHashMap<>(MorningManagerCompactContext.statistics(full));
+        for(String key:List.of("delaySecondsPerCompletedTraversal","travelSecondsPerCompletedTraversal","tollRevenue"))
+            result.put(key,full.get(key));
+        var trips=(Map<String,Object>)full.get("publicCarTrips");
+        result.put("completionRateAmongStartedCarTrips",trips.get("completionRateAmongStartedCarTrips"));
+        return result;
+    }
+
+    private static Map<String,Object> reflectionChanges(Map<String,Object> current,Map<String,Object> reference) {
+        var now=(List<?>)current.get("totals"); var before=(List<?>)reference.get("totals");
+        double days=((Number)current.get("observedDays")).doubleValue(), refDays=((Number)reference.get("observedDays")).doubleValue();
+        var absolute=new ArrayList<Double>(); var relative=new ArrayList<Double>();
+        for(int i=0;i<now.size();i++) {
+            double x=((Number)now.get(i)).doubleValue()/days, y=((Number)before.get(i)).doubleValue()/refDays;
+            absolute.add(x-y); relative.add(y==0?null:100*(x/y-1));
+        }
+        return Map.of("meanDailyAbsoluteDifference",absolute,"meanDailyRelativePercent",relative);
+    }
+
+    List<Map<String,Object>> rowsSince(Integer previousMemoryDay) {
+        return samples.stream().filter(s -> previousMemoryDay==null || s.day()>previousMemoryDay)
+                .flatMap(s -> s.linkRows()==null?java.util.stream.Stream.empty():s.linkRows().stream()).toList();
+    }
 
     Map<String, Object> context(int day, int firstIteration) {
         if (samples.stream().anyMatch(s -> s.day() >= day || s.day() < firstIteration))
@@ -253,6 +319,11 @@ final class MorningManagerFeedback {
         tripStats.put("completionRateAmongStartedCarTrips",started==0?null:trips.get("carTripsCompleted")/started);
         tripStats.put("scope","All started car legs including background traffic; not a cohort or the completion rate of all planned OD trips.");
         result.put("publicCarTrips",tripStats);
+        var revenue=new LinkedHashMap<String,Object>();
+        boolean available=period.stream().allMatch(s -> s.revenue()!=null);
+        revenue.put("total",available?period.stream().mapToDouble(Sample::revenue).sum():null);
+        revenue.put("meanDaily",available?period.stream().mapToDouble(Sample::revenue).sum()/period.size():null);
+        result.put("tollRevenue",revenue);
         return result;
     }
 

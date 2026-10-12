@@ -176,7 +176,7 @@ class MorningFixedTollTest {
     private Path writePolicy(String name, String json) throws Exception {
         Path file = directory.resolve(name); Files.writeString(file, json); return file;
     }
-    private Path writeScenario(boolean alternate) {
+    private Path writeScenario(boolean alternate) throws java.io.IOException {
         var config = ConfigUtils.createConfig(); config.qsim().setEndTime(108000); config.global().setNumberOfThreads(1);
         config.qsim().setNumberOfThreads(1); config.routing().setRoutingRandomness(0);
         config.routing().setAccessEgressType(RoutingConfigGroup.AccessEgressType.none);
@@ -197,7 +197,9 @@ class MorningFixedTollTest {
         p.addPlan(plan); scenario.getPopulation().addPerson(p);
         new NetworkWriter(scenario.getNetwork()).write(net.toString()); new PopulationWriter(scenario.getPopulation()).write(pop.toString());
         new org.matsim.facilities.FacilitiesWriter(scenario.getActivityFacilities()).write(facilities.toString());
-        new ConfigWriter(config).write(cfg.toString()); return cfg;
+        new ConfigWriter(config).write(cfg.toString());
+        for (Path file : List.of(net,pop,cfg,facilities)) MorningJointTestSupport.useBundledDtd(file);
+        return cfg;
     }
     private static Network network(boolean alternate) {
         var n = NetworkUtils.createNetwork(); var f = n.getFactory();

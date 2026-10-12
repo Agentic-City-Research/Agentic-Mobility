@@ -8,9 +8,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** The manager sees an explicit public-traffic projection, never the cohort, profiles or traveler memory. */
 final class MorningManager {
-    static final String VERSION = "morning-pricing-v8-compact-prefix";
+    static final String VERSION = "morning-pricing-v10-daily-memory";
     static final String FEEDBACK_MODE = "combined";
-    static final int FREE_DAYS = 20, UPDATE_INTERVAL = 30, MEMORY_MAX_CHARS = 2000;
+    static final int FREE_DAYS = 20, UPDATE_INTERVAL = 30;
     static final int MEMORY_MAX_WORDS = 1000;
     static final int MEMORY_TARGET_MIN_WORDS = 400, MEMORY_TARGET_MAX_WORDS = 600;
     static final String BASIC_SYSTEM = """
@@ -41,46 +41,46 @@ final class MorningManager {
             Tracked windows can overlap each other; their observations must not be summed as independent network traffic.
             Compare policyFeedback and trackedChargingWindows with your notes; period changes are descriptive, not matched causal effects.
             Travelers learn from their own executed outcomes. You cannot read individual travel information, payments, profiles or memory.
-            Actions: return the complete policy for today, choosing hold, test, adjust or remove. You decide when to wait, where and when
-            to charge, prices, and when to withdraw. An empty policy is allowed. No price ladder, minimum positive price or prescribed search order.
+            Actions: return the complete policy for today, choosing hold, test, adjust or remove. At scheduled policy updates,
+            choose whether to wait, which links to charge, their amounts, and whether to withdraw. All selected links are charged throughout the entire
+            simulated day at one fixed amount per entry. An empty policy is allowed. No price ladder, minimum positive price or prescribed search order.
             Prices are finite nonnegative scenario monetary units, not calibrated real currency. At most 40 rules; existing car links only.
-            Rule windows are within-day seconds 0 <= start < end <= simulationEndSeconds, aligned to the 900-second observation bins.
-            Rules on the same link cannot overlap. Each actual car-link entry is charged once, including origin partial-link entries;
+            Each link may appear only once. Every rule must have start=0 and end=simulationEndSeconds, including time after 24:00
+            when the simulation runs past midnight. Do not choose peak-hour windows or time-varying prices. Observation bins are not charging windows.
+            Each actual car-link entry is charged once, including origin partial-link entries;
             repeated traversals incur new charges. Windows are [start,end); actual billing uses executed entry times.
             The policy repeats until another accepted manager update. Read executionSchedule for available decision dates and remaining days.
             There is no automatic withdrawal or performance-triggered policy change. Invalid output leaves the previous policy in force.
             hold preserves the actual price function; test/adjust change it; remove reduces or withdraws prices without increases.
             Interpret effects with uncertainty and revise your understanding from executed evidence. No weight learning is performed.
-            Return exactly one JSON object with rules, decision and memory. rules is an array (maximum 40) of objects containing only
-            link_id (string), start (number), end (number), amount (number).
+            Return exactly one JSON object with rules and decision. Memory is updated separately after each completed day. rules is an array (maximum 40) of objects containing only
+            link_id (string), start (number, always 0), end (number, always simulationEndSeconds), amount (number).
             decision contains only action (hold|test|adjust|remove), evidenceBasis (untested|observational|observedTrial),
             hypothesis, expectedNetworkEffect, uncertainty, evaluationPlan and revisitCondition; explanations are nonempty strings,
             at most 400 Unicode characters each. Keep review plans consistent with the scheduled decision opportunities.
-            memory is your complete replacement management memory in English. Target 400-600 words; at most 1000 words (hard maximum).
-            Use fewer words when evidence is limited; do not pad to fill the limit or repeat supplied public tables.
-            Retain unfinished ideas and revised interpretations. Separate measured facts from hypotheses; replace, do not append.
             """;
     static final String SYSTEM = """
             You manage congestion pricing for the supplied car network. Reduce total network congestion delay.
             Consider aborted and unfinished traffic as well as completed-traversal delay; missing completions are not successful delay reduction.
-            Choose car links, charging windows and amounts subject to pricingControls. There is no predefined link list or price ladder.
+            Choose car links and one all-day amount per link subject to pricingControls. There is no predefined link list or price ladder.
             Use small, interpretable trials: one corridor and one entry link per corridor by default. Never stack subdivision tolls.
             Corridor cost and upward price steps have routing-minute caps. Full withdrawal and price reductions are permitted.
-            Align charging windows to the hourly measurement bins. Change one aspect of a trial at a time where possible.
+            Charge every selected link throughout [0, simulationEndSeconds) at a fixed amount per entry.
+            Hourly bins are traffic observations, not selectable charging windows. Change one aspect of a trial at a time where possible.
             Read chargingSuitability: actual link-OD reachability is aggregated from reference car plans including background traffic.
             Prefer avoidable entry links; high unavoidable reference-route shares are rejected by the declared limit.
             These full-day reference-plan counts are not actual peak payers and do not certify spare capacity or useful diversion.
-            You may return no charging rules. Multiple non-overlapping windows on a link are allowed.
+            You may return no charging rules. Each link may appear only once; peak-hour-only and time-varying tolls are not allowed.
             Traffic observations are feedback, not restrictions on which links you may price.
-            Legal rules require an existing car link, finite seconds 0 <= start < end <= simulationEndSeconds,
-            and a finite nonnegative amount. Windows on the same link must not overlap.
+            Legal rules require an existing car link, start=0, end=simulationEndSeconds, and a finite nonnegative amount.
+            Use the full simulation horizon even when it runs beyond 24:00 or ends between observation-bin boundaries.
             Amounts are in scenario monetary units, not an asserted real-world currency, and are not rounded to price levels.
             Each actual car-link entry is charged once, including entry into traffic on an origin partial link.
             A repeated traversal is charged again. Duplicate notifications of one entry are not charged twice.
             Windows are left-closed and right-open. Read executionSchedule for the actual update interval and remaining run days.
             This complete policy takes effect today until another accepted policy or deterministic daily safety withdrawal.
             Failed model updates retain the current policy, but do not disable daily safety reviews.
-            Rule start/end are seconds WITHIN EACH simulated day, not a policy lifetime in simulation days.
+            Rule start/end cover the entire simulated day; they are not a policy lifetime in simulation days.
             Travelers can respond to public prices and their own payments; capacity, demand, OD and modes are not policy actions.
             Read publicEnvironment for actual population/capacity scaling, routing money/time units and enabled traveler responses.
             Raw network capacity is not sampled QSim flow capacity. Do not infer active demand reduction, mode switching or deliberate
@@ -96,7 +96,7 @@ final class MorningManager {
             Read pricingSpatial and publicCarTrips in each observed period: distinguish total delay, mean delay per traversal,
             priced charging windows, outside-window delay, other roads and completion among all started car legs.
             Fewer entries or less revenue alone is not success. Improvement on priced roads can be outweighed by other-road delay.
-            managerMemoryMetadata identifies retained older notes after a failed memory repair; previousDecision still records the latest accepted decision.
+            managerMemoryMetadata identifies notes retained after a failed daily reflection; previousDecision still records the latest accepted decision.
             Period changes and the early free-period reference are descriptive, not matched no-pricing counterfactuals; native learning can improve
             traffic without tolls. More link traversals need not mean more OD demand. Consider full-link travel time as well as delay and failures.
             Read routeAlternatives for public same-direction, same-bin path diagnostics. They are illustrative, not charging candidates,
@@ -115,13 +115,11 @@ final class MorningManager {
             action=hold must preserve the price function; test/adjust must change it; remove must actually reduce prices without any increase.
             executionDiff is calculated and validated by the program. Describe the rules you actually return.
             You do not have access to any traveler's private memory, individual payment history or personal profile.
-            Keep memory around 800-1200 Unicode characters; hard maximum 2000. Record new judgments and unfinished tests,
-            not repeated public parameters or bottleneck lists. Distinguish interpretations from observed facts.
-            Return exactly one JSON object with rules, decision and memory. rules is an array of objects containing only
-            link_id (string), start (number), end (number), amount (number); an empty array is allowed.
+            Return exactly one JSON object with rules and decision. Memory is updated separately after each completed day. rules is an array of objects containing only
+            link_id (string), start (number, always 0), end (number, always simulationEndSeconds), amount (number); an empty array is allowed.
             decision contains only action (hold|test|adjust|remove), evidenceBasis (untested|observational|observedTrial),
             hypothesis, expectedNetworkEffect, uncertainty, evaluationPlan and revisitCondition.
-            Each decision explanation is a nonempty string of at most 400 Unicode characters. memory is a string.
+            Each decision explanation is a nonempty string of at most 400 Unicode characters. Do not return memory.
             """;
     record Result(TollPolicy policy, boolean accepted, int repairCount) {}
     private final Network network;
@@ -140,6 +138,9 @@ final class MorningManager {
     private String memory = "";
     private String memoryStatus = "initial";
     private Integer memoryWrittenAtDay;
+    private Integer memoryAttemptedAtDay;
+    private Integer memoryCommittedAtDay;
+    private MorningManagerMemory memoryUpdater;
     private Map<String, String> lastDecision = Map.of();
     private final AtomicLong attemptedCalls = new AtomicLong();
 
@@ -166,6 +167,7 @@ final class MorningManager {
         this.updateInterval = updateInterval; this.lastIteration = lastIteration;
         controls.validate(); this.controls=controls; safety=controls.basic() ? null : new MorningManagerSafety(controls,output);
         feedback = new MorningManagerFeedback(environment.populationSize());
+        setMemoryClient(client, modelSettings);
     }
     static boolean updateDay(int day, int firstIteration) {
         return updateDay(day, firstIteration, UPDATE_INTERVAL);
@@ -183,7 +185,13 @@ final class MorningManager {
         long duration = (long) last - first + 1;
         return duration <= FREE_DAYS ? 0 : 1L + (duration - FREE_DAYS - 1L) / interval;
     }
-    long attemptedCalls() { return attemptedCalls.get(); }
+    static long minimumMemoryCalls(int first, int last) { return Math.max(0L, (long)last-first+1); }
+    long attemptedCalls() { return attemptedCalls.get()+memoryUpdater.attemptedCalls(); }
+    long attemptedPolicyCalls() { return attemptedCalls.get(); }
+    long attemptedMemoryCalls() { return memoryUpdater.attemptedCalls(); }
+    void setMemoryClient(LlmClient memoryClient, Map<String,Object> memorySettings) {
+        memoryUpdater=new MorningManagerMemory(memoryClient,output,budget,attempts,memorySettings);
+    }
     TollPolicy automaticRollback(int day,MorningTollSystem.State state) { return controls.basic() ? null : safety.rollback(day,state); }
     boolean inCooldown(int day) { return !controls.basic() && safety.cooldown(day); }
     void policyApplied(int day,TollPolicy next,boolean automatic) { if (!controls.basic()) safety.applied(day,next,automatic); }
@@ -191,7 +199,7 @@ final class MorningManager {
         if (controls.basic()) return;
         environment.captureReferenceDemand(scenario,day);
         var publicEnvironment=new LinkedHashMap<>(environment.context(day,state.policy(),controls.basic()));
-        publicEnvironment.put("pricingControls",controls.context(environment));output.writeDoc("manager-public-environment.json",publicEnvironment);
+        publicEnvironment.put("pricingControls",controls.context(environment,horizon));output.writeDoc("manager-public-environment.json",publicEnvironment);
     }
 
     /** Allowlist numeric link measurements; passing research logs here cannot expose private fields. */
@@ -199,6 +207,9 @@ final class MorningManager {
         observe(day,linkHours,state,Map.of());
     }
     void observe(int day,List<Map<String,Object>> linkHours,MorningTollSystem.State state,Map<String,Object> publicCarTrips) {
+        observe(day,linkHours,state,publicCarTrips,null);
+    }
+    void observe(int day,List<Map<String,Object>> linkHours,MorningTollSystem.State state,Map<String,Object> publicCarTrips,Double revenue) {
         if (day < 0 || day <= feedback.observationsThroughDay())
             throw new IllegalArgumentException("Manager observations must be chronological completed days");
         var publicRows = new ArrayList<Map<String, Object>>();
@@ -212,6 +223,11 @@ final class MorningManager {
                     throw new IllegalArgumentException("Invalid public link measurement: " + field);
                 clean.put(field, n);
             }
+            double start = ((Number) clean.get("start")).doubleValue();
+            double end = ((Number) clean.get("end")).doubleValue();
+            if (start >= end || start >= horizon) throw new IllegalArgumentException("Public entry bin is outside the simulated day");
+            // Entry bins may extend beyond QSim's end; their observed entries still belong to the all-day policy.
+            if (end > horizon) clean.put("end", horizon);
             publicRows.add(Collections.unmodifiableMap(clean));
         }
         var trips=new LinkedHashMap<String,Object>();
@@ -224,6 +240,7 @@ final class MorningManager {
             throw new IllegalArgumentException("Public car-trip starts must equal completed + aborted + unfinished");
         var daily=dailyTraffic(day,publicRows);
         daily.put("pricingSpatial",MorningManagerMeasurements.spatial(publicRows,state.policy()));daily.put("publicCarTrips",trips);
+        if(revenue!=null) daily.put("tollRevenue",revenue);
         feedback.observe(day,state,daily,publicRows);
         if (!controls.basic()) safety.observe(day,List.copyOf(publicRows),Collections.unmodifiableMap(trips),state);
         window.add(Map.of("day",day,"link_metrics_version",3,"link_hourly",List.copyOf(publicRows),"publicTraffic",daily));
@@ -267,6 +284,8 @@ final class MorningManager {
                 "numberOfLanes", "rawCapacity", "nominalScaledFlowCapacityPerHour");
         context.put("networkColumns", networkColumns); context.put("network", table(topology, networkColumns));
         var schedule = new LinkedHashMap<String, Object>();
+        schedule.put("memoryUpdatePhase", "after_each_completed_simulation_day_including_free_days");
+        schedule.put("memoryChangesPolicy",false);
         schedule.put("freeSimulationDays", FREE_DAYS); schedule.put("updateIntervalDays", updateInterval);
         schedule.put("lastSimulationIteration", lastIteration);
         long firstUpdate = (long) firstIteration + FREE_DAYS;
@@ -278,8 +297,8 @@ final class MorningManager {
         schedule.put("remainingSimulationDaysIncludingToday", (long) lastIteration - day + 1);
         schedule.put("automaticReviewEveryCompletedDay",!controls.basic());schedule.put("automaticWithdrawalEffectiveNextIteration",!controls.basic());
         schedule.put("modelUpdateSuppressedDuringSafetyCooldown",!controls.basic());
-        schedule.put("policyPersistence", controls.basic() ? "Policy repeats until another accepted manager update; no automatic strategy intervention. start/end are within-day seconds."
-                : "Policy repeats until an accepted update or next-iteration safety withdrawal. Failed model updates do not disable daily reviews. start/end are within-day seconds.");
+        schedule.put("policyPersistence", controls.basic() ? "All-day policy repeats until another accepted manager update; no automatic strategy intervention. Every rule covers [0, simulationEndSeconds)."
+                : "All-day policy repeats until an accepted update or next-iteration safety withdrawal. Failed model updates do not disable daily reviews. Every rule covers [0, simulationEndSeconds).");
         context.put("executionSchedule", schedule);
         context.put("dailyTraffic", daily);
         var totalColumns = List.of("linkId", "entered", "completed", "aborted", "unfinished", "partial", "totalTravelSeconds", "totalDelaySeconds", "meanTravelSeconds","meanDelaySeconds");
@@ -291,11 +310,12 @@ final class MorningManager {
         context.put("currentPolicy", state.policy().toJson()); context.put("managerMemory", memory);
         var memoryMetadata = new LinkedHashMap<String, Object>();
         memoryMetadata.put("status", memoryStatus); memoryMetadata.put("writtenAtDay", memoryWrittenAtDay);
+        memoryMetadata.put("observationsThroughDay",memoryWrittenAtDay);
         context.put("managerMemoryMetadata", memoryMetadata);
         context.put("currentPolicyFingerprint", state.policy().fingerprint());
         context.put("previousDecision", lastDecision);
         context.put("policyFeedback", history);
-        context.put("pricingControls",controls.context(environment));
+        context.put("pricingControls",controls.context(environment,horizon));
         context.put("managerProfile", controls.profile);
         if (!controls.basic()) context.put("safetyMonitoring",safety.context());
         return context;
@@ -350,54 +370,29 @@ final class MorningManager {
                 "characterCountsAreTokens", false));
         writeEvaluation(day, firstIteration, "scheduled_update");
         String error = null;
-        Pending pending = null;
         int calls = 0;
         for (int attempt = 1; attempt <= attempts; attempt++) {
-            boolean memoryOnly = pending != null;
-            try { budget.reserve(); }
-            catch (LlmException exhausted) {
-                if (!memoryOnly) throw exhausted;
-                error = exhausted.getMessage(); break;
-            }
-            attemptedCalls.incrementAndGet(); calls++;
-            var schema = memoryOnly ? memorySchema() : schema();
-            String requestSystem = memoryOnly ? "Rewrite management notes only. Preserve the decision and uncertainty. Do not repeat public facts. "
-                    + (controls.basic() ? "Complete replacement English memory. Target 400-600 words; hard maximum 1000. Do not pad short notes. " : "Target 800-1200 Unicode characters; hard maximum 2000. ")
-                    + "Return exactly {\"memory\":\"notes\"}." : system;
-            String user = memoryOnly ? Json.write(Map.of("validatedPolicyFingerprint", pending.policy().fingerprint(),
-                    "decision", pending.decision(), "notesToShorten", pending.notes(), "previousError", error))
-                    : base + (error == null ? "" : "\nPrevious output was invalid: " + error
-                    + ". Correct the execution or JSON error; choose the legal monetary amounts yourself. Return complete JSON only.");
+            budget.reserve(); attemptedCalls.incrementAndGet(); calls++;
+            var schema = schema();
+            String user = base + (error == null ? "" : "\nPrevious output was invalid: " + error
+                    + ". Correct the execution or JSON error; return complete JSON only.");
             var log = new LinkedHashMap<String, Object>();
-            log.put("day", day); log.put("role", memoryOnly ? "manager-memory" : "manager");
-            log.put("attempt", attempt); log.put("templateVersion", VERSION);
-            log.put("contextHash", hash); log.put("system", requestSystem); log.put("user", user);
-            log.put("requestHash", MorningPromptRenderer.hash(requestSystem + "\n" + user));
-            log.put("systemCharacters", requestSystem.length()); log.put("userCharacters", user.length());
-            log.put("policyLocked", memoryOnly);
-            if (memoryOnly) log.put("lockedPolicyFingerprint", pending.policy().fingerprint());
+            log.put("day", day); log.put("role", "manager"); log.put("attempt", attempt); log.put("templateVersion", VERSION);
+            log.put("contextHash", hash); log.put("system", system); log.put("user", user);
+            log.put("requestHash", MorningPromptRenderer.hash(system + "\n" + user));
+            log.put("systemCharacters", system.length()); log.put("userCharacters", user.length());
             log.put("modelSettings", MorningOutputContract.requestSettings(modelSettings, schema)); log.put("outputSchema", schema);
             long start = System.nanoTime();
             try {
-                var response = client.complete(memoryOnly ? "manager-memory" : "manager", requestSystem, user, schema);
+                var response = client.complete("manager", system, user, schema);
                 log.put("response", response.content()); MorningOutputContract.responseMetadata(log, response);
-                log.put("usageReported", response.usageReported());
-                log.put("usage", MorningOutputContract.usage(response));
+                log.put("usageReported", response.usageReported()); log.put("usage", MorningOutputContract.usage(response));
                 try {
                     MorningOutputContract.requireNotTruncated(response);
                     var node = strictJson(response.content());
-                    if (memoryOnly) {
-                        if (node == null || !node.isObject() || node.size() != 1 || !node.path("memory").isTextual())
-                            throw new IllegalArgumentException("Memory repair must contain only memory; validated policy cannot change");
-                        String nextMemory = validMemory(node.get("memory").asText());
-                        log.put("valid", true); log.put("policy", pending.policy().toJson());
-                        log.put("decision", pending.decision()); log.put("elapsedMillis", elapsed(start));
-                        output.appendLine("manager-attempts.jsonl", log);
-                        return accept(day, state, pending, nextMemory, "repaired", calls);
-                    }
-                    if (node == null || !node.isObject() || node.size() != 3 || !node.path("rules").isArray()
-                            || !node.path("memory").isTextual() || !node.path("decision").isObject())
-                        throw new IllegalArgumentException("Expected only rules array, decision object and memory string");
+                    if (node == null || !node.isObject() || node.size() != 2 || !node.path("rules").isArray()
+                            || !node.path("decision").isObject())
+                        throw new IllegalArgumentException("Expected only rules array and decision object; memory is updated at day end");
                     var rules = new ArrayList<TollPolicy.TollRule>();
                     if (node.get("rules").size() > MorningManagerControls.MAX_RULES)
                         throw new IllegalArgumentException("Manager policy exceeds 40 rules");
@@ -412,52 +407,96 @@ final class MorningManager {
                     var violations = policy.validate(network, horizon);
                     if (!violations.isEmpty()) throw new IllegalArgumentException(String.join("; ", violations));
                     var decision = decision(node.get("decision"));
-                    var executionDiff=controls.check(state.policy(),policy,decision,environment);
-                    pending = new Pending(policy, decision, node.get("memory").asText(), attempt,executionDiff);
-                    String nextMemory = validMemory(pending.notes());
+                    var executionDiff=controls.check(state.policy(),policy,decision,environment,horizon);
                     log.put("valid", true); log.put("policy", policy.toJson()); log.put("decision", decision);
-                    log.put("elapsedMillis", elapsed(start));
-                    output.appendLine("manager-attempts.jsonl", log);
-                    return accept(day, state, pending, nextMemory, "updated", calls);
+                    log.put("elapsedMillis", elapsed(start)); output.appendLine("manager-attempts.jsonl", log);
+                    lastDecision=decision; window.clear();
+                    output.appendLine("manager-decisions.jsonl",Map.of("day",day,"policy",policy.toJson(),
+                            "policyFingerprint",policy.fingerprint(),"pricingChanged",!state.policy().fingerprint().equals(policy.fingerprint()),
+                            "decision",decision,"memoryStatus","unchanged_until_day_end","rulesSourceAttempt",attempt,
+                            "attemptedCalls",calls,"executionDiff",executionDiff));
+                    return new Result(policy,true,Math.max(0,calls-1));
                 } catch (java.io.IOException | IllegalArgumentException invalid) { error = invalid.getMessage(); }
                 log.put("valid", false); log.put("error", error); log.put("failureKind", "output");
-                if (pending != null) {
-                    log.put("policyValidated", true); log.put("policy", pending.policy().toJson());
-                    log.put("decision", pending.decision());
-                }
             } catch (RuntimeException failure) {
                 log.put("valid", false); log.put("error", failure.toString()); log.put("failureKind", "call");
                 log.put("elapsedMillis", elapsed(start)); output.appendLine("manager-attempts.jsonl", log); output.flush();
-                if (!memoryOnly) throw failure;
-                error = failure.toString(); break;
+                throw failure;
             }
             log.put("elapsedMillis", elapsed(start)); output.appendLine("manager-attempts.jsonl", log);
-        }
-        if (pending != null) {
-            output.appendLine("manager-memory-fallbacks.jsonl", Map.of("day", day,
-                    "event", "validated_policy_accepted_with_previous_memory", "error", error,
-                    "policyFingerprint", pending.policy().fingerprint(), "rulesSourceAttempt", pending.attempt()));
-            return accept(day, state, pending, memory, "retained_previous", calls);
         }
         output.appendLine("manager-fallbacks.jsonl", Map.of("day", day, "event", "policy_update_skipped", "error", error,
                 "fallback", "retain_previous_policy_and_manager_memory", "policyId", state.policyId(), "policyVersion", state.version()));
         return new Result(state.policy(), false, attempts - 1);
     }
 
-    private record Pending(TollPolicy policy, Map<String, String> decision, String notes, int attempt,Map<String,Object> executionDiff) {}
+    /** Build an immutable worker input on the simulation thread; pending missed days survive policy changes. */
+    Map<String,Object> memoryContext(int day,int firstIteration,MorningTollSystem.State state) {
+        if(memoryAttemptedAtDay!=null && day<=memoryAttemptedAtDay) throw new IllegalArgumentException("Reflect once per completed day");
+        var result=new LinkedHashMap<String,Object>();
+        result.put("templateVersion",MorningManagerMemory.VERSION); result.put("day",day); result.put("simulationDay",day-firstIteration+1);
+        result.put("observationsThroughDay",feedback.observationsThroughDay()); result.put("managerMemory",memory);
+        result.put("previousMemoryDay",memoryWrittenAtDay); result.put("previousMemoryStatus",memoryStatus);
+        result.put("executedPolicy",state.toJson()); result.put("previousDecision",lastDecision);
+        result.put("simulationEndSeconds",horizon); result.put("managerProfile",controls.profile);
+        long firstUpdate=(long)firstIteration+FREE_DAYS;
+        long nextUpdate=day<firstUpdate?firstUpdate:firstUpdate+(((long)day-firstUpdate)/updateInterval+1)*updateInterval;
+        result.put("nextScheduledPolicyIteration",nextUpdate<=lastIteration?nextUpdate:null);
+        result.put("remainingSimulationDays",Math.max(0L,(long)lastIteration-day));
+        var publicParameters=new LinkedHashMap<>(environment.parameters(day));
+        if(controls.basic()) publicParameters.remove("routingCostScale");
+        result.put("publicEnvironment",publicParameters);
+        result.put("trafficMetricColumns",MorningManagerMeasurements.FIELDS);
+        result.put("feedback",feedback.reflectionContext(day,firstIteration,memoryWrittenAtDay));
+        result.put("roadStatistics",reflectionRoads(feedback.rowsSince(memoryWrittenAtDay),state.policy()));
+        result.put("memoryChangesPolicy",false);
+        memoryAttemptedAtDay=day;
+        return Collections.unmodifiableMap(result);
+    }
 
-    private Result accept(int day, MorningTollSystem.State previous, Pending pending, String notes, String memoryStatus, int calls) {
-        memory = notes; lastDecision = pending.decision(); window.clear();
-        this.memoryStatus = memoryStatus;
-        if (!memoryStatus.equals("retained_previous")) memoryWrittenAtDay = day;
-        output.appendLine("manager-decisions.jsonl", Map.of("day", day, "policy", pending.policy().toJson(),
-                "policyFingerprint", pending.policy().fingerprint(),
-                "pricingChanged", !previous.policy().fingerprint().equals(pending.policy().fingerprint()),
-                "decision", lastDecision, "memoryStatus", memoryStatus, "memoryCharacters", memory.codePointCount(0, memory.length()),
-                "rulesSourceAttempt", pending.attempt(), "attemptedCalls", calls,"executionDiff",pending.executionDiff()));
-        output.appendLine("manager-memory-updates.jsonl", Map.of("day", day, "memory", memory, "wordCount", wordCount(memory),
-                "memoryStatus", memoryStatus, "managerProfile", controls.profile, "completeReplacement", !memoryStatus.equals("retained_previous")));
-        return new Result(pending.policy(), true, Math.max(0, calls - 1));
+    private Map<String,Object> reflectionRoads(List<Map<String,Object>> rows,TollPolicy current) {
+        var totals=new TreeMap<String,double[]>();
+        var fields=List.of("entered","completed","aborted","unfinished","partial","total_travel_time","total_delay");
+        for(var row:rows) {
+            var sums=totals.computeIfAbsent((String)row.get("link_id"),ignored -> new double[7]);
+            for(int i=0;i<fields.size();i++) sums[i]+=((Number)row.get(fields.get(i))).doubleValue();
+        }
+        var selected=new TreeSet<String>();
+        totals.entrySet().stream().filter(e -> e.getValue()[6]>0)
+                .sorted(Comparator.<Map.Entry<String,double[]>>comparingDouble(e -> e.getValue()[6]).reversed().thenComparing(Map.Entry::getKey))
+                .limit(20).forEach(e -> selected.add(e.getKey()));
+        totals.entrySet().stream().filter(e -> e.getValue()[2]+e.getValue()[3]>0)
+                .sorted(Comparator.<Map.Entry<String,double[]>>comparingDouble(e -> e.getValue()[2]+e.getValue()[3]).reversed().thenComparing(Map.Entry::getKey))
+                .limit(10).forEach(e -> selected.add(e.getKey()));
+        feedback.recentPricingWindows(current).forEach(r -> selected.add(r.linkId().toString()));
+        var table=new ArrayList<List<Object>>(); var missing=new ArrayList<String>();
+        for(String id:selected) {
+            var sums=totals.get(id); if(sums==null) { missing.add(id); continue; }
+            var values=new ArrayList<Object>(); values.add(id); for(double n:sums) values.add(n); table.add(values);
+        }
+        return Map.of("columns",List.of("linkId","entered","completed","aborted","unfinished","partial","totalTravelSeconds","totalDelaySeconds"),
+                "rows",table,"selectedLinksWithoutRecordedRows",missing,"scope","New observations since last successful memory; top 20 delay/top 10 failure roads plus current/recent withdrawn prices. Unlisted roads are not uncongested.");
+    }
+
+    MorningManagerMemory.Update reflect(Map<String,Object> context) { return memoryUpdater.update(context); }
+
+    void commitMemory(int day,MorningManagerMemory.Update update) {
+        if(!Objects.equals(memoryAttemptedAtDay,day) || memoryCommittedAtDay!=null && day<=memoryCommittedAtDay)
+            throw new IllegalArgumentException("No uncommitted matching daily reflection input");
+        memoryCommittedAtDay=day;
+        String previous=memory; Integer previousDay=memoryWrittenAtDay;
+        if(update.accepted()) { memory=update.memory(); memoryWrittenAtDay=day; memoryStatus="updated"; }
+        else memoryStatus="retained_previous";
+        var log=new LinkedHashMap<String,Object>();
+        log.put("day",day); log.put("phase","after_mobsim"); log.put("templateVersion",MorningManagerMemory.VERSION);
+        log.put("previousMemory",previous); log.put("previousMemoryDay",previousDay); log.put("memory",memory);
+        log.put("memoryWrittenAtDay",memoryWrittenAtDay); log.put("observationsThroughDay",feedback.observationsThroughDay());
+        log.put("memoryStatus",memoryStatus); log.put("wordCount",wordCount(memory)); log.put("completeReplacement",update.accepted());
+        log.put("managerProfile",controls.profile); log.put("contextHash",update.contextHash()); log.put("attemptedCalls",update.calls());
+        log.put("policyChangedByReflection",false); log.put("error",update.error());
+        output.appendLine("manager-memory-updates.jsonl",log);
+        if(!update.accepted()) output.appendLine("manager-memory-fallbacks.jsonl",log);
+        output.flush();
     }
 
     private static com.fasterxml.jackson.databind.JsonNode strictJson(String value) throws java.io.IOException {
@@ -468,15 +507,6 @@ final class MorningManager {
     static int wordCount(String notes) {
         return (int) java.util.regex.Pattern.compile("[\\p{L}\\p{N}]+(?:['’_-][\\p{L}\\p{N}]+)*").matcher(notes).results().count();
     }
-    private String validMemory(String notes) {
-        if (notes.isBlank()) throw new IllegalArgumentException("Manager memory must be nonempty");
-        if (controls.basic() && wordCount(notes) > MEMORY_MAX_WORDS)
-            throw new IllegalArgumentException("Manager memory exceeds 1000 words");
-        if (!controls.basic() && notes.codePointCount(0, notes.length()) > MEMORY_MAX_CHARS)
-            throw new IllegalArgumentException("Manager memory exceeds " + MEMORY_MAX_CHARS + " characters");
-        return notes;
-    }
-
     private static final List<String> DECISION_FIELDS = List.of("action", "evidenceBasis", "hypothesis",
             "expectedNetworkEffect", "uncertainty", "evaluationPlan", "revisitCondition");
 
@@ -497,25 +527,17 @@ final class MorningManager {
         return Collections.unmodifiableMap(result);
     }
     private static double elapsed(long start) { return (System.nanoTime() - start) / 1_000_000.0; }
-    private Map<String, Object> memoryTextSchema() {
-        return controls.basic() ? Map.of("type", "string", "minLength", 1)
-                : Map.of("type", "string", "minLength", 1, "maxLength", MEMORY_MAX_CHARS);
-    }
     private Map<String, Object> schema() {
         var rule = Map.of("type", "object", "properties", Map.of("link_id", Map.of("type", "string"),
-                        "start", Map.of("type", "number"), "end", Map.of("type", "number"), "amount", Map.of("type", "number")),
+                        "start", Map.of("type", "number", "enum", List.of(0.0)),
+                        "end", Map.of("type", "number", "enum", List.of(horizon)), "amount", Map.of("type", "number")),
                 "required", List.of("link_id", "start", "end", "amount"), "additionalProperties", false);
         var explanations = new LinkedHashMap<String, Object>();
         for (String key : DECISION_FIELDS) explanations.put(key, Map.of("type", "string", "minLength", 1, "maxLength", 400));
         explanations.put("action", Map.of("type", "string", "enum", List.of("hold", "test", "adjust", "remove")));
         explanations.put("evidenceBasis", Map.of("type", "string", "enum", List.of("untested", "observational", "observedTrial")));
         return Map.of("type", "object", "properties", Map.of("rules", Map.of("type", "array", "items", rule, "maxItems", MorningManagerControls.MAX_RULES),
-                        "decision", Map.of("type", "object", "properties", explanations, "required", DECISION_FIELDS, "additionalProperties", false),
-                        "memory", memoryTextSchema()),
-                "required", List.of("rules", "decision", "memory"), "additionalProperties", false);
-    }
-    private Map<String, Object> memorySchema() {
-        return Map.of("type", "object", "properties", Map.of("memory", memoryTextSchema()),
-                "required", List.of("memory"), "additionalProperties", false);
+                        "decision", Map.of("type", "object", "properties", explanations, "required", DECISION_FIELDS, "additionalProperties", false)),
+                "required", List.of("rules", "decision"), "additionalProperties", false);
     }
 }

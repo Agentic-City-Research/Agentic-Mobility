@@ -2,6 +2,7 @@ package org.matsim.agentic;
 
 import picocli.CommandLine.Option;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.network.Link;
 import java.util.*;
 
 /** Explicit experimental limits; time equivalents use the scenario's routing coefficients. */
@@ -33,26 +34,39 @@ final class MorningManagerControls {
             throw new IllegalArgumentException("Invalid manager review or pricing limits");
     }
 
-    Map<String,Object> context(MorningManagerEnvironment environment) {
-        if (basic()) return Map.of("profile", "basic", "maximumRules", MAX_RULES,
-                "chargingWindowResolutionSeconds", BASIC_BIN_SECONDS, "managerMemoryMaximumWords", MorningManager.MEMORY_MAX_WORDS,
-                "policyPersistence", "Until the next accepted manager update; no automatic strategy intervention");
+    Map<String,Object> context(MorningManagerEnvironment environment, double horizon) {
         var r = new LinkedHashMap<String,Object>();
+        r.put("profile", profile); r.put("maximumRules", MAX_RULES);
+        r.put("chargingMode", "full_day"); r.put("chargingStartSeconds", 0.0); r.put("chargingEndSeconds", horizon);
+        r.put("oneRulePerLink", true); r.put("observationBinSeconds", basic() ? BASIC_BIN_SECONDS : 3600);
+        r.put("amountMeaning", "Fixed monetary amount for each actual car-link entry throughout [0, simulationEndSeconds)");
+        if (basic()) {
+            r.put("managerMemoryMaximumWords", MorningManager.MEMORY_MAX_WORDS);
+            r.put("policyPersistence", "Until the next accepted manager update; no automatic strategy intervention");
+            return r;
+        }
         r.put("maxCorridorRoutingMinutes",maxCorridorMinutes); r.put("maxPriceIncreaseRoutingMinutes",maxStepMinutes);
         r.put("routingMinutesPerMonetaryUnit",environment.routingMinutesPerMoney());
         r.put("maxPricedCorridors",maxPricedCorridors); r.put("maxPricedLinksPerCorridor",1);
         r.put("maxUnavoidableShareAmongReferenceRouteUsers",maxUnavoidableShare);
-        r.put("chargingWindowResolutionSeconds",3600); r.put("rollingReviewDays",reviewDays);
+        r.put("rollingReviewDays",reviewDays);
         r.put("adaptationDays",adaptationDays); r.put("consecutiveBreachChecks",breachDays); r.put("cooldownDays",cooldownDays);
         r.put("networkDelayRelativeToleranceFloor",delayTolerance); r.put("localRelativeToleranceFloor",localTolerance);
         r.put("referenceDailyNoiseMultiplier",noiseMultiplier); r.put("completionRateDropFloor",completionDrop);
         r.put("interpretation","Configurable experimental guardrails, not calibrated optimal tolls. Reference-route OD diagnostics are structural full-day counts, not actual peak payers or spare capacity. Price increases are capped; reductions and full withdrawal are always permitted.");
-        r.put("profile", "controlled"); r.put("maximumRules", MAX_RULES);
         return r;
     }
 
     Map<String,Object> check(TollPolicy previous, TollPolicy next, Map<String,String> decision,
-                             MorningManagerEnvironment environment) {
+                             MorningManagerEnvironment environment, double horizon) {
+        if (!(Double.isFinite(horizon) && horizon > 0)) throw new IllegalArgumentException("Invalid manager simulation horizon");
+        if (next.rules().size() > MAX_RULES) throw new IllegalArgumentException("At most 40 rules are allowed");
+        Set<Id<Link>> seen = new HashSet<>();
+        for (var rule : next.rules()) {
+            if (rule.startSec() != 0 || rule.endSec() != horizon)
+                throw new IllegalArgumentException("Manager tolls must cover the full simulated day: start=0, end=" + horizon);
+            if (!seen.add(rule.linkId())) throw new IllegalArgumentException("Each manager-priced link may appear only once: " + rule.linkId());
+        }
         var changed = !previous.fingerprint().equals(next.fingerprint());
         String action = decision.get("action");
         if (action.equals("hold") && changed) throw new IllegalArgumentException("hold must preserve the actual price function");
@@ -62,14 +76,7 @@ final class MorningManagerControls {
         var diff = new ArrayList<Map<String,Object>>();
         Set<String> corridors = new HashSet<>(); Map<String,Set<String>> links = new HashMap<>();
         Double scale = environment.routingMinutesPerMoney();
-        if (next.rules().size() > MAX_RULES) throw new IllegalArgumentException("At most 40 rules are allowed");
-        if (basic()) for (var rule : next.rules()) {
-            if (rule.startSec() % BASIC_BIN_SECONDS != 0 || rule.endSec() % BASIC_BIN_SECONDS != 0)
-                throw new IllegalArgumentException("Charging windows must align with the 900-second observation bins");
-        }
         for (var rule : next.rules()) if (!basic() && rule.amount()>0) {
-            if (rule.startSec()%3600!=0 || rule.endSec()%3600!=0)
-                throw new IllegalArgumentException("Manager charging windows must align to hourly observation bins");
             if (scale == null) throw new IllegalArgumentException("Positive manager tolls need a positive routing money/time coefficient");
             String id = rule.linkId().toString(), corridor = environment.corridorId(id);
             corridors.add(corridor); links.computeIfAbsent(corridor,k -> new HashSet<>()).add(id);

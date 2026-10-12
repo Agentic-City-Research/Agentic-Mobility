@@ -3,14 +3,19 @@ package org.matsim.agentic;
 /** Offline fixtures preserve original departures unless a test explicitly exercises shifts. */
 final class MorningJointTestSupport {
     static void useBundledDtd(java.nio.file.Path file) throws java.io.IOException {
-        String xml=java.nio.file.Files.readString(file);
+        String xml;
+        try (var reader=org.matsim.core.utils.io.IOUtils.getBufferedReader(file.toString())) {
+            xml=reader.lines().collect(java.util.stream.Collectors.joining("\n"));
+        }
         var reference=java.util.regex.Pattern.compile("http://www\\.matsim\\.org/files/dtd/([^\"\\s]+\\.dtd)").matcher(xml);
         xml=reference.replaceAll(match -> {
             var resource=org.matsim.core.config.ConfigUtils.class.getResource("/dtd/"+match.group(1));
             if(resource==null) throw new AssertionError("Missing bundled schema: "+match.group(1));
             return java.util.regex.Matcher.quoteReplacement(resource.toExternalForm());
         });
-        java.nio.file.Files.writeString(file,xml);
+        try (var writer=org.matsim.core.utils.io.IOUtils.getBufferedWriter(file.toString())) {
+            writer.write(xml);
+        }
     }
 
     static java.util.List<String> routeIds(String user) {

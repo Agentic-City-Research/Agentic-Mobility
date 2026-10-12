@@ -41,18 +41,26 @@ class MorningBasicJointTest {
         }
     }
 
-    @Test void basicAcceptsFortyRulesAndUnrestrictedPricesButRejectsFortyOneAndMisalignedWindows() throws Exception {
+    @Test void basicAcceptsFortyAllDayLinksAndUnrestrictedPricesButRejectsFortyOneAndPartialWindows() throws Exception {
         var network = MorningPricingTest.network(); var controls = new MorningManagerControls();
+        var source = network.getLinks().get(Id.createLinkId("road"));
+        for (int i=0;i<41;i++) {
+            var link=network.getFactory().createLink(Id.createLinkId("road"+i),source.getFromNode(),source.getToNode());
+            link.setAllowedModes(Set.of("car")); link.setLength(100); link.setFreespeed(10);
+            link.setCapacity(1000); link.setNumberOfLanes(1); network.addLink(link);
+        }
         var env = new MorningManagerEnvironment(network,ConfigUtils.createConfig(),1,1,true,"hybrid",0,Map.of());
         var rules = new ArrayList<TollPolicy.TollRule>();
-        for(int i=0;i<40;i++) rules.add(new TollPolicy.TollRule(Id.createLinkId("road"), i*1800, i*1800+900,10000.123456789));
+        for(int i=0;i<40;i++) rules.add(new TollPolicy.TollRule(Id.createLinkId("road"+i), 0,108000,10000.123456789));
         var policy = new TollPolicy(List.copyOf(rules),20);
         assertTrue(policy.validate(network,108000).isEmpty());
-        assertTrue((Boolean)controls.check(TollPolicy.empty(-1),policy,MorningManagerTestResponses.decision("test"),env).get("pricingChanged"));
-        rules.add(new TollPolicy.TollRule(Id.createLinkId("road"),72000,72900,1));
-        assertThrows(IllegalArgumentException.class, () -> controls.check(TollPolicy.empty(-1),new TollPolicy(rules,20),MorningManagerTestResponses.decision("test"),env));
+        assertTrue((Boolean)controls.check(TollPolicy.empty(-1),policy,MorningManagerTestResponses.decision("test"),env,108000).get("pricingChanged"));
+        rules.add(new TollPolicy.TollRule(Id.createLinkId("road40"),0,108000,1));
+        assertThrows(IllegalArgumentException.class, () -> controls.check(TollPolicy.empty(-1),new TollPolicy(rules,20),MorningManagerTestResponses.decision("test"),env,108000));
         assertThrows(IllegalArgumentException.class, () -> controls.check(TollPolicy.empty(-1),
-                new TollPolicy(List.of(new TollPolicy.TollRule(Id.createLinkId("road"),1,900,1)),20),MorningManagerTestResponses.decision("test"),env));
+                new TollPolicy(List.of(new TollPolicy.TollRule(Id.createLinkId("road"),0,900,1)),20),MorningManagerTestResponses.decision("test"),env,108000));
+        assertThrows(IllegalArgumentException.class, () -> controls.check(TollPolicy.empty(-1),
+                new TollPolicy(List.of(policy.rules().getFirst(),policy.rules().getFirst()),20),MorningManagerTestResponses.decision("test"),env,108000));
         try(var output = new OutputWriter(directory)) {
             var manager = manager(output,(r,s,u) -> response(Json.write(Map.of("rules",rules.stream().map(t -> Map.of("link_id",t.linkId().toString(),
                     "start",t.startSec(),"end",t.endSec(),"amount",t.amount())).toList(),"decision",MorningManagerTestResponses.decision("test"),"memory","notes"))),1);
@@ -60,26 +68,18 @@ class MorningBasicJointTest {
         }
     }
 
-    @Test void managerMemoryUsesEnglishWordsWithLockedPolicyRepairAndNoAutomaticIntervention() throws Exception {
-        var calls = new AtomicInteger();
-        try(var output = new OutputWriter(directory)) {
-            var manager = manager(output,(r,s,u) -> {
-                if(calls.incrementAndGet()==1) {
-                    assertTrue(s.contains("at most 1000 words")); assertFalse(s.contains("routing-minute caps"));
-                    return response(Json.write(Map.of("rules",List.of(),"decision",MorningManagerTestResponses.decision("hold"),"memory","word ".repeat(1001))));
-                }
-                assertEquals("manager-memory",r); assertTrue(Json.readTree(u).has("validatedPolicyFingerprint"));
-                return response(Json.write(Map.of("memory","word ".repeat(1000))));
-            },2);
-            assertTrue(manager.update(20,0,initial()).accepted()); assertEquals(2,calls.get());
+    @Test void policyDecisionsLeaveMemoryForDayEndAndNeverAutomaticallyIntervene() throws Exception {
+        try(var output=new OutputWriter(directory)) {
+            var manager=manager(output,(r,system,u) -> {
+                assertEquals("manager",r); assertFalse(system.contains("routing-minute caps"));
+                return response(Json.write(Map.of("rules",List.of(),"decision",MorningManagerTestResponses.decision("hold"))));
+            },1);
+            assertTrue(manager.update(20,0,initial()).accepted());
             var context=Json.readTree(Json.write(manager.context(21,0,initial())));
-            assertEquals(1000,MorningManager.wordCount(context.get("managerMemory").asText()));
-            assertFalse(context.has("safetyMonitoring")); assertFalse(context.has("routeAlternatives")); assertFalse(context.has("chargingSuitability"));
-            assertFalse(context.get("publicEnvironment").has("routingCostScale"));
+            assertEquals("",context.get("managerMemory").asText());
+            assertFalse(context.has("safetyMonitoring")); assertFalse(context.has("routeAlternatives"));
             assertFalse(context.get("executionSchedule").get("automaticWithdrawalEffectiveNextIteration").asBoolean());
             assertNull(manager.automaticRollback(22,initial())); assertFalse(manager.inCooldown(22));
-            manager.observe(21,List.of(),initial());
-            assertThrows(IllegalArgumentException.class, () -> manager.context(21,0,initial()));
         }
     }
 
@@ -102,22 +102,24 @@ class MorningBasicJointTest {
                 assertEquals(call==1?20:27,input.get("day").asInt());
                 assertTrue(input.get("publicEnvironment").get("travelerResponse").get("departureTimeChoiceEnabled").asBoolean());
                 assertFalse(user.contains("private-profile-marker"));
-                var rules=call==1?List.of(Map.of("link_id","road","start",19800,"end",20700,"amount",.123456789)):List.of();
+                assertEquals("full_day",input.get("pricingControls").get("chargingMode").asText());
+                var rules=call==1?List.of(Map.of("link_id","road","start",0,"end",108000,"amount",.123456789)):List.of();
                 return response(Json.write(Map.of("rules",rules,"decision",MorningManagerTestResponses.decision(call==1?"test":"remove"),"memory","Observe executed traffic, revise after the scheduled review.")));
             }
+            if(role.equals("manager-memory")) return response("{\"memory\":\"Observed public traffic only.\"}");
             if(role.equals("traveler_memory")) return response("{\"memory\":\"My departure and road choices affect arrival and payments.\"}");
             int day=travelerCalls.getAndIncrement();
             var grid=java.util.regex.Pattern.compile("Allowed departureSeconds: (\\[[^\\n]+?\\])").matcher(user); assertTrue(grid.find());
             var times=Json.readTree(grid.group(1)); assertEquals(9,times.size());
             assertFalse(user.contains("YOUR OWN ACTUAL PAYMENT OBSERVATIONS BEFORE TODAY"));
-            return response(Json.write(Map.of("routeId","c0","departureSeconds",day==1?27000:day==2?25200:19800,"reason","Offline joint action execution fixture")));
+            return response(Json.write(Map.of("routeId","c0","departureSeconds",day==1||day>=20&&day%2==1?27000:day==2?25200:19800,"reason","Offline joint action execution fixture")));
         };
         assertEquals(0,new CommandLine(settings).execute("--config",config.toString(),"--output",out.toString(),"--policy","llm",
-                "--llm-agents","all","--manager","--manager-update-interval","7","--days","29","--informed-share","0","--max-requests","60"));
+                "--llm-agents","all","--manager","--manager-update-interval","7","--days","29","--informed-share","0","--max-requests","90"));
         assertEquals(29,travelerCalls.get()); assertEquals(2,managerCalls.get());
         var trips=JsonlTestSupport.readLines(out.resolve("morning/trips.jsonl.gz")).stream().map(Json::readTree).toList();
         for(int day=0;day<29;day++) {
-            var t=trips.get(day); double expected=day==1?27000:day==2?25200:19800;
+            var t=trips.get(day); double expected=day==1||day>=20&&day%2==1?27000:day==2?25200:19800;
             assertEquals(25200,t.get("plannedDepartureSeconds").asDouble());
             assertEquals(expected,t.get("selectedDepartureSeconds").asDouble());
             assertEquals(expected,t.get("actualDepartureSeconds").asDouble(),1);
@@ -136,6 +138,9 @@ class MorningBasicJointTest {
         assertTrue(phases.get(2).get("observations").get("pricedChargingWindow").get("totals").get("enteredFullLinkTraversals").asDouble()>0);
         var manifest=Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
         assertFalse(manifest.get("plannedTimesFixed").asBoolean()); assertEquals(900,manifest.get("linkMeasurementBinSeconds").asInt());
+        assertEquals("full_day",manifest.get("pricing").get("chargingMode").asText());
+        assertEquals(0,manifest.get("pricing").get("chargingWindow").get("start").asDouble());
+        assertEquals(108000,manifest.get("pricing").get("chargingWindow").get("end").asDouble());
         assertEquals(0, new CommandLine(new MorningReplay()).execute("--input",out.resolve("morning/decision-contexts.jsonl.gz").toString(),
                 "--output",directory.resolve("joint-replay").toString(),"--mock","--limit","3","--orders","original,reverse"));
     }
@@ -149,6 +154,7 @@ class MorningBasicJointTest {
         var settings = new MorningExperiment(); settings.llmConfig.apiKey="offline-only";
         var calls = new AtomicInteger();
         settings.clientFactory=(c,usage) -> (role,system,user) -> {
+            if(role.equals("manager-memory")) return response("{\"memory\":\"Observed public traffic only.\"}");
             if(role.equals("traveler_memory")) return response("{\"memory\":\"I remember actual departures, arrivals and delays.\"}");
             String route=MorningJointTestSupport.firstRoute(user);
             var grid=java.util.regex.Pattern.compile("Allowed departureSeconds: (\\[[^\\n]+?\\])").matcher(user); assertTrue(grid.find());
@@ -168,7 +174,7 @@ class MorningBasicJointTest {
         assertTrue(metrics.stream().allMatch(r -> r.get("fullDayLinkTraffic").get("completedFullLinkTraversals").asDouble()>0));
     }
     private static MorningTollSystem.State initial() { return new MorningTollSystem.State(TollPolicy.empty(-1),"initial",0); }
-    private static LlmResponse response(String text) { return new LlmResponse(text,0,0,0,0); }
+    private static LlmResponse response(String text) { return new LlmResponse(MorningManagerTestResponses.withDecision(text),0,0,0,0); }
     private static MorningRoutePolicy.Context context() {
         var route=new MorningRoutePolicy.Option("c0",List.of("road"),900,26100,1000,0,"static_free_flow",0,0);
         var earlier=new MorningRoutePolicy.Option("c0",List.of("road"),900,24300,1000,0,"static_free_flow",0,0);

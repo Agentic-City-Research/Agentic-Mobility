@@ -2,13 +2,13 @@
 
 本文描述显式 `-ManagerProfile controlled` 的监测与回退机制。当前默认 Basic 协议见 [manager_basic_joint.md](manager_basic_joint.md)。
 
-模板版本：`morning-pricing-v5-monitored-trials`；manifest schemaVersion=14。
+当前模板版本：`morning-pricing-v10-daily-memory`；manifest schemaVersion=22。以下监测与回退机制只适用于显式 controlled 条件。
 
 本轮修改针对 v4 的三个问题：收费道路进入次数下降但每次通行延误增加；连续分段费用叠加；模型文字承诺提前撤回而程序只能等 30 天更新。
 
 ## 默认运行方式
 
-前 20 个模拟日不收费，第 21 天开始允许模型更新，之后每 30 天更新一次。每日回退检查不调用模型、不增加 API 请求。
+前 20 个模拟日不收费，第 21 天开始允许模型更新，之后每 30 天更新一次。每日自动回退检查自身不调用模型；日末记忆反思每天另有一次模型调用。
 
 ```powershell
 .\scripts\run_public_experiment.ps1 -Mode hybrid -Policy mnl -LlmAgents 0 -Manager -ManagerProfile controlled `
@@ -26,7 +26,7 @@
 | ManagerMaxStepMinutes | 2 | 单次更新在任何 link/时间段上的加价上限；降价和清零不受此限制 |
 | ManagerMaxUnavoidableShare | 0.5 | 参考路线使用者中结构上必须经过该 link 的 OD 比例上限 |
 
-每条走廊最多一个正收费 link，禁止细分路段叠加；允许同一 link 多个不重叠时窗。窗口边界须对齐整小时，以精确统计收费时段延误。当前 SiouxFalls 权重下，1 货币单位对应约 3.875 路由分钟，因此首次单点收费最多约 0.516 单位；这些是实验控制参数，不是校准后的最优价格或人民币。
+每条走廊最多一个正收费 link，禁止细分路段叠加。2026-10-12 起，controlled 与 basic 均使用全天收费：每个 link 只允许一条规则，`start=0`、`end=QSim endTime`，每日每次进入收取同一金额。整小时分箱只用于交通观测，不能选择分时收费。当前 SiouxFalls 权重下，1 货币单位对应约 3.875 路由分钟，因此首次单点收费最多约 0.516 单位；这些是实验控制参数，不是校准后的最优价格或人民币。
 
 参考 OD 诊断在第一天原生路由及仿真完成后，由全体已路由 car leg 聚合并固定，包含背景人群；预检/启动时的诊断注明可能有未路由方案，实际运行第一天后更新 public-environment 文件。移除 link 后检查 origin.to 到 destination.from 的有向 car 可达性，起终点 link 视为必经。无参考路线使用者的 link 不凭空判为可绕行；其 unavoidableShare 为 null，硬比例检查不适用。参考诊断覆盖全日，不等于实际高峰付费车流；可绕行也不代表替代道路有富余容量。manager 仍需结合 public routeAlternatives 与其他道路观测选择入口，并说明不确定性。
 

@@ -170,7 +170,7 @@ class MorningManagerPublicContextTest {
             assertEquals(14.5, periods.get(1).get("observations").get("delaySecondsPerPopulationDay").asDouble());
             assertFalse(feedback.get("matchedNoPricingCounterfactualAvailable").asBoolean());
             assertTrue(feedback.get("comparisonInterpretation").asText().contains("not same-state"));
-            assertTrue(context.get("managerMemory").asText().contains("twelve"));
+            assertEquals("",context.get("managerMemory").asText());
             assertTrue(manager.update(150, 100, current).accepted());
             var updated = new MorningTollSystem.State(TollPolicy.empty(150), "pricing-v2-it150", 2);
             manager.observe(150, List.of(row(0,0,0)), updated);
@@ -202,7 +202,7 @@ class MorningManagerPublicContextTest {
             assertTrue(context.containsKey("publicEnvironment")); assertTrue(context.containsKey("roadCorridors"));
             assertTrue(context.containsKey("policyFeedback"));
             assertEquals("combined", context.get("managerFeedbackMode"));
-            assertEquals("notes", context.get("managerMemory"));
+            assertEquals("", context.get("managerMemory"));
             manager.writeFinalEvaluation(0); output.flush();
             var evaluations = JsonlTestSupport.readLines(directory.resolve("combined/manager-policy-evaluations.jsonl"))
                     .stream().map(Json::readTree).toList();

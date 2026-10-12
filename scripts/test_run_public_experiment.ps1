@@ -78,7 +78,7 @@ foreach ($taskRate in @(0.1, 0.25, 1.0)) {
 [IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
 & $taskRunner -Java $taskFakeJava -Days 1 -Manager | Out-Null
 $taskBasicArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
-foreach ($taskPair in @(@('--manager-profile','basic'),@('--departure-before-seconds','5400'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
+foreach ($taskPair in @(@('--manager-profile','basic'),@('--manager-memory-max-output-tokens','2048'),@('--departure-before-seconds','5400'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
     $taskIndex = [Array]::IndexOf($taskBasicArguments, $taskPair[0])
     if ($taskIndex -lt 0 -or $taskBasicArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Basic protocol was not forwarded: ' + $taskPair[0]) }
 }
@@ -86,7 +86,7 @@ if ($taskBasicArguments -contains '--manager-max-step-minutes' -or $taskBasicArg
     throw 'Basic silently received legacy strategy controls'
 }
 [IO.File]::WriteAllText($taskSourceJar, 'original-build')
-& $taskRunner -Java $taskFakeJava -Days 1 -Manager -ManagerProfile controlled -ManagerUpdateInterval 7 -ManagerMaxCorridorMinutes 4.5 -ManagerCompletionDrop 0.02 | Out-Null
+& $taskRunner -Java $taskFakeJava -Days 1 -Manager -ManagerProfile controlled -ManagerUpdateInterval 7 -ManagerMemoryMaxOutputTokens 3072 -ManagerMaxCorridorMinutes 4.5 -ManagerCompletionDrop 0.02 | Out-Null
 $taskCapturedArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
 if ($taskCapturedArguments -notcontains '--manager' -or $taskCapturedArguments -contains '--manager-feedback-mode') {
     throw 'Manager must use the combined information without a feedback-mode selector'
@@ -94,7 +94,7 @@ if ($taskCapturedArguments -notcontains '--manager' -or $taskCapturedArguments -
 if ($taskCapturedArguments[[Array]::IndexOf($taskCapturedArguments, '--manager-update-interval') + 1] -ne '7') {
     throw 'ManagerUpdateInterval was not forwarded'
 }
-foreach ($taskPair in @(@('--manager-max-corridor-minutes','4.5'),@('--manager-max-step-minutes','2'),@('--manager-completion-drop','0.02'),@('--manager-review-days','7'))) {
+foreach ($taskPair in @(@('--manager-max-corridor-minutes','4.5'),@('--manager-memory-max-output-tokens','3072'),@('--manager-max-step-minutes','2'),@('--manager-completion-drop','0.02'),@('--manager-review-days','7'))) {
     $taskIndex = [Array]::IndexOf($taskCapturedArguments, $taskPair[0])
     if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Manager control was not forwarded: ' + $taskPair[0]) }
 }

@@ -30,12 +30,13 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--mode", defaultValue = "hybrid", description = "hybrid (main experiment) | reference | fixed-routes (auxiliary control)") String mode;
     @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl | shortest | mock; llm requires hybrid") String policyName;
     @Option(names = "--llm-agents", defaultValue = "0", description = "Hybrid: 0 for native baseline, all or a person count for morning policy control") String llmAgents;
-    @Option(names = "--manager", description = "Enable autonomous congestion pricing in hybrid after 20 free days") boolean managerEnabled;
+    @Option(names = "--manager", description = "Enable autonomous all-day per-link congestion pricing in hybrid after 20 free days") boolean managerEnabled;
     @Option(names = "--fixed-toll-policy", description = "JSON rules file for fixed congestion pricing in hybrid, without a manager; mutually exclusive with --manager") Path fixedTollPolicyFile;
     @Option(names = "--fixed-toll-free-days", defaultValue = "20", description = "Initial unpriced simulation days before fixed tolls activate; 0 prices from the first day") int fixedTollFreeDays = 20;
     MorningFixedTollPolicy fixedTollPolicy;
     @Option(names = "--manager-update-interval", defaultValue = "30", description = "Simulation days between manager updates; policies persist until the next accepted update") int managerUpdateInterval = MorningManager.UPDATE_INTERVAL;
-    @Option(names = "--manager-max-output-tokens", defaultValue = "8192", description = "Manager policy/management-memory response limit") int managerMaxOutputTokens = 8192;
+    @Option(names = "--manager-max-output-tokens", defaultValue = "8192", description = "Scheduled manager policy response limit") int managerMaxOutputTokens = 8192;
+    @Option(names = "--manager-memory-max-output-tokens", defaultValue = "2048", description = "Daily manager reflection response limit; target 400-600 English words") int managerMemoryMaxOutputTokens = 2048;
     @Mixin MorningManagerControls managerControls = new MorningManagerControls();
     @Option(names = "--informed-share", defaultValue = "0.5", description = "Fixed informed share among information-scope persons, 0..1") double informedShare = .5;
     @Option(names = "--information-scope", defaultValue = "controlled", description = "controlled | all; others retain native public-policy routing") String informationScope = "controlled";
@@ -167,8 +168,9 @@ public final class MorningExperiment implements Callable<Integer> {
         long minimumCalls = policyName.equals("llm") ? cohort.members.values().stream().filter(m -> m.controlled).count()
                 * (config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L) * 2L : 0;
         minimumCalls += managerEnabled ? MorningManager.minimumCalls(config.controller().getFirstIteration(), config.controller().getLastIteration(), managerUpdateInterval) : 0;
+        minimumCalls += managerEnabled ? MorningManager.minimumMemoryCalls(config.controller().getFirstIteration(), config.controller().getLastIteration()) : 0;
         if (!validateOnly && minimumCalls > 0) {
-            if (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()) throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler/manager calls; --manager also needs an API key when its update days are reached");
+            if (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()) throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler/manager calls; --manager needs daily reflection calls from the first day");
             if (maxRequests > 0 && minimumCalls > maxRequests) throw new IllegalArgumentException("Minimum LLM calls " + minimumCalls
                     + " exceed --max-requests " + maxRequests + "; explicitly choose a sufficient request budget");
         }
@@ -193,7 +195,7 @@ public final class MorningExperiment implements Callable<Integer> {
                 if (managerEnabled) {
                     var environment=MorningManagerEnvironment.from(scenario,this,manifest);
                     var publicEnvironment=new LinkedHashMap<>(environment.context(config.controller().getFirstIteration(),TollPolicy.empty(-1),managerControls.basic()));
-                    publicEnvironment.put("pricingControls",managerControls.context(environment));writer.writeDoc("manager-public-environment.json",publicEnvironment);
+                    publicEnvironment.put("pricingControls",managerControls.context(environment,config.qsim().getEndTime().seconds()));writer.writeDoc("manager-public-environment.json",publicEnvironment);
                 }
                 new ConfigWriter(config).write(outputPath.resolve("effective-config.xml").toString());
                 writer.status(Map.of("validated", true, "simulationRun", false, "apiCalls", 0));
@@ -270,6 +272,7 @@ public final class MorningExperiment implements Callable<Integer> {
         if (fixedTollsEnabled() && !hybrid()) throw new IllegalArgumentException("--fixed-toll-policy requires --mode hybrid");
         if (fixedTollFreeDays < 0) throw new IllegalArgumentException("--fixed-toll-free-days must be nonnegative");
         if (managerMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager output limit");
+        if (managerMemoryMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager memory output limit");
         if (managerUpdateInterval < 1) throw new IllegalArgumentException("--manager-update-interval must be positive");
         managerControls.validate();
         if (departureBeforeSeconds < 0 || departureAfterSeconds < 0 || departureStepSeconds < 1
@@ -339,7 +342,7 @@ public final class MorningExperiment implements Callable<Integer> {
 
     private Map<String, Object> manifest(Config config, Scenario scenario, MorningCohort cohort, int fullPopulation) throws Exception {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("schemaVersion", 20); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
+        result.put("schemaVersion", 22); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
         result.put("promptEncoding",Map.of("travelerVersion",MorningPromptRenderer.VERSION,"reflectionVersion",MorningMemoryUpdater.VERSION,
                 "tables","JSON-array rows with declared columns; exact numeric seconds and explicit nulls",
                 "prefixLayout","Common rules first; fixed personal facts before daily data; manager topology before daily policy/traffic",
@@ -366,7 +369,9 @@ public final class MorningExperiment implements Callable<Integer> {
         pricing.put("billing", "Each car-link entry including origin partial link; repeat traversals billed again, duplicate entry notifications ignored; [start,end)");
         pricing.put("units", "scenario monetary units");
         if (managerEnabled) {
-            pricing.put("actionSpace", managerControls.basic() ? "Existing car links; at most 40 non-overlapping same-link rules, continuous finite nonnegative amounts, 900-second-aligned windows within simulation horizon; no price/corridor/step/avoidability limits" : "Legacy controlled trials with declared price/corridor/step/avoidability limits");
+            pricing.put("chargingMode", "full_day");
+            pricing.put("chargingWindow", Map.of("start", 0.0, "end", config.qsim().getEndTime().seconds(), "interval", "[start,end)"));
+            pricing.put("actionSpace", managerControls.basic() ? "Existing car links; at most 40 distinct links, one finite nonnegative amount per entry on each link throughout [0, simulationEndSeconds); no price/corridor/step/avoidability limits" : "All-day per-link controlled trials with declared price/corridor/step/avoidability limits");
             pricing.put("managerPrivateInformation", "No traveler memory, individual payments or personal profiles; public model parameters, aggregate reference-plan OD diagnostics, all-car completion counts and aggregate link traffic");
         }
         if (fixedTollsEnabled()) {
@@ -378,6 +383,7 @@ public final class MorningExperiment implements Callable<Integer> {
         }
         result.put("pricing", pricing);
         if (managerEnabled) result.put("managerSettings", llmConfig.withOutputLimit(managerMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerMemorySettings", llmConfig.withOutputLimit(managerMemoryMaxOutputTokens).publicModelSettings());
         if (managerEnabled) {
             var managerContext = new LinkedHashMap<String, Object>(Map.of("templateVersion", MorningManager.VERSION,
                     "environmentVersion", MorningManagerEnvironment.VERSION, "feedbackVersion", MorningManagerFeedback.VERSION,
@@ -398,17 +404,23 @@ public final class MorningExperiment implements Callable<Integer> {
                     "history", "Two recent actual versions; older days pooled once; retained pre-pricing and last two tracked phases",
                     "recentPricingEpisodes", 2));
             result.put("managerContext", managerContext);
-            result.put("managerOutputContract", Map.of("requiredFields", List.of("rules", "decision", "memory"),
-                    "memoryLimitUnit", managerControls.basic() ? "English words" : "Unicode characters", "memoryMaximum", managerControls.basic() ? MorningManager.MEMORY_MAX_WORDS : MorningManager.MEMORY_MAX_CHARS,
+            result.put("managerOutputContract", Map.of("requiredFields", List.of("rules", "decision"),
+                    "memoryLimitUnit", "English words", "memoryMaximum", MorningManager.MEMORY_MAX_WORDS,
                     "maximumRules", MorningManagerControls.MAX_RULES,
-                    "memoryTarget", Map.of("minimum", managerControls.basic() ? MorningManager.MEMORY_TARGET_MIN_WORDS : 800,
-                            "maximum", managerControls.basic() ? MorningManager.MEMORY_TARGET_MAX_WORDS : 1200,
+                    "memoryTarget", Map.of("minimum", MorningManager.MEMORY_TARGET_MIN_WORDS,
+                            "maximum", MorningManager.MEMORY_TARGET_MAX_WORDS,
                             "enforcedMinimum", false, "paddingRequired", false),
-                    "memoryRepair", "Validated rules and decision are locked; shorten memory only within repair-attempt/request budget. If repair fails retain old memory and accept validated policy with explicit audit.",
+                    "memoryRepair", "Independent daily reflection cannot change policy. Invalid/failed/timed-out calls retain previous memory; the next successful reflection includes missing days.",
                     "alternativesVersion", MorningManagerAlternatives.VERSION));
+            result.put("managerMemoryLifecycle",Map.of("templateVersion",MorningManagerMemory.VERSION,
+                    "phase","after_each_completed_simulation_day_including_free_days","requiredFields",List.of("memory"),
+                    "updatesPolicy",false,"priceEpisodeIdentity","actual price fingerprint; hold/version changes do not restart observations",
+                    "contextOutput","morning/manager-memory-contexts.jsonl.gz","attemptOutput","morning/manager-memory-attempts.jsonl.gz",
+                    "updateOutput","morning/manager-memory-updates.jsonl.gz","fallbackOutput","morning/manager-memory-fallbacks.jsonl.gz"));
         }
         result.put("minimumManagerCalls", managerEnabled ? MorningManager.minimumCalls(config.controller().getFirstIteration(), config.controller().getLastIteration(), managerUpdateInterval) : 0);
-        if(managerEnabled) result.put("managerRequestBudgetInterpretation","Reserve capacity for all scheduled model updates and repairs. Basic has no safety cooldown or automatic policy changes.");
+        result.put("minimumManagerMemoryCalls", managerEnabled ? MorningManager.minimumMemoryCalls(config.controller().getFirstIteration(), config.controller().getLastIteration()) : 0);
+        if(managerEnabled) result.put("managerRequestBudgetInterpretation","Reserve daily manager reflection plus scheduled policy updates and output/transport repairs; both share the global budget with traveler choices/reflection. Basic has no automatic policy changes.");
         result.put("controlledPersons", cohort.controlledPersons.size());
         result.put("travelerInformation", Map.of("scope", informationScope, "requestedInformedShare", informedShare,
                 "seed", informationSeed == null ? populationSeed : informationSeed,
@@ -442,7 +454,7 @@ public final class MorningExperiment implements Callable<Integer> {
         scenario.getPopulation().getPersons().keySet().stream().map(Object::toString).sorted()
                 .forEach(id -> personDigest.update((id + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         result.put("simulatedPersonIdsSha256", HexFormat.of().formatHex(personDigest.digest()));
-        if(managerEnabled) result.put("managerControls",managerControls.context(MorningManagerEnvironment.from(scenario,this,result)));
+        if(managerEnabled) result.put("managerControls",managerControls.context(MorningManagerEnvironment.from(scenario,this,result),config.qsim().getEndTime().seconds()));
         result.put("sampleRate", sampleRate);
         result.put("populationSeed", populationSeed);
         result.put("actualPopulationSampleRate", (double) scenario.getPopulation().getPersons().size() / fullPopulation);
