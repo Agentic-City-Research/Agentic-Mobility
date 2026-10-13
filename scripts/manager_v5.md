@@ -2,7 +2,7 @@
 
 本文描述显式 `-ManagerProfile controlled` 的监测与回退机制。当前默认 Basic 协议见 [manager_basic_joint.md](manager_basic_joint.md)。
 
-当前模板版本：`morning-pricing-v10-daily-memory`；manifest schemaVersion=22。以下监测与回退机制只适用于显式 controlled 条件。
+当前模板版本：`morning-pricing-v10-daily-memory`；manifest schemaVersion=23。以下监测与回退机制只适用于显式 controlled 条件。
 
 本轮修改针对 v4 的三个问题：收费道路进入次数下降但每次通行延误增加；连续分段费用叠加；模型文字承诺提前撤回而程序只能等 30 天更新。
 

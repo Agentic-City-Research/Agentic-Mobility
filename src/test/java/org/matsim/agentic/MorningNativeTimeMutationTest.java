@@ -35,6 +35,7 @@ class MorningNativeTimeMutationTest {
         config.controller().setWritePlansInterval(1);
         Path cfg = directory.resolve("time-mutation.xml");
         new ConfigWriter(config).write(cfg.toString());
+        MorningJointTestSupport.useBundledDtd(cfg);
         for (String variant : List.of("native", "partial-overlay", "fixed-time")) {
             Path out = directory.resolve(variant);
             var settings = new MorningExperiment();
@@ -59,7 +60,9 @@ class MorningNativeTimeMutationTest {
                     && Math.abs(t.get("actualDepartureSeconds").asDouble() - t.get("plannedDepartureSeconds").asDouble()) > 1));
             for (int day = 0; day < 3; day++) {
                 var saved = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-                new PopulationReader(saved).readFile(out.resolve("ITERS/it." + day + "/" + day + ".plans.xml.zst").toString());
+                Path savedPlans=out.resolve("ITERS/it." + day + "/" + day + ".plans.xml.zst");
+                MorningJointTestSupport.useBundledDtd(savedPlans);
+                new PopulationReader(saved).readFile(savedPlans.toString());
                 for (var t : trips) {
                     if (t.get("day").asInt() != day) continue;
                     String[] key = t.get("tripId").asText().split("/");

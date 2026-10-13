@@ -151,7 +151,7 @@ public final class MorningReplay implements Callable<Integer> {
     private List<Model> models() throws Exception {
         List<Model> result = new ArrayList<>();
         if (modelsFile == null) {
-            var c = new AgenticConfig(); options.apply(c); c.timeoutSeconds = timeout;
+            var c = MorningModelOptions.travelerDefaults(); options.apply(c); c.timeoutSeconds = timeout;
             result.add(new Model("model", c));
         } else {
             var array = Json.readTree(Files.readString(modelsFile));
@@ -165,7 +165,7 @@ public final class MorningReplay implements Callable<Integer> {
                 if (!id.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,63}") || id.matches("(?i)CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")
                         || result.stream().anyMatch(m -> m.id.equalsIgnoreCase(id)))
                     throw new IllegalArgumentException("Model ids must be unique safe directory names");
-                var c = new AgenticConfig();
+                var c = MorningModelOptions.travelerDefaults();
                 c.model = node.path("model").asText(c.model); c.baseUrl = node.path("baseUrl").asText(c.baseUrl);
                 c.thinking = node.path("thinking").asText("auto");
                 c.temperature = node.hasNonNull("temperature") ? node.get("temperature").asDouble() : null;

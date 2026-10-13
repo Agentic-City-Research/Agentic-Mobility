@@ -32,11 +32,16 @@ INFORMATION_SCOPE="${INFORMATION_SCOPE:-controlled}"
 INFORMATION_SEED="${INFORMATION_SEED:-$POPULATION_SEED}"
 TOLL_HISTORY_BIN_SECONDS="${TOLL_HISTORY_BIN_SECONDS:-3600}"
 MEMORY_MODE="${MEMORY_MODE:-llm}"
+MAX_OUTPUT_TOKENS="${MAX_OUTPUT_TOKENS:-1024}"
+REASON_MAX_CHARS="${REASON_MAX_CHARS:-120}"
+HISTORY_WINDOW="${HISTORY_WINDOW:-3}"
 DEPARTURE_BEFORE_SECONDS="${DEPARTURE_BEFORE_SECONDS:-5400}"
 DEPARTURE_AFTER_SECONDS="${DEPARTURE_AFTER_SECONDS:-1800}"
 DEPARTURE_STEP_SECONDS="${DEPARTURE_STEP_SECONDS:-900}"
 MANAGER_PROFILE="${MANAGER_PROFILE:-basic}"
 RESPONSE_FORMAT="${RESPONSE_FORMAT:-json_schema}"
+TRAVELER_SEMANTIC_REVIEW="${TRAVELER_SEMANTIC_REVIEW:-0}"
+SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS="${SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS:-2048}"
 VALIDATE_ONLY="${VALIDATE_ONLY:-0}"
 CANDIDATE_SEARCH_LIMIT="${CANDIDATE_SEARCH_LIMIT:-10000}"
 CANDIDATE_POOL_SIZE="${CANDIDATE_POOL_SIZE:-16}"
@@ -87,6 +92,11 @@ done
 [[ "$VALIDATE_ONLY" == 0 || "$VALIDATE_ONLY" == 1 ]] || fail 'VALIDATE_ONLY must be 0 or 1.'
 [[ "$INFORMATION_SCOPE" == controlled || "$INFORMATION_SCOPE" == all ]] || fail 'INFORMATION_SCOPE must be controlled or all.'
 [[ "$MEMORY_MODE" == llm ]] || fail 'MEMORY_MODE only supports llm.'
+[[ "$HISTORY_WINDOW" =~ ^[1-3]$ ]] || fail 'HISTORY_WINDOW must be 1..3.'
+[[ "$TRAVELER_SEMANTIC_REVIEW" == 0 || "$TRAVELER_SEMANTIC_REVIEW" == 1 ]] || fail 'TRAVELER_SEMANTIC_REVIEW must be 0 or 1.'
+for value_name in MAX_OUTPUT_TOKENS REASON_MAX_CHARS SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS; do
+    [[ "${!value_name}" =~ ^[1-9][0-9]*$ ]] || fail "$value_name must be positive."
+done
 [[ "$RESPONSE_FORMAT" == json_schema || "$RESPONSE_FORMAT" == json_object || "$RESPONSE_FORMAT" == omit ]] || fail 'Invalid RESPONSE_FORMAT.'
 "$PYTHON_BIN" -c '
 import json, math, sys
@@ -111,7 +121,7 @@ RUNTIME_SHA="$(sha256sum "$RUNTIME_JAR")"; RUNTIME_SHA="${RUNTIME_SHA%% *}"
 JAR_HELP="$("$JAVA_BIN" -cp "$RUNTIME_JAR" org.matsim.agentic.MorningExperiment --help)" || fail 'Cannot read MorningExperiment help.'
 for option in --sample-rate --population-seed --informed-share --information-scope --manager-max-output-tokens --manager-update-interval --response-format \
     --candidate-pool-size --candidate-time-slack-seconds --candidate-distance-slack-meters \
-    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens native-time-mutation; do
+    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens --traveler-semantic-review native-time-mutation; do
     [[ "$JAR_HELP" == *"$option"* ]] || fail "Uploaded JAR is too old: missing $option"
 done
 [[ "$JAR_HELP" == *json_schema* ]] || fail 'Uploaded JAR lacks json_schema support.'
@@ -170,16 +180,17 @@ experiment_args=(
     --max-requests "$MAX_REQUESTS" --model "$MODEL_NAME" --base-url "$AGENTIC_BASE_URL"
     --thinking omit --generation-params "$QWEN_GENERATION_PARAMS"
     --token-limit-field max_tokens --response-format "$RESPONSE_FORMAT"
-    --max-output-tokens 512 --reason-max-chars 240
+    --max-output-tokens "$MAX_OUTPUT_TOKENS" --reason-max-chars "$REASON_MAX_CHARS"
     --personal-profiles legacy --profile-seed "$POPULATION_SEED"
     --departure-before-seconds "$DEPARTURE_BEFORE_SECONDS" --departure-after-seconds "$DEPARTURE_AFTER_SECONDS" --departure-step-seconds "$DEPARTURE_STEP_SECONDS"
-    --memory-mode "$MEMORY_MODE" --history-window 5 --memory-max-chars 500 --memory-max-output-tokens 1024
+    --memory-mode "$MEMORY_MODE" --history-window "$HISTORY_WINDOW" --memory-max-chars 500 --memory-max-output-tokens 1024
     --candidate-order original --candidate-order-seed 0 --trip-output-interval 1 --context-samples 20
     --candidate-search-limit "$CANDIDATE_SEARCH_LIMIT" --candidate-pool-size "$CANDIDATE_POOL_SIZE"
     --candidate-max-time-ratio "$CANDIDATE_MAX_TIME_RATIO" --candidate-time-slack-seconds "$CANDIDATE_TIME_SLACK_SECONDS"
     --candidate-max-distance-ratio "$CANDIDATE_MAX_DISTANCE_RATIO" --candidate-distance-slack-meters "$CANDIDATE_DISTANCE_SLACK_METERS"
     --candidate-max-overlap "$CANDIDATE_MAX_OVERLAP"
 )
+if [[ "$TRAVELER_SEMANTIC_REVIEW" == 1 ]]; then experiment_args+=(--traveler-semantic-review --semantic-review-max-output-tokens "$SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS"); fi
 if [[ "$ENABLE_MANAGER" == 1 ]]; then experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS" --manager-memory-max-output-tokens "$MANAGER_MEMORY_MAX_OUTPUT_TOKENS"); fi
 if [[ "$NATIVE_TIME_MUTATION" == 0 ]]; then experiment_args+=(--no-native-time-mutation); fi
 if [[ "$VALIDATE_ONLY" == 1 ]]; then experiment_args+=(--validate-only); fi

@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 /** Output constraints restrict syntax/actions, not a traveler's preferences or reasoning. */
 final class MorningOutputContract {
-    static final String VERSION = "morning-output-v2-joint";
+    static final String VERSION = "morning-output-v3-strict-json-audit";
     private static final Pattern ROUTE_REFERENCE = Pattern.compile("(?i)(?<![A-Za-z0-9_-])c\\d+(?![A-Za-z0-9_-])");
 
     static Map<String, Object> choice(List<String> routeIds, int reasonLimit) {
@@ -62,6 +62,12 @@ final class MorningOutputContract {
         log.put("promptCacheUsageReported",response.promptCacheUsageReported());
         log.put("finishReason", response.finishReason());
         log.put("reasoningCharacters", response.reasoningCharacters());
+        String content=response.content();
+        int characters=content==null?0:content.codePointCount(0,content.length());
+        long whitespace=content==null?0:content.codePoints().filter(c -> Character.isWhitespace(c) || Character.isSpaceChar(c)).count();
+        log.put("outputCharacters",characters); log.put("outputWhitespaceCharacters",whitespace);
+        log.put("outputWhitespaceRatio",characters==0?null:(double)whitespace/characters);
+        log.put("blankOutput",content==null || content.isBlank());
     }
 
     static Map<String,Object> usage(LlmResponse response) {
@@ -76,6 +82,8 @@ final class MorningOutputContract {
     static void requireNotTruncated(LlmResponse response) {
         if ("length".equals(response.finishReason()) || "max_tokens".equals(response.finishReason()))
             throw new IllegalArgumentException("Provider stopped at the output token limit; compress the text and finish the JSON object");
+        if(response.content()==null || response.content().isBlank())
+            throw new IllegalArgumentException("Empty/whitespace-only output; return one complete compact JSON object, without formatting padding");
     }
 
     /** Narrow guard for the reserved cN route identifiers; not a general semantic/factual validator. */

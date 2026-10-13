@@ -6,7 +6,8 @@ import java.util.*;
 
 /** A versioned, deterministic information interface shared by live runs and replay. */
 public final class MorningPromptRenderer {
-    public static final String VERSION = "morning-information-v8-compact-prefix";
+    public static final String VERSION = "morning-information-v9-continuous-memory";
+    static final int RECENT_FACT_DAYS = 3;
     static final String FACT_RULES = """
             Use only supplied facts. Missing preferences, numeric income, value of time, lateness tolerance and earlier experiences are unknown; do not invent them.
             Synthetic profiles are fixed experiment assumptions, not measured demographics. Explicit attributes and schedules take precedence over profiles and subjective memory.
@@ -14,6 +15,8 @@ public final class MorningPromptRenderer {
             Tables are JSON-array rows in their stated column order. Time fields ending in _s are numeric seconds within the day or durations; distances are metres; costs are scenario monetary units, not an asserted real currency.
             null means unknown or not supplied, never zero or free. For unfinished trips, complete duration and arrival are unknown; null lateness can also mean no supplied deadline.
             Payment rows are [day,linkId,entry_s,amount]: actual historical point observations, not current tariff windows or evidence that other roads are free.
+            Recent execution records are factual evidence. Your memory is a personal summary, not an execution log.
+            Correct clear contradictions with visible execution facts yourself; do not discard older experience merely because it is outside the factual window.
             """;
     public static final String SYSTEM = FACT_RULES + """
             You are the individual traveler described below, choosing a route for your own trip.
@@ -28,7 +31,8 @@ public final class MorningPromptRenderer {
 
     public String system(int reasonLimit) {
         return SYSTEM + "Write reason as one short sentence, at most " + reasonLimit
-                + " Unicode characters. No reasoning transcript, repeated comparisons or extra fields. Finish the JSON object.\n";
+                + " Unicode characters, including spaces and punctuation. No reasoning transcript, repeated comparisons or extra fields.\n"
+                + "Return one complete JSON object. No Markdown, text outside JSON, or unnecessary formatting whitespace.\n";
     }
 
     public String system(int reasonLimit, boolean joint) {
@@ -84,7 +88,10 @@ public final class MorningPromptRenderer {
         s.append("YOUR SELF-WRITTEN LONG-TERM MEMORY, BEFORE TODAY\n");
         if (c.memorySummary().isBlank()) s.append("No self-written memory yet; no pre-experiment experiences are assumed.\n");
         else s.append("Last updated after simulation day ").append(c.memorySummaryDay()).append(".\n").append(c.memorySummary()).append('\n');
-        appendExperiences(s,c.history(),"YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST");
+        if(c.day()==0) s.append("No prior execution days exist yet.\n");
+        else s.append("Recent factual window before today's decision: simulation days ").append(Math.max(0,c.day()-RECENT_FACT_DAYS))
+                .append(" through ").append(c.day()-1).append("; read only supplied records. Older experience may persist in your memory.\n");
+        appendExperiences(s,recentFacts(c.history(),c.day(),false,RECENT_FACT_DAYS),"YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST (ACTUAL EXECUTED RESULTS)");
         s.append(c.departureOptions().isEmpty() ? "Choose one of these routes for this trip; return routeId and one short reason only.\n"
                 : "Choose one listed departureSeconds and one listed routeId together; return those two fields and one short reason only.\n");
         return s.toString();
@@ -93,6 +100,7 @@ public final class MorningPromptRenderer {
     private static void appendChoices(StringBuilder s, MorningRoutePolicy.Context c) {
         boolean joint = !c.departureOptions().isEmpty();
         s.append(joint ? "JOINT TIME AND ROUTE OPTIONS\n" : "ROUTE ESTIMATES AT PLANNED DEPARTURE\n");
+        s.append("PREDICTIONS: the following rows are estimates, not actual executed results. Units follow FACT_RULES.\n");
         s.append(c.information()==null ? "forecastDay=null: initial estimate without prior traffic observations; otherwise the simulation day supplying traffic observations.\n"
                 : "Static free-flow estimates; no observed network congestion.\n");
         var choices = joint ? c.departureOptions() : List.of(new MorningRoutePolicy.DepartureOption(c.plannedDepartureSeconds(),c.candidates()));
@@ -225,6 +233,19 @@ public final class MorningPromptRenderer {
             s.append("columns=[day,routeId,selectedDeparture_s,actualDeparture_s,drive_s,door_s,arrival_s,late_s,unfinished,stuck,tollPaid,paymentRows]\n");
             experiences.forEach(e -> appendExperience(s,e));
         }
+    }
+
+    static List<MorningMemory.Experience> recentFacts(List<MorningMemory.Experience> facts,int day,boolean includeToday,int days) {
+        int end=includeToday?day:day-1, start=Math.max(0,end-days+1);
+        return facts.stream().filter(e -> e.day()>=start && e.day()<=end).toList();
+    }
+
+    static String decisionReviewFacts(MorningRoutePolicy.Context c) {
+        String rendered=new MorningPromptRenderer().render(c);
+        var facts=new StringBuilder(rendered.substring(0,rendered.indexOf("SIMULATION DAY ")));
+        appendExperiences(facts,recentFacts(c.history(),c.day(),false,RECENT_FACT_DAYS),"RECENT ACTUAL EXECUTION FACTS");
+        facts.append("Current manager announcement visible: ").append(c.information()!=null && c.information().currentAnnouncementVisible()).append('\n');
+        return facts.toString();
     }
 
     static void appendExperience(StringBuilder s, MorningMemory.Experience e) {

@@ -70,7 +70,7 @@ class MorningSummaryTest {
         }
     }
 
-    @Test void reflectionUsesOnlyOldSummaryLastFiveFactsAndPersonalInformationNotLifetimeCounts() {
+    @Test void reflectionUsesOnlyOldSummaryLastThreeFactsAndPersonalInformationNotLifetimeCounts() {
         var memory = new MorningMemory(1);
         for (int day = 0; day < 8; day++) {
             String route = day % 2 == 0 ? "c0" : "c1";
@@ -84,15 +84,15 @@ class MorningSummaryTest {
                 memory.summary(), memory.summaryDay(), memory.recent(MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT), List.of("c0", "c1"));
         String prompt = MorningMemoryUpdater.render(c);
         assertEquals(1, memory.recent().size(), "Choice window remains independently configurable");
-        assertEquals(5, c.recentExperiences().size());
-        assertEquals(3, c.recentExperiences().getFirst().day());
+        assertEquals(3, c.recentExperiences().size());
+        assertEquals(5, c.recentExperiences().getFirst().day());
         assertEquals(7, c.recentExperiences().getLast().day());
         assertTrue(prompt.contains("important event from day zero"));
         assertTrue(prompt.contains("Age: 35")); assertTrue(prompt.contains("FIXED SYNTHETIC PROFILE"));
         assertTrue(prompt.contains("32400.0 seconds after midnight"));
         assertTrue(prompt.contains("AVAILABLE ROUTE IDENTIFIERS FOR THIS TRIP: [\"c0\",\"c1\"]"));
         var records = MorningJointTestSupport.tableRows(prompt,"RECENT ACTUAL EXPERIENCES");
-        assertEquals(5,records.size()); assertEquals(3,records.getFirst().get(0).asInt());
+        assertEquals(3,records.size()); assertEquals(5,records.getFirst().get(0).asInt());
         assertEquals(7,records.getLast().get(0).asInt()); assertEquals("c1",records.getLast().get(1).asText());
         assertFalse(prompt.contains("CUMULATIVE")); assertFalse(prompt.contains("completed driving"));
         assertFalse(prompt.contains("secret-person")); assertFalse(prompt.contains("secret-link"));
@@ -108,7 +108,7 @@ class MorningSummaryTest {
                 memory.summary(), memory.summaryDay(), memory.recent(6), List.of("c0", "c1"));
         assertThrows(IllegalArgumentException.class, () -> MorningMemoryUpdater.render(tooMany));
         var wrongPool = new MorningMemoryUpdater.Context(7, "p/0", "p", "work", 32400.0, Map.of(), null,
-                memory.summary(), memory.summaryDay(), memory.recent(5), List.of("c0"));
+                memory.summary(), memory.summaryDay(), memory.recent(3), List.of("c0"));
         assertThrows(IllegalArgumentException.class, () -> MorningMemoryUpdater.render(wrongPool));
     }
 
@@ -138,7 +138,7 @@ class MorningSummaryTest {
         try (var writer = new OutputWriter(directory.resolve("length-limits"))) {
             String withinLimit = "😀".repeat(500);
             var updater = new MorningMemoryUpdater((r,s,u) -> {
-                assertTrue(s.contains("240 characters")); assertTrue(s.contains("Keep memory within 500 characters"));
+                assertTrue(s.contains("240 characters")); assertTrue(s.contains("Keep memory within 500 Unicode characters"));
                 return new LlmResponse(Json.write(Map.of("memory", withinLimit)), 0,0,0,0);
             }, writer, 1, 500, Map.of(), new MorningRequestBudget(5));
             assertEquals(withinLimit, updater.update(summaryContext(0, memory)).memory(), "240 is a target, not an acceptance cutoff");
@@ -243,8 +243,8 @@ class MorningSummaryTest {
             var row = Json.readTree(line); int day = row.get("day").asInt(); String trip = row.get("tripId").asText();
             assertFalse(row.has("routeUsage"));
             var recent = row.get("recentExperiences");
-            assertEquals(Math.min(day + 1, 5), recent.size());
-            assertEquals(Math.max(0, day - 4), recent.get(0).get("day").asInt());
+            assertEquals(Math.min(day + 1, 3), recent.size());
+            assertEquals(Math.max(0, day - 2), recent.get(0).get("day").asInt());
             assertEquals(day, recent.get(recent.size() - 1).get("day").asInt());
             assertEquals(day == 0 ? "" : updates.get((day - 1) + "/" + trip), row.get("previousMemory").asText());
             assertTrue(row.get("availableRouteIds").size() > 0);
@@ -283,7 +283,7 @@ class MorningSummaryTest {
             assertEquals(7, choices, "Cumulative counts remain available for analysis, not model input");
         }
         var manifest = Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
-        assertEquals(5, manifest.get("memoryReflectionExperienceLimit").asInt());
+        assertEquals(3, manifest.get("memoryReflectionExperienceLimit").asInt());
         assertFalse(manifest.get("cumulativeRouteCountsSuppliedToLlm").asBoolean());
         assertEquals(6, manifest.get("memoryReflectionInputs").size());
         assertEquals(240, manifest.get("memoryTargetChars").asInt());
@@ -373,6 +373,6 @@ class MorningSummaryTest {
     }
     private static MorningMemoryUpdater.Context summaryContext(int day, MorningMemory memory) {
         return new MorningMemoryUpdater.Context(day, "p/0", "p", "work", 32400.0, Map.of(), null,
-                memory.summary(), memory.summaryDay(), memory.recent(5), List.of("c0"));
+                memory.summary(), memory.summaryDay(), memory.recent(3), List.of("c0"));
     }
 }

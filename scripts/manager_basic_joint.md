@@ -16,7 +16,7 @@
 | Basic 记忆 | 每次完整替换，最多 **1000 英文词**；Java 按字母/数字词段计数，单词内部连接符保留；不是 1000 字符或 token |
 | Basic 规则 | 完整政策最多 **40 个收费 link**，每个 link 一条规则、一个全天金额；不预设金额、路段位置、调整步长或探索顺序 |
 | Manager 收费时窗 | basic / controlled 均固定 `start=0`、`end=QSim endTime`，覆盖 `[0,QSim endTime)`；当前 30 小时场景为 `[0,108000)`，不可选择高峰时窗或分时价格 |
-| Traveler 记忆 | 日末完整摘要最多 500 Unicode 字符，包含全部长期信息及收费印象；默认另提供最近五次事实经历 |
+| Traveler 记忆 | 日末完整摘要最多 500 Unicode 字符，包含全部长期信息及收费印象；默认另提供最近三天事实经历 |
 
 时间范围参数：`--departure-before-seconds 5400 --departure-after-seconds 1800 --departure-step-seconds 900`。
 PowerShell 对应 `-DepartureBeforeSeconds 5400 -DepartureAfterSeconds 1800 -DepartureStepSeconds 900`。
@@ -48,7 +48,7 @@ Basic 不运行自动回滚、绩效阈值触发、冷却期、一走廊限制�
 
 全天收费不改变前 20 天免费或定期政策更新安排，不增加每日支付上限。同一天离开后重新进入收费 link 会再次支付；仅调整出发时刻不能避开同一路段的收费。收费窗口覆盖真实 QSim 结束时刻，即使它不是 15 分钟或整小时边界。固定收费文件和历史收费记录仍保留原时窗语义。
 最后一个交通观测箱若超过 QSim 结束时刻，Manager 输入将其 end 裁剪到仿真结束，保留实际观测计数，避免漏算全天收费末尾的通行或触发旧分箱对齐错误；原始 link-hours 档案仍保留原分箱标签。
-Manifest schemaVersion=22，`pricing.chargingMode=full_day` 与 `pricing.chargingWindow` 记录全天口径，Manager 模板为 `morning-pricing-v10-daily-memory`。
+Manifest schemaVersion=23，`pricing.chargingMode=full_day` 与 `pricing.chargingWindow` 记录全天口径，Manager 模板为 `morning-pricing-v10-daily-memory`。
 
 ## Traveler 信息边界
 

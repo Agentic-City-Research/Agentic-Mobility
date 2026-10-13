@@ -22,6 +22,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     private final LlmUsageTracker usage;
     private final MorningRequestBudget budget;
     private MorningMemoryUpdater memoryUpdater;
+    private MorningSemanticReview semanticReview;
     private MorningManager manager;
     private final MorningTollSystem tolls;
     private ExecutorService pool;
@@ -82,6 +83,12 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             var memoryConfig = settings.llmConfig.withOutputLimit(settings.memoryMaxOutputTokens);
             memoryUpdater = new MorningMemoryUpdater(settings.clientFactory.apply(memoryConfig, usage), output,
                     settings.repairAttempts, settings.memoryMaxChars, memoryConfig.publicModelSettings(), budget);
+            if(settings.travelerSemanticReview) {
+                var reviewConfig=settings.llmConfig.withOutputLimit(settings.semanticReviewMaxOutputTokens);
+                semanticReview=new MorningSemanticReview(settings.clientFactory.apply(reviewConfig,usage),output,budget,reviewConfig.publicModelSettings());
+                if(policy instanceof MorningLlmPolicy llm) llm.setSemanticReview(semanticReview);
+                memoryUpdater.setSemanticReview(semanticReview);
+            }
         }
         if (manager != null || settings.policyName.equals("llm") && !cohort.controlledPersons.isEmpty()) {
             pool = Executors.newFixedThreadPool(settings.concurrency, task -> {
@@ -313,7 +320,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                 Map.of("activities", member.originalSchedule, "deadlineIsHardConstraint", false,
                         "personalPreferencesSource", member.profile == null ? "input attributes only" : "input attributes plus fixed synthetic legacy profile; no numeric tolerance/value-of-time inferred",
                         "costUnits", "scenario monetary units, not an asserted real-world currency"),
-                options, member.memory.recent(), member.profile, member.memory.summary(), member.memory.summaryDay(),
+                options, MorningPromptRenderer.recentFacts(member.memory.recent(),day,false,settings.historyDays), member.profile, member.memory.summary(), member.memory.summaryDay(),
                 settings.policyName.equals("llm") ? cohort.information.visibleForLlm(member.person.getId().toString())
                         : cohort.information.visible(member.person.getId().toString(), day), departures);
     }
@@ -549,9 +556,11 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     private void updateMemories(int day) {
         if (memoryUpdater == null) return;
         var controlled = cohort.members.values().stream().filter(m -> m.controlled).toList();
+        for(var member:controlled) if(member.memory.summaryVersion()>0 && !Objects.equals(member.memory.summaryDay(),day-1))
+            throw new IllegalStateException("Every subsequent reflection requires yesterday's summary: "+member.key);
         var contexts = controlled.stream().map(m -> new MorningMemoryUpdater.Context(day, m.key, m.person.getId().toString(),
                 m.destinationPurpose, m.deadline, m.originalAttributes, m.profile, m.memory.summary(), m.memory.summaryDay(),
-                m.memory.recent(MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT), m.candidates.stream().map(RouteCandidate::id).toList(),
+                MorningPromptRenderer.recentFacts(m.memory.recent(MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT),day,true,MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT), m.candidates.stream().map(RouteCandidate::id).toList(),
                 m.informationGroup, List.of())).toList();
         var tasks = contexts.stream().<Callable<MorningMemoryUpdater.Update>>map(c -> () -> memoryUpdater.update(c)).toList();
         var updates = LlmDecisionBatch.run(pool, tasks, controlled.stream().map(m -> m.key).toList(),
@@ -570,6 +579,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             row.put("previousMemory", context.previousMemory()); row.put("previousMemoryDay", context.previousMemoryDay());
             row.put("memory", update.memory()); row.put("version", member.memory.summaryVersion()); row.put("committed", true);
             row.put("repairCount", update.repairCount()); row.put("elapsedMillis", update.elapsedMillis());
+            row.put("semanticReviewStatus",update.semanticReviewStatus());
             row.put("contextHash", MorningPromptRenderer.hash(Json.write(context)));
             row.put("modelSettings", memoryUpdater.modelSettings());
             output.appendLine("memory-updates.jsonl", row);
@@ -671,6 +681,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         var result = new LinkedHashMap<>(usage.toJson());
         result.put("attemptedDecisionCalls", policy instanceof MorningLlmPolicy llm ? llm.attemptedCalls() : 0L);
         result.put("attemptedMemoryCalls", memoryUpdater == null ? 0L : memoryUpdater.attemptedCalls());
+        result.put("attemptedTravelerSemanticReviewCalls",semanticReview==null?0L:semanticReview.attemptedCalls());
         result.put("attemptedManagerCalls", manager == null ? 0L : manager.attemptedCalls());
         result.put("attemptedManagerPolicyCalls", manager == null ? 0L : manager.attemptedPolicyCalls());
         result.put("attemptedManagerMemoryCalls", manager == null ? 0L : manager.attemptedMemoryCalls());

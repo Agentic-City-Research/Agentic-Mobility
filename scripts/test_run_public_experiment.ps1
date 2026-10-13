@@ -78,7 +78,7 @@ foreach ($taskRate in @(0.1, 0.25, 1.0)) {
 [IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
 & $taskRunner -Java $taskFakeJava -Days 1 -Manager | Out-Null
 $taskBasicArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
-foreach ($taskPair in @(@('--manager-profile','basic'),@('--manager-memory-max-output-tokens','2048'),@('--departure-before-seconds','5400'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
+foreach ($taskPair in @(@('--manager-profile','basic'),@('--history-window','3'),@('--reason-max-chars','120'),@('--max-output-tokens','1024'),@('--manager-memory-max-output-tokens','2048'),@('--departure-before-seconds','5400'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
     $taskIndex = [Array]::IndexOf($taskBasicArguments, $taskPair[0])
     if ($taskIndex -lt 0 -or $taskBasicArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Basic protocol was not forwarded: ' + $taskPair[0]) }
 }
@@ -97,6 +97,13 @@ if ($taskCapturedArguments[[Array]::IndexOf($taskCapturedArguments, '--manager-u
 foreach ($taskPair in @(@('--manager-max-corridor-minutes','4.5'),@('--manager-memory-max-output-tokens','3072'),@('--manager-max-step-minutes','2'),@('--manager-completion-drop','0.02'),@('--manager-review-days','7'))) {
     $taskIndex = [Array]::IndexOf($taskCapturedArguments, $taskPair[0])
     if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Manager control was not forwarded: ' + $taskPair[0]) }
+}
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy llm -LlmAgents 1 -TravelerSemanticReview -SemanticReviewMaxOutputTokens 1536 | Out-Null
+$taskReviewArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+if ($taskReviewArguments -notcontains '--traveler-semantic-review' -or
+    $taskReviewArguments[[Array]::IndexOf($taskReviewArguments, '--semantic-review-max-output-tokens') + 1] -ne '1536') {
+    throw 'Optional traveler semantic review was not forwarded'
 }
 $taskFixedFile = Join-Path $taskTestRoot 'fixed.json'
 [IO.File]::WriteAllText($taskFixedFile, '{"rules":[]}')

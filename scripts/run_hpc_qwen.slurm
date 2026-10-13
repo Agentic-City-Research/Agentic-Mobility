@@ -25,7 +25,7 @@ REPAIR_ATTEMPTS="${REPAIR_ATTEMPTS:-3}"
 MAX_REQUESTS="${MAX_REQUESTS:-1000}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-300}"
 LLM_STALL_SECONDS="${LLM_STALL_SECONDS:-900}"
-HISTORY_WINDOW="${HISTORY_WINDOW:-5}"
+HISTORY_WINDOW="${HISTORY_WINDOW:-3}"
 MEMORY_MODE="${MEMORY_MODE:-llm}"
 DEPARTURE_BEFORE_SECONDS="${DEPARTURE_BEFORE_SECONDS:-5400}"
 DEPARTURE_AFTER_SECONDS="${DEPARTURE_AFTER_SECONDS:-1800}"
@@ -37,8 +37,11 @@ MANAGER_MAX_OUTPUT_TOKENS="${MANAGER_MAX_OUTPUT_TOKENS:-8192}"
 MANAGER_MEMORY_MAX_OUTPUT_TOKENS="${MANAGER_MEMORY_MAX_OUTPUT_TOKENS:-2048}"
 MEMORY_MAX_CHARS="${MEMORY_MAX_CHARS:-500}"
 MEMORY_MAX_OUTPUT_TOKENS="${MEMORY_MAX_OUTPUT_TOKENS:-1024}"
-MAX_OUTPUT_TOKENS="${MAX_OUTPUT_TOKENS:-512}"
+MAX_OUTPUT_TOKENS="${MAX_OUTPUT_TOKENS:-1024}"
+REASON_MAX_CHARS="${REASON_MAX_CHARS:-120}"
 RESPONSE_FORMAT="${RESPONSE_FORMAT:-json_schema}"
+TRAVELER_SEMANTIC_REVIEW="${TRAVELER_SEMANTIC_REVIEW:-0}"
+SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS="${SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS:-2048}"
 JAVA_HEAP="${JAVA_HEAP:-12g}"
 CANDIDATE_SEARCH_LIMIT="${CANDIDATE_SEARCH_LIMIT:-10000}"
 CANDIDATE_POOL_SIZE="${CANDIDATE_POOL_SIZE:-16}"
@@ -81,6 +84,11 @@ command -v "$PYTHON_BIN" >/dev/null || fail "Python not found: $PYTHON_BIN"
 [[ "$CONCURRENCY" =~ ^[1-9][0-9]*$ ]] || fail 'CONCURRENCY must be positive.'
 [[ "$MAX_REQUESTS" =~ ^[0-9]+$ ]] || fail 'MAX_REQUESTS must be nonnegative (0 disables the limit).'
 [[ "$MEMORY_MODE" == llm ]] || fail 'MEMORY_MODE only supports llm.'
+[[ "$HISTORY_WINDOW" =~ ^[1-3]$ ]] || fail 'HISTORY_WINDOW must be 1..3.'
+[[ "$TRAVELER_SEMANTIC_REVIEW" == 0 || "$TRAVELER_SEMANTIC_REVIEW" == 1 ]] || fail 'TRAVELER_SEMANTIC_REVIEW must be 0 or 1.'
+for value_name in MAX_OUTPUT_TOKENS REASON_MAX_CHARS SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS; do
+    [[ "${!value_name}" =~ ^[1-9][0-9]*$ ]] || fail "$value_name must be positive."
+done
 [[ "$ENABLE_MANAGER" == 0 || "$ENABLE_MANAGER" == 1 ]] || fail 'ENABLE_MANAGER must be 0 or 1.'
 [[ "$MANAGER_PROFILE" == basic || "$MANAGER_PROFILE" == controlled ]] || fail 'MANAGER_PROFILE must be basic or controlled.'
 [[ "$MANAGER_UPDATE_INTERVAL" =~ ^[1-9][0-9]*$ ]] || fail 'MANAGER_UPDATE_INTERVAL must be positive.'
@@ -89,7 +97,7 @@ command -v "$PYTHON_BIN" >/dev/null || fail "Python not found: $PYTHON_BIN"
 JAR_HELP="$("$JAVA_BIN" -cp "$JAR" org.matsim.agentic.MorningExperiment --help)" \
     || fail 'The JAR must include the current MorningExperiment entry point.'
 for option in --candidate-pool-size --candidate-time-slack-seconds --candidate-distance-slack-meters \
-    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens; do
+    --departure-before-seconds --departure-after-seconds --departure-step-seconds --manager-profile --manager-memory-max-output-tokens --traveler-semantic-review; do
     [[ "$JAR_HELP" == *"$option"* ]] || fail "Uploaded JAR is too old: missing $option"
 done
 
@@ -155,7 +163,7 @@ experiment_args=(
     --model "$MODEL_NAME" --base-url "$AGENTIC_BASE_URL"
     --thinking omit --generation-params "$QWEN_GENERATION_PARAMS"
     --token-limit-field max_tokens --response-format "$RESPONSE_FORMAT"
-    --max-output-tokens "$MAX_OUTPUT_TOKENS" --reason-max-chars 240
+    --max-output-tokens "$MAX_OUTPUT_TOKENS" --reason-max-chars "$REASON_MAX_CHARS"
     --personal-profiles legacy --profile-seed "$SEED"
     --departure-before-seconds "$DEPARTURE_BEFORE_SECONDS" --departure-after-seconds "$DEPARTURE_AFTER_SECONDS" --departure-step-seconds "$DEPARTURE_STEP_SECONDS"
     --memory-mode "$MEMORY_MODE" --history-window "$HISTORY_WINDOW"
@@ -167,6 +175,7 @@ experiment_args=(
     --candidate-max-overlap "$CANDIDATE_MAX_OVERLAP"
     --trip-output-interval 1 --context-samples 20
 )
+if [[ "$TRAVELER_SEMANTIC_REVIEW" == 1 ]]; then experiment_args+=(--traveler-semantic-review --semantic-review-max-output-tokens "$SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS"); fi
 if [[ "$ENABLE_MANAGER" == 1 ]]; then
     experiment_args+=(--manager --manager-profile "$MANAGER_PROFILE" --manager-update-interval "$MANAGER_UPDATE_INTERVAL" --manager-max-output-tokens "$MANAGER_MAX_OUTPUT_TOKENS" --manager-memory-max-output-tokens "$MANAGER_MEMORY_MAX_OUTPUT_TOKENS")
 elif [[ "$ENABLE_MANAGER" != 0 ]]; then fail 'ENABLE_MANAGER must be 0 or 1.'; fi

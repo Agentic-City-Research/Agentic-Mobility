@@ -241,7 +241,7 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
   不注入个人记录、研究者预先跑好的 baseline、私人记忆或支付；不增加硬限价、自动政策回退或预设优选路段。
 
 不再区分两轮信息模式，也无需指定反馈模式参数。
-manifest schemaVersion=22，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；Manager 的 `pricing.chargingMode=full_day` 和 `pricing.chargingWindow` 记录全天窗口。启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
+manifest schemaVersion=23，`pricing.mode` 区分 `none`、`fixed` 与 `manager`；Manager 的 `pricing.chargingMode=full_day` 和 `pricing.chargingWindow` 记录全天窗口。启用 manager 时，`managerContext.feedbackMode` 固定为 `combined`，
 `informationComponents` 记录实际组合的信息类别，模板/环境/反馈版本分别记录。
 
 ```powershell
@@ -339,7 +339,7 @@ uninformed 的收费记忆按 **personId + linkId + 时间分箱** 保存最近�
 只设置服务支持的参数；未设置的 temperature/top-p/seed 不发送，不能声称不同服务的默认采样行为完全一致。
 Thinking=auto 仅对 api.deepseek.com 发送 disabled，其他服务不发送；本地兼容服务建议显式 omit。
 MaxOutputTokens 是选路响应 token 上限；MemoryMaxOutputTokens（默认1024）单独控制仿真后摘要响应。
-ReasonMaxChars（默认240）限制理由。摘要目标长度为240字符，MemoryMaxChars默认及最大值为500 Unicode字符，可显式降低；超长输出进入修复而非静默截断。
+ReasonMaxChars（默认120）限制理由。摘要目标长度为240字符，MemoryMaxChars默认及最大值为500 Unicode字符，可显式降低；超长输出进入修复而非静默截断。
 
 ```powershell
 # 请在当前 PowerShell 设置自己的 AGENTIC_API_KEY；下例只是命令，不自动执行。
@@ -572,7 +572,7 @@ link-hours 是完整小时/全天数据；6:30–7:00 不能从 6:00–7:00 的�
 `MorningRoutePolicy.validate` 会拒绝非该旅客 OD 候选中的路线 ID；接口没有时刻偏移或返程重选字段。
 
 选路提示包含每条路线预计耗时、费用、预计到达、原始个人属性、固定画像、活动日程、目的与到达目标、
-旧自写摘要，以及最近 5 次未经平滑的逐日真实经历（可通过 HistoryWindow 修改；不含当天结果）
+旧自写摘要，以及最近 3 天未经平滑的逐日真实经历（可通过 HistoryWindow 修改；不含当天结果）
 （实际耗时、到达、迟到、中止/未完成标记；未知耗时不当成零）。
 全部候选的预计耗时统一使用静态自由流时间，每一天都相同，不使用全网历史/实时旅行时间。
 预计到达包含计划接驳步行耗时；本人实际拥堵经历仍可通过私人记录和摘要提供。
@@ -611,13 +611,15 @@ MNL/shortest/mock 只作为明确标注的离线比较或接口诊断，不能�
 
 ## 自写长期摘要、事实档案与统一模型比较
 
+当前 Traveler v9 以旧摘要连续传递长期经验，日初默认使用此前三天事实，日末反思包含当天的三天事实。结构重试与可选的一次语义复核独立；说明见 [Traveler v9](../../docs/traveler-v9.md)。
+
 MemoryMode 只支持 llm，省略参数时也使用 llm：截至昨天的摘要+最近 HistoryWindow 次经历+固定画像+今日预测 → LLM选路 → QSim → 保存真实经历 → LLM更新摘要 → 下一天。
-摘要从空开始，各 agent 的行程摘要按 personId/tripIndex 隔离，不向其他人提供。morning-reflection-information-v6 更新输入含旧摘要、最近 5 次真实经历（包括今天；不足 5 次则全部）、个人属性与固定画像、到达期限、可用路线 ID，以及本人其他行程的实际支付记录；不提供当前公告或全网路况。
-摘要窗口固定为 5 次，不受 HistoryWindow 影响；HistoryWindow 只控制选路前的具体经历窗口。更新不传累计选择/完成次数、全量历史或交通预测。
+摘要从空开始，各 agent 的行程摘要按 personId/tripIndex 隔离，不向其他人提供。morning-reflection-v9-continuous-memory 更新输入含旧摘要、最近 3 天真实经历（包括今天；不足 3 天则全部）、个人属性与固定画像、到达期限、可用路线 ID，以及本人其他行程的实际支付记录；不提供当前公告或全网路况。
+摘要事实窗口固定为 3 天，不受 HistoryWindow 影响；HistoryWindow 只控制选路前的具体经历窗口。更新不传累计选择/完成次数、全量历史或交通预测。
 累计次数继续保留为内部分析统计和 route-use 输出，不作为习惯权重，也不经选路提示传给 LLM。
 摘要让模型自主保留重要事件、熟悉程度、认识和不确定性，不设置习惯权重、不强迫熟悉路线优先；摘要是主观解释，不替代原始事实。
 摘要提示目标为240字符，硬上限500 Unicode字符；241至500字符的摘要不会仅因超过目标长度而修复。
-保留模型自然产生的遗忘和失真，不人为注入错误，不执行事实纠正或从完整档案检索补回遗忘内容。
+保留模型自然产生的遗忘和失真，不人为注入错误，默认不执行独立语义复核，也不从完整档案检索补回遗忘内容。可用 --traveler-semantic-review 启用一次模型复核；只核对可见事实，合法动作不变，未解决问题标记并保留审计。
 摘要中的不可用cN路线编号仅写入memory-attempts的unknownRouteReferences诊断字段，不因此拒绝、重写或覆盖摘要。
 程序只对摘要的JSON结构、字符长度和输出截断进行修复；输入时序仍严格检查。实际选路的routeId必须属于当前可执行候选。
 批量更新全部返回有效结果后才提交摘要；输出修复/传输恢复耗尽或调用预算不足会使实验失败，不悄悄沿用旧摘要。
@@ -637,7 +639,7 @@ LLM 出行者没有关闭自写摘要的模式；mnl/shortest/mock 与原生 bas
 本地兼容模型示例（地址仅适用于模型与仿真在同一台机器，模型名必须匹配服务；须自行设置对应AGENTIC_API_KEY）：
 
 ```powershell
-.\scripts\run_public_experiment.ps1 -Mode hybrid -Policy llm -LlmAgents 3 -Demand 100 -Days 7 -Seed 4711 -Model qwen3.8-27b-fp8 -BaseUrl 'http://127.0.0.1:8001/v1' -Thinking omit -MemoryMode llm -PersonalProfiles legacy -HistoryWindow 5 -MaxOutputTokens 512 -MemoryMaxOutputTokens 1024 -MemoryMaxChars 500 -MaxRequests 100 -Output 'output/summary-check/new-run'
+.\scripts\run_public_experiment.ps1 -Mode hybrid -Policy llm -LlmAgents 3 -Demand 100 -Days 7 -Seed 4711 -Model qwen3.8-27b-fp8 -BaseUrl 'http://127.0.0.1:8001/v1' -Thinking omit -MemoryMode llm -PersonalProfiles legacy -HistoryWindow 3 -MaxOutputTokens 1024 -ReasonMaxChars 120 -MemoryMaxOutputTokens 1024 -MemoryMaxChars 500 -MaxRequests 100 -Output 'output/summary-check/new-run'
 ```
 
 Thinking=omit 不代表关闭模型自身的思考模式；如具体Qwen模板支持，可额外指定 GenerationParams='{"chat_template_kwargs":{"enable_thinking":false}}'，需在实际模型与服务版本上验证。
@@ -647,7 +649,7 @@ Thinking=omit 不代表关闭模型自身的思考模式；如具体Qwen模板�
 建议先跑3人、7天真实模型，检查提示和执行，再增加人数与天数。下面的命令需要自行设置 API key 才会调用服务：
 
 ```powershell
-.\scripts\run_public_experiment.ps1 -Mode hybrid -Policy llm -LlmAgents 3 -Demand 100 -Days 7 -Seed 4711 -HistoryWindow 5 -Model deepseek-flash -Thinking disabled -MaxOutputTokens 512 -MaxRequests 100
+.\scripts\run_public_experiment.ps1 -Mode hybrid -Policy llm -LlmAgents 3 -Demand 100 -Days 7 -Seed 4711 -HistoryWindow 3 -Model deepseek-flash -Thinking disabled -MaxOutputTokens 1024 -ReasonMaxChars 120 -MaxRequests 100
 ```
 
 跨模型闭环实验须复用同一 CandidateFile、ProfileFile、人口、seed、出发时刻、历史窗口、MemoryMode、摘要限制、候选展示顺序和信息模板；每个新输出目录从空记忆开始。

@@ -189,7 +189,7 @@ $env:AGENTIC_BASE_URL = "http://127.0.0.1:8001/v1"
   -Mode hybrid -Policy llm -LlmAgents 3 `
   -Demand 100 -SampleRate 0.1 -Days 7 -Seed 4711 `
   -Concurrency 3 -Thinking omit `
-  -MaxOutputTokens 512 -MemoryMaxOutputTokens 1024 -MaxRequests 200 `
+  -MaxOutputTokens 1024 -ReasonMaxChars 120 -MemoryMaxOutputTokens 1024 -MaxRequests 200 `
   -Output 'output/llm-first-run'
 ```
 
@@ -257,7 +257,7 @@ java -Xmx8g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
   --mode hybrid --policy llm --llm-agents 3 \
   --demand 100 --sample-rate 0.1 --days 7 --seed 4711 \
   --concurrency 3 --thinking omit \
-  --max-output-tokens 512 --memory-max-output-tokens 1024 --max-requests 200 \
+  --max-output-tokens 1024 --reason-max-chars 120 --memory-max-output-tokens 1024 --max-requests 200 \
   --output output/llm-first-run-java
 ```
 
@@ -286,7 +286,7 @@ Slurm 模板为 [run_hpc_qwen.slurm](../scripts/run_hpc_qwen.slurm) 和 [agentic
 | `-FixedTollPolicy FILE` | `--fixed-toll-policy FILE` | 从 JSON 加载固定收费政策 |
 | `-CandidateFile FILE` | `--candidate-file FILE` | 复用候选路线；所需 OD 缺失会报错 |
 | `-ProfileFile FILE` | `--profile-file FILE` | 复用既有固定画像；缺失人员或冲突会报错 |
-| `-HistoryWindow 5` | `--history-window 5` | 决策前的近期具体经历窗口 |
+| `-HistoryWindow 3` | `--history-window 3` | 决策前的近期具体经历窗口 |
 | `-Concurrency 3` | `--concurrency 3` | 模型请求并发上限 |
 | `-MaxRequests 200` | `--max-requests 200` | 模型 client 调用预算，包含输出修复 |
 | `-Output PATH` | `--output PATH` | 指定独立实验目录 |
@@ -342,7 +342,7 @@ python scripts/analyze_morning_choices.py --morning 'output/llm-first-run/mornin
 
 ### 复现记录
 
-manifest 的 schemaVersion 为 `22`（v21 记录全天收费，v22 拆分每日管理记忆与周期政策调用并记录独立生成设置），包含：
+manifest 的 schemaVersion 为 `23`（v21 记录全天收费，v22 拆分每日管理记忆与周期政策调用并记录独立生成设置），包含：
 
 - `selectionSeeds`：人口、受控名单、画像、信息分组和仿真解析后的种子，含显式覆盖值；导入画像时以输入文件及其哈希为准。
 - `simulatedPersonIdsSha256`：采样后 person ID 排序，每个 ID 后追加换行，以 UTF-8 计算 SHA-256；可直接核对两次实验是否使用同一份人口名单。
@@ -382,11 +382,11 @@ manifest 的 schemaVersion 为 `22`（v21 记录全天收费，v22 拆分每日�
 
 ### 提示词精简与前缀缓存验证
 
-旅客决策模板为 `morning-information-v8-compact-prefix`，记忆更新模板为 `morning-reflection-v8-compact-prefix`。共同的事实边界、单位、缺失值和缴费含义放在共享 system 前部；固定旅客属性、原计划、日程、候选 ID 和路线固定属性放在每日内容之前。只保留一份合法选项列表，候选展示顺序、采样与种子、个人历史窗口及输出校验沿用原有逻辑。
+旅客决策模板为 `morning-information-v9-continuous-memory`，记忆更新模板为 `morning-reflection-v9-continuous-memory`。共同的事实边界、单位、缺失值和缴费含义放在共享 system 前部；固定旅客属性、原计划、日程、候选 ID 和路线固定属性放在每日内容之前。只保留一份合法选项列表，候选展示顺序、采样与种子、个人历史窗口及输出校验沿用原有逻辑。
 
 表格使用“columns + 每行一个 JSON 数组”。候选属性保留距离和已提供的基础费用，选择表完整列出每个合法出发时间与路线的组合、驾驶时间、预计到达、收费和总费用。相同的可见收费规则按路线合并展示，保留对应出发时间；历史费用保留自身缴费依据和缺失道路，不把历史估计当成当前报价。联合模式原出发时间的一份估计已在选择表中时，不再重复；旧保存上下文若包含不同的原计划参考估计，仍明确保留它。
 
-历史行保留 day、routeId、选择/实际出发、驾驶/门到门时间、到达、迟到、未完成、stuck、实际支付总额及逐次道路进入缴费。表格时间采用精确数值秒，不通过四舍五入删减数据；`null` 表示未知或未提供，不能当作零耗时或免费。非知情旅客仍看不到最新策略和长期精确缴费表。记忆更新的最近五次事实、240 字符目标与 500 字符硬上限不变。
+历史行保留 day、routeId、选择/实际出发、驾驶/门到门时间、到达、迟到、未完成、stuck、实际支付总额及逐次道路进入缴费。表格时间采用精确数值秒，不通过四舍五入删减数据；`null` 表示未知或未提供，不能当作零耗时或免费。非知情旅客仍看不到最新策略和长期精确缴费表。记忆更新的最近三天事实、240 字符目标与 500 字符硬上限不变。
 
 默认 basic manager 先发送完整路网、共享参数表和走廊拓扑，再发送 day、当前策略、反馈和 memory。`publicEnvironment.travelerResponse` 包含当日评估及可能变化的原生策略开关，仍随每日数据发送，不能冻结为静态信息。此顺序只为更长的相同 token 前缀创造条件；是否启用缓存、模型支持、缓存淘汰和实例间复用取决于模型服务。
 

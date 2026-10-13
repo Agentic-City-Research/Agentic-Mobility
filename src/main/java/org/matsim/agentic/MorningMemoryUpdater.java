@@ -5,13 +5,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Post-QSim reflection; returns a proposal, never mutates trip state inside a worker. */
 final class MorningMemoryUpdater {
-    static final String VERSION = "morning-reflection-v8-compact-prefix";
-    static final int RECENT_EXPERIENCE_LIMIT = 5;
+    static final String VERSION = "morning-reflection-v9-continuous-memory";
+    static final int RECENT_EXPERIENCE_LIMIT = 3;
     static final int TARGET_CHARACTERS = 240;
     static final int MAX_CHARACTERS = 500;
     static final String SYSTEM = MorningPromptRenderer.FACT_RULES + """
             You are the individual traveler reflecting on a trip.
-            Rewrite your previous first-person memory using the supplied actual experiences: retain, revise or forget familiarity, important events, beliefs and uncertainty. Consolidate repeated observations; do not append a daily diary.
+            Update the supplied previous first-person memory using the last three days of actual executed experiences, including today.
+            The previous summary carries longer-term experience and habits across days. Retain useful earlier lessons, revise judgments
+            contradicted by visible facts, and integrate new experience within the same length limit. Do not restart memory from zero
+            or merely retell the three-day log. Only the first reflection begins with empty memory; no pre-experiment history is assumed.
+            Consolidate repeated observations; do not append a daily diary. Unverifiable older experience is not automatically false.
             All lasting information, including remembered charging roads and payments, shares this one summary budget.
             Remember the implications of selected/actual departures and paid road entries in your own words; exact tariff reconstruction or a permanent receipt list is not required.
             Use one paragraph of 3–4 short sentences, targeting no more than 240 characters. Much shorter notes are acceptable, especially during the first few days.
@@ -22,6 +26,7 @@ final class MorningMemoryUpdater {
             No latest policy or network traffic is supplied here. The last experience is today's actual result, not a traffic-service forecast.
             Do not propose or execute a route choice here. Return exactly one JSON object with only a nonempty memory string:
             {"memory":"<your updated personal notes>"}
+            Do not include Markdown, text outside JSON, or unnecessary formatting whitespace. Finish the JSON object.
             """;
     record Context(int day, String tripId, String personId, String destinationPurpose,
                    Double latestArrivalSeconds, Map<String, Object> personAttributes, Profile profile,
@@ -36,13 +41,16 @@ final class MorningMemoryUpdater {
                     previousMemory, previousMemoryDay, recentExperiences, availableRouteIds, null, List.of());
         }
     }
-    record Update(String memory, int repairCount, double elapsedMillis) {}
+    record Update(String memory,int repairCount,double elapsedMillis,String semanticReviewStatus) {
+        Update(String memory,int repairCount,double elapsedMillis) { this(memory,repairCount,elapsedMillis,"disabled"); }
+    }
 
     private final LlmClient client;
     private final OutputWriter output;
     private final int attempts, maxChars;
     private final Map<String, Object> modelSettings;
     private final MorningRequestBudget budget;
+    private MorningSemanticReview semanticReview;
     private final AtomicLong calls = new AtomicLong();
 
     MorningMemoryUpdater(LlmClient client, OutputWriter output, int attempts, int maxChars,
@@ -53,6 +61,7 @@ final class MorningMemoryUpdater {
         this.modelSettings = Map.copyOf(modelSettings); this.budget = budget;
     }
     long attemptedCalls() { return calls.get(); }
+    void setSemanticReview(MorningSemanticReview review) { semanticReview=review; }
     Map<String, Object> modelSettings() {
         return MorningOutputContract.requestSettings(modelSettings, MorningOutputContract.memory(maxChars));
     }
@@ -67,6 +76,8 @@ final class MorningMemoryUpdater {
             s.append("The fixed required arrival time is ").append(c.latestArrivalSeconds()).append(" seconds after midnight; it is unchanged.\n");
         else s.append("No arrival deadline is supplied for this destination.\n");
         s.append("REFLECT AFTER SIMULATION DAY ").append(c.day()).append('\n');
+        s.append("Recent factual window includes today: simulation days ").append(Math.max(0,c.day()-RECENT_EXPERIENCE_LIMIT+1))
+                .append(" through ").append(c.day()).append(". The previous summary is continuous personal memory, not part of this window.\n");
         s.append("YOUR PREVIOUS SELF-WRITTEN MEMORY\n");
         if (c.previousMemory().isBlank()) s.append("Empty; no pre-experiment experiences are assumed.\n");
         else s.append("Last updated after simulation day ").append(c.previousMemoryDay()).append(".\n").append(c.previousMemory()).append('\n');
@@ -91,7 +102,7 @@ final class MorningMemoryUpdater {
             throw new IllegalArgumentException("Invalid post-simulation memory context");
         int last = -1;
         for (var e : c.recentExperiences()) {
-            if (e.day() <= last || e.day() > c.day() || !c.availableRouteIds().contains(e.routeId()))
+            if (e.day() <= last || e.day() > c.day() || e.day()<Math.max(0,c.day()-RECENT_EXPERIENCE_LIMIT+1) || !c.availableRouteIds().contains(e.routeId()))
                 throw new IllegalArgumentException("Unordered/future memory experience or unknown route");
             last = e.day();
             for (Double t : Arrays.asList(e.carSeconds(), e.arrivalSeconds(), e.lateSeconds(), e.departureSeconds(), e.doorSeconds()))
@@ -105,7 +116,7 @@ final class MorningMemoryUpdater {
     }
 
     Update update(Context context) {
-        String base = render(context), system = SYSTEM + "Keep memory within " + maxChars + " characters.\n";
+        String base = render(context), system = SYSTEM + "Keep memory within " + maxChars + " Unicode characters, including spaces and punctuation.\n";
         var schema = MorningOutputContract.memory(maxChars);
         var requestSettings = MorningOutputContract.requestSettings(modelSettings, schema);
         var knownRouteIds = new LinkedHashSet<>(context.availableRouteIds());
@@ -138,28 +149,44 @@ final class MorningMemoryUpdater {
             String text = null;
             try {
                 MorningOutputContract.requireNotTruncated(response);
-                var node = Json.MAPPER.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                        .with(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION).readTree(response.content());
-                if (node == null || !node.isObject() || node.size() != 1 || !node.has("memory") || !node.get("memory").isTextual()
-                        || node.get("memory").asText().isBlank()) throw new IllegalArgumentException("Only one nonempty memory string is allowed");
-                text = node.get("memory").asText();
-                int characters = text.codePointCount(0, text.length());
-                log.put("memoryCharacters", characters);
-                if (characters > maxChars) throw new IllegalArgumentException("Memory exceeds " + maxChars + " characters");
+                var raw=MorningSemanticReview.strict(response.content());
+                if(raw!=null && raw.path("memory").isTextual()) log.put("memoryCharacters",raw.get("memory").asText().codePointCount(0,raw.get("memory").asText().length()));
+                text=parseMemory(response.content(),maxChars);
+                log.put("memoryCharacters",text.codePointCount(0,text.length()));
                 var unknown = MorningOutputContract.unknownRouteReferences(text, knownRouteIds);
                 log.put("unknownRouteReferences", unknown);
-                // Retain model-generated memory distortions verbatim. References are
-                // diagnostics only; executable route choices are validated separately.
+                // Preserve raw notes in this attempt log. Optional one-shot review has
+                // its own audit; these route-reference diagnostics do not trigger repairs.
                 error = null;
             } catch (java.io.IOException | IllegalArgumentException invalid) { error = invalid.getMessage(); }
             log.put("error", error); log.put("valid", error == null); log.put("failureKind", error == null ? null : "output");
             output.appendLine("memory-attempts.jsonl", log);
-            if (error == null) return new Update(text, attempt - 1, elapsed(started));
+            if (error == null) {
+                String reviewStatus="disabled";
+                if(semanticReview!=null) {
+                    String facts=base.substring(0,base.indexOf("REFLECT AFTER SIMULATION DAY"))
+                            +base.substring(base.indexOf("RECENT ACTUAL EXPERIENCES INCLUDING TODAY"));
+                    var reviewed=semanticReview.review(context.day(),context.tripId(),context.personId(),"memory",response.content(),facts,
+                            context.previousMemory(),schema,"memory",node -> parseMemory(Json.write(node),maxChars));
+                    text=parseMemory(Json.write(reviewed.output()),maxChars); reviewStatus=reviewed.status();
+                }
+                return new Update(text,attempt-1,elapsed(started),reviewStatus);
+            }
         }
         output.flush();
         throw new LlmException("Morning memory for " + context.tripId() + " exhausted " + attempts
                 + " output attempts on day " + context.day() + ": " + error);
     }
 
+    static String parseMemory(String content,int maxChars) {
+        com.fasterxml.jackson.databind.JsonNode node;
+        try { node=MorningSemanticReview.strict(content); }
+        catch(java.io.IOException invalid) { throw new IllegalArgumentException("Memory must be one complete JSON object without duplicate keys, prose or code fences"); }
+        if(node==null || !node.isObject() || node.size()!=1 || !node.path("memory").isTextual() || node.get("memory").asText().isBlank())
+            throw new IllegalArgumentException("Only one nonempty memory string is allowed");
+        String text=node.get("memory").asText();
+        if(text.codePointCount(0,text.length())>maxChars) throw new IllegalArgumentException("Memory exceeds "+maxChars+" characters");
+        return text;
+    }
     private static double elapsed(long start) { return (System.nanoTime() - start) / 1_000_000.0; }
 }

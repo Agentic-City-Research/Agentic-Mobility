@@ -5,8 +5,8 @@
     "baseUrl": "https://api.deepseek.com",
     "apiKeyEnv": "AGENTIC_API_KEY",
     "thinking": "disabled",
-    "maxOutputTokens": 512,
-    "reasonMaxChars": 240
+    "maxOutputTokens": 1024,
+    "reasonMaxChars": 120
   },
   {
     "id": "local-qwen",
@@ -14,7 +14,7 @@
     "baseUrl": "http://127.0.0.1:8001/v1",
     "apiKeyEnv": "QWEN_API_KEY",
     "thinking": "omit",
-    "maxOutputTokens": 512,
-    "reasonMaxChars": 240
+    "maxOutputTokens": 1024,
+    "reasonMaxChars": 120
   }
 ]

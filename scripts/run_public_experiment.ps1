@@ -37,12 +37,14 @@ param(
     [Nullable[double]]$Temperature,
     [Nullable[double]]$TopP,
     [Nullable[int]]$GenerationSeed,
-    [int]$MaxOutputTokens = 0,
-    [int]$ReasonMaxChars = 240,
+    [int]$MaxOutputTokens = 1024,
+    [int]$ReasonMaxChars = 120,
     [ValidateSet('max_tokens', 'max_completion_tokens')][string]$TokenLimitField,
     [ValidateSet('omit', 'json_object', 'json_schema')][string]$ResponseFormat,
     [string]$GenerationParams,
-    [int]$HistoryWindow = 5,
+    [ValidateRange(1, 3)][int]$HistoryWindow = 3,
+    [switch]$TravelerSemanticReview,
+    [ValidateRange(1, 2147483647)][int]$SemanticReviewMaxOutputTokens = 2048,
     [ValidateSet('llm')][string]$MemoryMode = 'llm',
     [ValidateRange(1, 500)][int]$MemoryMaxChars = 500,
     [int]$MemoryMaxOutputTokens = 1024,
@@ -157,6 +159,7 @@ if ($RunDate) { $taskArguments += @('--run-date', $RunDate) }
 if ($CandidateFile) { $taskArguments += @('--candidate-file', (Resolve-Path -LiteralPath $CandidateFile).Path) }
 if ($ProfileFile) { $taskArguments += @('--profile-file', (Resolve-Path -LiteralPath $ProfileFile).Path) }
 if ($PSBoundParameters.ContainsKey('ProfileSeed')) { $taskArguments += @('--profile-seed', "$ProfileSeed") }
+if ($TravelerSemanticReview) { $taskArguments += @('--traveler-semantic-review', '--semantic-review-max-output-tokens', "$SemanticReviewMaxOutputTokens") }
 if ($ValidateOnly) { $taskArguments += '--validate-only' }
 $taskJavaCommand = Get-Command $Java -ErrorAction Stop
 $taskRuntimeDir = Join-Path ([IO.Path]::GetTempPath()) ('matsim-public-' + [guid]::NewGuid().ToString('N'))

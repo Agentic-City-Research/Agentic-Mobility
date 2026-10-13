@@ -41,7 +41,7 @@ The simulation separates daily observation and memory from periodic policy inter
 
 **Traveler actions.** Eligible target trips are selected from original plans, by default with a planned destination activity start before 09:00. Controlled trips have up to four frozen route candidates. The default departure grid spans 90 minutes before to 30 minutes after the original departure, in 15-minute steps, subject to activity and simulation boundaries. Profiles, schedules, visible prices, and personal history enter the prompt. Other trips retain native behavior in the main `hybrid` mode.
 
-**Traveler memory and information.** LLM travelers replace their summaries after each day: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences are provided separately. Informed travelers see relevant current announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
+**Traveler memory and information.** LLM travelers replace their summaries after each day: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences cover three days and are provided separately. Each reflection receives the previous summary to carry useful long-term experience and habits beyond that window. Informed travelers see relevant current announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
 
 **Manager actions.** The default `basic` manager returns a complete policy with at most 40 rules, one per existing directed car link. Each rule sets a finite nonnegative amount per entry throughout `[0, QSim endTime)`. The supplied public scenario ends at 30:00, so its all-day window is `[0,108000)`, including trips after midnight. Each traversal is charged separately. An accepted policy replaces the previous policy; an empty policy withdraws all tolls.
 
@@ -148,7 +148,7 @@ Use the exact served model name and a reachable endpoint. The client sends reque
 java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
   --policy llm --llm-agents 3 --concurrency 3 \
   --thinking omit --response-format omit \
-  --max-output-tokens 512 --memory-max-output-tokens 1024 --max-requests 1000 \
+  --max-output-tokens 1024 --reason-max-chars 120 --history-window 3 --memory-max-output-tokens 1024 --max-requests 1000 \
   --output output/llm-travelers
 ```
 
@@ -203,7 +203,7 @@ $env:AGENTIC_BASE_URL = 'http://127.0.0.1:8001/v1'
 
 # LLM travelers
 java -Xmx8g -cp $Jar $App @Common --policy llm --llm-agents 3 --concurrency 3 `
-  --thinking omit --response-format omit --max-output-tokens 512 `
+  --thinking omit --response-format omit --max-output-tokens 1024 --reason-max-chars 120 --history-window 3 `
   --memory-max-output-tokens 1024 --max-requests 1000 --output output/llm-travelers
 
 # Native travelers + manager
@@ -233,14 +233,27 @@ The defaults retain native departure-time mutation. Use `--no-native-time-mutati
 
 | Task | Output-token option | Default / example |
 | --- | --- | --- |
-| Traveler choice | `--max-output-tokens` | 512 in these examples |
+| Traveler choice | `--max-output-tokens` | 1024 |
 | Traveler reflection | `--memory-max-output-tokens` | 1024 |
+| Optional traveler semantic review | `--semantic-review-max-output-tokens` | 2048; review is disabled by default |
 | Manager policy | `--manager-max-output-tokens` | 8192 |
 | Manager reflection | `--manager-memory-max-output-tokens` | 2048 |
 
 The service context limit must cover input, chat/structured-output overhead, and requested output. Compression and prefix caching do not remove this requirement. Reduce policy output allocation only if it still accommodates the intended complete policy.
 
 For `n` controlled target trips over `D` days, the planned call count is approximately `2 × n × D`, plus `D` manager reflections and scheduled policy calls when enabled. `--max-requests` counts client calls including output repairs; internal HTTP retries may send additional requests. Leave room for repairs and retries.
+
+### Traveler v9: continuous memory and bounded output
+
+Decision reasons default to 120 Unicode characters, including spaces and punctuation. Private memory targets 240 characters and is capped at 500. Decisions and reflection each default to 1024 output tokens. Character and token limits measure different things.
+
+Before choice, the default factual window covers days D-3 through D-1; reflection covers D-2 through D. Fewer facts are supplied initially. The previous summary is always passed to the next reflection; the three-day window does not limit memory age. The program retains complete execution records separately.
+
+`--repair-attempts 3` means three total output attempts, not three retries. Empty/whitespace-only output, truncation, invalid JSON, duplicate/extra fields, excessive text, and illegal actions are rejected. The program does not complete truncated JSON or invent an action. Actual lateness is an experience, not a validation error.
+
+Optional `--traveler-semantic-review` enables at most one additional model review per legal decision or memory output. It uses only visible fixed facts and recent execution records, requires grounded claim/evidence quotes, and locks the selected route and departure time. Unresolved or failed reviews retain a structurally legal result and are explicitly audited. Reviews are model judgments, not guaranteed factual verification; no older archive is retrieved. Enabling both stages approximately doubles planned traveler calls before repairs.
+
+See [Traveler v9 protocol](docs/traveler-v9.md) for parameters, audit fields, and service-side whitespace diagnostics.
 
 ## Outputs and evaluation
 
@@ -258,7 +271,8 @@ Each experiment writes MATSim outputs and a `morning/` record directory. `--outp
 | `manager-contexts.jsonl.gz`, `manager-decisions.jsonl.gz` | Policy inputs and accepted decisions |
 | `manager-memory-contexts.jsonl.gz`, `manager-memory-updates.jsonl.gz` | Daily manager reflection inputs and replacement/retained memory |
 | `attempts.jsonl.gz`, `memory-attempts.jsonl.gz`, `manager-attempts.jsonl.gz`, `manager-memory-attempts.jsonl.gz` | Prompts, responses, settings, validation, latency, and reported token/cache usage |
-| `api-usage.json` | Traveler/manager call counters and service-reported usage |
+| `semantic-reviews.jsonl.gz` | Original output, quoted conflict evidence, review response/output, final result, and unresolved status when enabled |
+| `api-usage.json` | Traveler/manager/review call counters and service-reported usage |
 
 Check `morning/status.json` for `complete=true` and the expected number of days before analyzing a completed run. `--validate-only` uses validation-specific status fields. Process exit status and console/MATSim logs also report errors and interruptions.
 
@@ -314,6 +328,7 @@ The existing detailed guides below are in Chinese; this README provides the Engl
 | [Detailed operating guide](docs/usage-guide.zh.md) | Windows/Linux setup, advanced options, output fields, and replay |
 | [Public scenario](scenarios/SiouxFalls-public/README.md) | Population, cohort, route/time candidates, and measurement protocol |
 | [Current traveler and basic manager protocol](scripts/manager_basic_joint.md) | Actions, information boundaries, and all-day pricing |
+| [Traveler v9 protocol](docs/traveler-v9.md) | Continuous private memory, three-day facts, strict JSON, and optional semantic review |
 | [Daily manager memory](scripts/manager_daily_memory.md) | Timing, context, validation, failures, and audit records |
 | [Controlled manager](scripts/manager_v5.md) | Restrictions, safety withdrawal, and cooldown |
 | [Fixed toll policies](scenarios/SiouxFalls-public/fixed-tolls.md) | File schema, activation, and time windows |

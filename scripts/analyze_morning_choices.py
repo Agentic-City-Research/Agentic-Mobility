@@ -92,6 +92,19 @@ def analyze(folder):
         else:
             memory_prompt_tokens += usage["promptTokens"]
             memory_completion_tokens += usage["completionTokens"]
+    review_statuses = Counter()
+    review_calls = review_missing = review_prompt = review_completion = 0
+    for row in rows(resolve(folder, "semantic-reviews")):
+        review_statuses[row.get("reviewStatus", "unknown")] += 1
+        if not row.get("reviewCallMade", False):
+            continue
+        review_calls += 1
+        usage = row.get("usage")
+        if usage is None:
+            review_missing += 1
+        else:
+            review_prompt += usage["promptTokens"]
+            review_completion += usage["completionTokens"]
     return {
         "interpretation": "Descriptive association only; groups overlap, no causal or human-habit inference. Display-position totals must also be interpreted against available candidate counts and order conditions.",
         "transitions": transitions,
@@ -124,8 +137,16 @@ def analyze(folder):
             "mean_summary_characters": memory_chars / memory_updates if memory_updates else None,
             "mean_total_update_millis": memory_latency / memory_updates if memory_updates else None,
         },
-        "total_llm_client_calls": calls + memory_calls,
-        "total_reported_tokens": prompt_tokens + completion_tokens + memory_prompt_tokens + memory_completion_tokens,
+        "semantic_review": {
+            "client_calls": review_calls,
+            "statuses": dict(sorted(review_statuses.items())),
+            "calls_without_reported_usage": review_missing,
+            "reported_prompt_tokens": review_prompt,
+            "reported_completion_tokens": review_completion,
+        },
+        "total_llm_client_calls": calls + memory_calls + review_calls,
+        "total_reported_tokens": prompt_tokens + completion_tokens + memory_prompt_tokens + memory_completion_tokens + review_prompt + review_completion,
+        "call_scope": "Traveler choices, memories and optional semantic review; manager calls are recorded separately in api-usage.json.",
     }
 
 

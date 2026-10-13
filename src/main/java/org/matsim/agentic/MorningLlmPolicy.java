@@ -12,13 +12,14 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
     private final MorningRequestBudget budget;
     private final Map<String, Object> modelSettings;
     private final MorningPromptRenderer renderer = new MorningPromptRenderer();
+    private MorningSemanticReview semanticReview;
     private final AtomicLong attemptedCalls = new AtomicLong();
 
     MorningLlmPolicy(LlmClient client, OutputWriter output, int repairAttempts) {
         this(client, output, repairAttempts, 0);
     }
     MorningLlmPolicy(LlmClient client, OutputWriter output, int repairAttempts, int maxRequests) {
-        this(client, output, repairAttempts, maxRequests, 240, Map.of());
+        this(client, output, repairAttempts, maxRequests, 120, Map.of());
     }
     MorningLlmPolicy(LlmClient client, OutputWriter output, int repairAttempts, int maxRequests,
                      int reasonMaxChars, Map<String, Object> modelSettings) {
@@ -32,6 +33,7 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
         this.modelSettings = Collections.unmodifiableMap(new LinkedHashMap<>(modelSettings));
     }
     long attemptedCalls() { return attemptedCalls.get(); }
+    void setSemanticReview(MorningSemanticReview review) { semanticReview=review; }
 
     @Override public Decision choose(Context context) {
         boolean joint = !context.departureOptions().isEmpty();
@@ -77,33 +79,23 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
             Decision decision = null;
             try {
                 MorningOutputContract.requireNotTruncated(response);
-                com.fasterxml.jackson.databind.JsonNode node;
-                try {
-                    node = Json.MAPPER.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                            .with(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION).readTree(response.content());
-                } catch (java.io.IOException invalidJson) {
-                    throw new IllegalArgumentException("Response must be exactly one JSON object without duplicate keys, prose or code fences");
-                }
-                if (node == null) throw new IllegalArgumentException("Response must contain a JSON object");
-                if (!node.isObject() || node.size() != (joint ? 3 : 2) || !node.has("routeId") || !node.has("reason")
-                        || joint && !node.path("departureSeconds").isNumber()
-                        || !node.get("routeId").isTextual() || !node.get("reason").isTextual() || node.get("reason").asText().isBlank())
-                    throw new IllegalArgumentException(joint ? "Required fields: routeId, numeric departureSeconds, nonempty reason only" : "Only string routeId and nonempty reason are allowed; no other fields");
-                String reason = node.get("reason").asText();
-                if (reason.codePointCount(0, reason.length()) > reasonMaxChars)
-                    throw new IllegalArgumentException("Reason exceeds " + reasonMaxChars + " characters");
-                String routeId = node.get("routeId").asText();
-                if (context.candidates().stream().noneMatch(o -> o.routeId().equals(routeId)))
-                    throw new IllegalArgumentException("routeId must be one of " + Json.write(routeIds)
-                            + "; unavailable routes are not actions, regardless of memory or punctuality preferences");
-                decision = MorningRoutePolicy.validate(context, new Decision(routeId, reason,
-                        joint ? node.get("departureSeconds").asDouble() : null)); error = null;
+                decision=parseDecision(response.content(),context,reasonMaxChars); error=null;
             } catch (LlmException | IllegalArgumentException invalid) { error = invalid.getMessage(); }
             log.put("error", error); log.put("valid", error == null); log.put("failureKind", error == null ? null : "output");
             output.attempt(log);
             if (error == null) {
+                String reviewStatus="disabled";
+                if(semanticReview!=null) {
+                    var lockedSchema=MorningOutputContract.choice(List.of(decision.routeId()),reasonMaxChars,
+                            joint?List.of(decision.departureSeconds()):List.of());
+                    var reviewed=semanticReview.review(context.day(),context.tripId(),context.personId(),"decision",response.content(),
+                            MorningPromptRenderer.decisionReviewFacts(context),context.memorySummary(),lockedSchema,"reason",
+                            node -> parseDecision(Json.write(node),context,reasonMaxChars));
+                    decision=parseDecision(Json.write(reviewed.output()),context,reasonMaxChars); reviewStatus=reviewed.status();
+                }
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("day", context.day()); result.put("tripId", context.tripId()); result.put("personId", context.personId());
+                result.put("semanticReviewEnabled",semanticReview!=null); result.put("semanticReviewStatus",reviewStatus);
                 result.put("routeId", decision.routeId()); result.put("reason", decision.reason());
                 result.put("departureSeconds", decision.departureSeconds());
                 result.put("repairCount", attempt - 1); result.put("calls", attempt); result.put("elapsedMillis", elapsed(started));
@@ -119,6 +111,22 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
         output.flush();
         throw new LlmException("Morning traveler " + context.tripId() + " exhausted " + repairAttempts
                 + " output attempts on day " + context.day() + ": " + error);
+    }
+    static Decision parseDecision(String content,Context context,int reasonMaxChars) {
+        boolean joint=!context.departureOptions().isEmpty(); com.fasterxml.jackson.databind.JsonNode node;
+        try { node=MorningSemanticReview.strict(content); }
+        catch(java.io.IOException invalid) { throw new IllegalArgumentException("Response must be exactly one JSON object without duplicate keys, prose or code fences"); }
+        if(node==null || !node.isObject() || node.size()!=(joint?3:2) || !node.path("routeId").isTextual()
+                || !node.path("reason").isTextual() || node.path("reason").asText().isBlank()
+                || joint && !node.path("departureSeconds").isNumber())
+            throw new IllegalArgumentException(joint?"Required fields: routeId, numeric departureSeconds, nonempty reason only":"Only string routeId and nonempty reason are allowed; no other fields");
+        String reason=node.get("reason").asText();
+        if(reason.codePointCount(0,reason.length())>reasonMaxChars) throw new IllegalArgumentException("Reason exceeds "+reasonMaxChars+" characters");
+        String route=node.get("routeId").asText();
+        if(context.candidates().stream().noneMatch(o -> o.routeId().equals(route)))
+            throw new IllegalArgumentException("routeId must be one of "+Json.write(context.candidates().stream().map(Option::routeId).toList())
+                    +"; unavailable routes are not actions, regardless of memory or punctuality preferences");
+        return MorningRoutePolicy.validate(context,new Decision(route,reason,joint?node.get("departureSeconds").asDouble():null));
     }
     private static double elapsed(long start) { return (System.nanoTime() - start) / 1_000_000.0; }
 }

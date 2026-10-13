@@ -42,7 +42,9 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--information-scope", defaultValue = "controlled", description = "controlled | all; others retain native public-policy routing") String informationScope = "controlled";
     @Option(names = "--information-seed", description = "Independent stable information-group seed; defaults to population seed") Long informationSeed;
     @Option(names = "--toll-history-bin-seconds", defaultValue = "3600", description = "Match personal paid link observations in the same time-of-day bin") int tollHistoryBinSeconds = 3600;
-    final AgenticConfig llmConfig = new AgenticConfig();
+    final AgenticConfig llmConfig = MorningModelOptions.travelerDefaults();
+    @Option(names="--traveler-semantic-review",description="Optional one-shot model review of traveler reason/memory against visible facts; disabled by default") boolean travelerSemanticReview;
+    @Option(names="--semantic-review-max-output-tokens",defaultValue="2048",description="Output limit of the optional one-shot traveler semantic review") int semanticReviewMaxOutputTokens=2048;
     @Mixin MorningModelOptions modelOptions = new MorningModelOptions();
     @Option(names = "--concurrency", defaultValue = "8") int concurrency;
     @Option(names = "--repair-attempts", defaultValue = "3") int repairAttempts;
@@ -71,7 +73,7 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--peak-end", defaultValue = "32400", description = "Exclusive cohort departure end, seconds (09:00)") double peakEnd;
     @Option(names = "--analysis-start", defaultValue = "23400", description = "Network observation start, seconds (06:30)") double analysisStart;
     @Option(names = "--analysis-end", defaultValue = "39600", description = "Network observation end, seconds (11:00)") double analysisEnd;
-    @Option(names = {"--history-days", "--history-window"}, defaultValue = "5", description = "Recent pre-choice experiences; reflection always uses up to 5 including today; full history retained") int historyDays;
+    @Option(names = {"--history-days", "--history-window"}, defaultValue = "3", description = "1..3 pre-choice factual days; reflection uses three days including today; continuous summary and full archive retained") int historyDays;
     @Option(names = "--memory-mode", defaultValue = "llm", description = "Only llm is supported: post-QSim self-written summary") String memoryMode = "llm";
     @Option(names = "--memory-max-chars", defaultValue = "500", description = "Hard summary limit, 1..500 Unicode characters; prompt target 240") int memoryMaxChars = MorningMemoryUpdater.MAX_CHARACTERS;
     @Option(names = "--memory-max-output-tokens", defaultValue = "1024", description = "Reflection response limit; choice uses --max-output-tokens") int memoryMaxOutputTokens = 1024;
@@ -167,6 +169,7 @@ public final class MorningExperiment implements Callable<Integer> {
                 profileFile == null ? null : MorningProfiles.read(profileFile));
         long minimumCalls = policyName.equals("llm") ? cohort.members.values().stream().filter(m -> m.controlled).count()
                 * (config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L) * 2L : 0;
+        if(travelerSemanticReview) minimumCalls*=2;
         minimumCalls += managerEnabled ? MorningManager.minimumCalls(config.controller().getFirstIteration(), config.controller().getLastIteration(), managerUpdateInterval) : 0;
         minimumCalls += managerEnabled ? MorningManager.minimumMemoryCalls(config.controller().getFirstIteration(), config.controller().getLastIteration()) : 0;
         if (!validateOnly && minimumCalls > 0) {
@@ -273,6 +276,8 @@ public final class MorningExperiment implements Callable<Integer> {
         if (fixedTollFreeDays < 0) throw new IllegalArgumentException("--fixed-toll-free-days must be nonnegative");
         if (managerMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager output limit");
         if (managerMemoryMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager memory output limit");
+        if(semanticReviewMaxOutputTokens<1) throw new IllegalArgumentException("Invalid semantic review output limit");
+        if(travelerSemanticReview && !policyName.equals("llm")) throw new IllegalArgumentException("--traveler-semantic-review requires --policy llm");
         if (managerUpdateInterval < 1) throw new IllegalArgumentException("--manager-update-interval must be positive");
         managerControls.validate();
         if (departureBeforeSeconds < 0 || departureAfterSeconds < 0 || departureStepSeconds < 1
@@ -302,7 +307,7 @@ public final class MorningExperiment implements Callable<Integer> {
                 || !Double.isFinite(plannedArrivalBefore) || plannedArrivalBefore <= 0)
             throw new IllegalArgumentException("Invalid cohort selection or planned arrival cutoff");
         if (days != null && days < 1 || samplePersons < 0 || contextSamples < 0 || tripOutputInterval < 1
-                || historyDays < 1 || !(beta >= 0 && Double.isFinite(beta)))
+                || historyDays < 1 || historyDays > MorningPromptRenderer.RECENT_FACT_DAYS || !(beta >= 0 && Double.isFinite(beta)))
             throw new IllegalArgumentException("Invalid experiment parameter");
         if (fixed() && innovationStopDay != null) throw new IllegalArgumentException("No innovation strategy exists in fixed-routes mode");
         candidateSettings();
@@ -342,7 +347,7 @@ public final class MorningExperiment implements Callable<Integer> {
 
     private Map<String, Object> manifest(Config config, Scenario scenario, MorningCohort cohort, int fullPopulation) throws Exception {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("schemaVersion", 22); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
+        result.put("schemaVersion", 23); result.put("matsimVersion", "2026.0"); result.put("mode", mode);
         result.put("promptEncoding",Map.of("travelerVersion",MorningPromptRenderer.VERSION,"reflectionVersion",MorningMemoryUpdater.VERSION,
                 "tables","JSON-array rows with declared columns; exact numeric seconds and explicit nulls",
                 "prefixLayout","Common rules first; fixed personal facts before daily data; manager topology before daily policy/traffic",
@@ -501,8 +506,14 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("memoryMaxChars", memoryMaxChars); result.put("memoryTemplate", MorningMemoryUpdater.VERSION);
         result.put("memoryTargetChars", MorningMemoryUpdater.TARGET_CHARACTERS);
         result.put("memoryScope", "Private per person and cohort trip; no cross-agent sharing");
-        result.put("memorySemanticCorrectionEnabled", false);
-        result.put("memoryDistortionPolicy", "Retain model-generated omissions and distortions verbatim; no factual correction, archive retrieval or semantic repair");
+        result.put("memorySemanticCorrectionEnabled", travelerSemanticReview);
+        result.put("memoryDistortionPolicy",travelerSemanticReview?"One optional model review against supplied fixed facts and three-day executions; grounded conflict quotes required; unresolved/failed review retains legal output and is audited; no archive retrieval":"Model retains and revises personal notes using old summary and visible recent facts; program does not rewrite notes or retrieve older facts");
+        result.put("travelerSemanticReview",Map.of("enabled",travelerSemanticReview,"maximumCallsPerLegalOutput",1,
+                "templateVersion",MorningSemanticReview.VERSION,"decisionActionsLocked",true,"judgmentsAreGroundTruth",false,
+                "output","morning/semantic-reviews.jsonl.gz"));
+        if(travelerSemanticReview) result.put("semanticReviewModelSettings",llmConfig.withOutputLimit(semanticReviewMaxOutputTokens).publicModelSettings());
+        result.put("travelerOutputAttempts",Map.of("maximumTotalAttempts",repairAttempts,"maximumRetries",repairAttempts-1,
+                "truncationHandling","Reject without salvaging JSON, truncating memory or inventing actions","lateArrivalIsOutputError",false));
         result.put("memoryRecoveryEnabled", false);
         result.put("memoryUpdateTiming", "After actual QSim outcomes are recorded, before iteration completion; next day only");
         result.put("memoryReflectionInputs", List.of("previous self-written summary", "recent actual experiences including today",

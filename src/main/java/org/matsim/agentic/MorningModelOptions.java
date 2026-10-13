@@ -4,6 +4,13 @@ import picocli.CommandLine.Option;
 
 /** Explicit model controls, independent of traffic simulation parameters. */
 final class MorningModelOptions {
+    static AgenticConfig travelerDefaults() {
+        var config=new AgenticConfig();
+        String tokens=System.getenv("AGENTIC_MAX_OUTPUT_TOKENS"),reason=System.getenv("AGENTIC_REASON_MAX_CHARS");
+        if(tokens==null || tokens.isBlank()) config.maxOutputTokens=1024;
+        if(reason==null || reason.isBlank()) config.reasonMaxChars=120;
+        return config;
+    }
     @Option(names = "--model") String model;
     @Option(names = "--base-url") String baseUrl;
     @Option(names = "--thinking", description = "auto | omit | enabled | disabled") String thinking;

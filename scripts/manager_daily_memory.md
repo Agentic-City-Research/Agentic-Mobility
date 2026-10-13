@@ -1,6 +1,6 @@
 # 每日 Manager 记忆与周期收费政策
 
-当前入口：`org.matsim.agentic.MorningExperiment`。政策模板 `morning-pricing-v10-daily-memory`，反思模板 `morning-manager-memory-v1-daily`，manifest schemaVersion=22。basic 与 controlled 均使用此记忆流程。
+当前入口：`org.matsim.agentic.MorningExperiment`。政策模板 `morning-pricing-v10-daily-memory`，反思模板 `morning-manager-memory-v1-daily`，manifest schemaVersion=23。basic 与 controlled 均使用此记忆流程。
 
 ## 每日流程
 
