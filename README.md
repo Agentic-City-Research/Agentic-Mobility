@@ -8,13 +8,15 @@
 [![MATSim](https://img.shields.io/badge/MATSim-2026.0-blue)](pom.xml)
 [![License](https://img.shields.io/badge/License-GPL--2.0-green)](LICENSE)
 
-[Quickstart](#quickstart) · [Experiments](#experiments) · [How it works](#how-it-works) · [Documentation](#documentation)
+[Installation](#installation) · [Quickstart](#quickstart) · [Experiments](#experiments) · [Slurm](#slurm-with-an-existing-qwen-service) · [Documentation](#documentation)
 
 </div>
 
 AgenticMobility connects language-model decisions to an executable transport simulation. Travelers choose routes and departure times, experience congestion and tolls, and update their own memories. A manager observes aggregate traffic, reflects after each simulation day, and revises congestion-pricing policies at scheduled opportunities.
 
 The included Sioux Falls scenario retains full-day activity chains and native MATSim background traffic. Decisions, executed trips, policies, memories, and reproducibility records make it possible to compare intended actions with actual outcomes.
+
+The current `MorningExperiment` interface uses **Traveler v9**: continuous private summaries, three-day execution facts, strict bounded JSON output, and optional single-call semantic review. The manager reflects daily and revises all-day toll policies on scheduled update days. These mechanisms are recorded in manifest schema **23**; traveler and manager protocol versions are tracked separately.
 
 ## When to use AgenticMobility
 
@@ -66,7 +68,18 @@ java -version
 javac -version
 ```
 
-Private repository access requires an authorized GitHub account. Both Java commands must use JDK 25. If needed, set `JAVA_HOME` to your JDK installation and add its `bin` directory to `PATH`.
+Private repository access requires an authorized GitHub account. For HTTPS authentication, enter a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with access to this repository when Git asks for a password. Both Java commands must use JDK 25.
+
+For example, if a full JDK is already installed at `$HOME/opt/java25`, select it in Bash before building or submitting jobs:
+
+```bash
+export JAVA_HOME="$HOME/opt/java25"
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+javac -version
+```
+
+Change `JAVA_HOME` to the actual JDK location. A Java runtime without `javac` cannot compile the project.
 
 All commands below run from the repository root. Build on Linux/macOS:
 
@@ -81,6 +94,18 @@ Build on Windows PowerShell:
 ```
 
 An installed Maven can also run `mvn -B clean package`. The build produces **`matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root**. Rebuild after changing Java source code. Use the explicit entry point below; the JAR's default main class is an upstream MATSim example.
+
+### Update a server checkout
+
+From the existing Git clone, check local changes, pull `main`, and rebuild:
+
+```bash
+git status --short
+git pull --ff-only origin main && sh ./mvnw -B clean package
+git log -1 --oneline
+```
+
+Resolve any pull conflict with local work before rebuilding. After a revision has already passed tests, `sh ./mvnw -B -DskipTests clean package` builds without executing them again on the server. A downloaded source archive has no Git history; use a clone for subsequent `git pull` updates. Confirm the checkout commit and runtime JAR hash when comparing experiments.
 
 ## Quickstart
 
@@ -148,7 +173,9 @@ Use the exact served model name and a reachable endpoint. The client sends reque
 java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
   --policy llm --llm-agents 3 --concurrency 3 \
   --thinking omit --response-format omit \
-  --max-output-tokens 1024 --reason-max-chars 120 --history-window 3 --memory-max-output-tokens 1024 --max-requests 1000 \
+  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
+  --max-requests 1000 \
   --output output/llm-travelers
 ```
 
@@ -169,7 +196,18 @@ The model controls the manager only. A 100-day run has 100 daily reflections and
 
 ### LLM travelers + manager
 
-Add `--manager --manager-profile basic --manager-memory-max-output-tokens 2048` to the LLM traveler command and choose a separate output directory. Include both traveler stages and both manager tasks in the request budget.
+```bash
+java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
+  --policy llm --llm-agents 3 --concurrency 3 --manager --manager-profile basic \
+  --thinking omit --response-format omit \
+  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
+  --manager-update-interval 30 --manager-max-output-tokens 8192 \
+  --manager-memory-max-output-tokens 2048 --max-requests 2000 \
+  --output output/llm-manager
+```
+
+Traveler choice, traveler reflection, manager policy, and manager reflection share the model endpoint and credentials, with separate output-token limits. Include all enabled stages in the request budget.
 
 ### Fixed tolls
 
@@ -203,8 +241,9 @@ $env:AGENTIC_BASE_URL = 'http://127.0.0.1:8001/v1'
 
 # LLM travelers
 java -Xmx8g -cp $Jar $App @Common --policy llm --llm-agents 3 --concurrency 3 `
-  --thinking omit --response-format omit --max-output-tokens 1024 --reason-max-chars 120 --history-window 3 `
-  --memory-max-output-tokens 1024 --max-requests 1000 --output output/llm-travelers
+  --thinking omit --response-format omit --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 `
+  --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 `
+  --max-requests 1000 --output output/llm-travelers
 
 # Native travelers + manager
 java -Xmx8g -cp $Jar $App @Common --policy mnl --llm-agents 0 --manager --manager-profile basic `
@@ -214,6 +253,45 @@ java -Xmx8g -cp $Jar $App @Common --policy mnl --llm-agents 0 --manager --manage
 ```
 
 `--thinking omit` omits the provider-specific field; it does not guarantee that model reasoning is disabled. Enable `--response-format json_schema` only if the service supports it. Responses are always validated locally.
+
+### Slurm with an existing Qwen service
+
+Build the JAR first. The [Qwen Slurm template](scripts/agentic_morning_qwen35.slurm) runs the CPU simulation against an already running GPU service. It discovers the service node from its Slurm job, checks the advertised model ID, and makes an isolated JAR copy for the submitted experiment.
+
+Set the repository and JDK paths below to their server locations. Replace `YOUR_CPU_PARTITION` and the service identifiers with your cluster's values. The model API key must already be stored in `$HOME/.vllm_api_key`; this is separate from the GitHub token used to clone the private repository. Python 3 is required by this template.
+
+```bash
+export PROJECT_DIR="$HOME/AgenticMobility"
+export JAVA_BIN="$JAVA_HOME/bin/java"
+export QWEN_JOB_NAME="qwen35-9b"
+export QWEN_PORT="8002"
+export MODEL_NAME="qwen3.5-9b"
+cd "$PROJECT_DIR"
+
+# Small LLM-traveler service check
+DAYS=7 LLM_AGENTS=3 CONCURRENCY=3 SAMPLE_RATE=0.1 \
+  ENABLE_MANAGER=0 MAX_REQUESTS=300 \
+  sbatch --partition=YOUR_CPU_PARTITION scripts/agentic_morning_qwen35.slurm
+
+# Native travelers + manager; daily reflection starts on day 1
+DAYS=100 LLM_AGENTS=0 SAMPLE_RATE=0.1 ENABLE_MANAGER=1 MAX_REQUESTS=400 \
+  sbatch --partition=YOUR_CPU_PARTITION scripts/agentic_morning_qwen35.slurm
+```
+
+Use `QWEN_JOB_ID` if multiple running jobs share the same service name. The Qwen-specific generation parameters default to `{"chat_template_kwargs":{"enable_thinking":false}}`; adapt `QWEN_GENERATION_PARAMS` to the service you actually run.
+
+| Template variable | Current default / behavior |
+| --- | --- |
+| `MAX_OUTPUT_TOKENS`, `REASON_MAX_CHARS` | 1024 tokens / 120 Unicode characters for traveler choices |
+| `HISTORY_WINDOW` | 3 pre-choice factual days; reflection always uses three days including today |
+| `TRAVELER_SEMANTIC_REVIEW` | 0; set to 1 for one review of each valid traveler choice and memory |
+| `SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS` | 2048; increase the request budget when enabling reviews |
+| `ENABLE_MANAGER` | 0; set to 1 to enable daily manager reflection and scheduled policy decisions |
+| `MANAGER_MAX_OUTPUT_TOKENS`, `MANAGER_MEMORY_MAX_OUTPUT_TOKENS` | 8192 policy tokens / 2048 reflection tokens |
+| `RESPONSE_FORMAT` | `json_schema`; use `omit` if unsupported by the service |
+| `NATIVE_TIME_MUTATION` | 1; set to 0 consistently across groups to disable native departure-time mutation |
+
+The template fixes traveler memory at 1024 output tokens / 500 characters and structural generation at three total attempts. It checks the Qwen service even with zero LLM travelers; the [native baseline command](#native-baseline) itself needs no service. Submit the template with `sbatch`. It is not a model-serving job.
 
 ### Sampling and reproducibility
 
@@ -241,17 +319,59 @@ The defaults retain native departure-time mutation. Use `--no-native-time-mutati
 
 The service context limit must cover input, chat/structured-output overhead, and requested output. Compression and prefix caching do not remove this requirement. Reduce policy output allocation only if it still accommodates the intended complete policy.
 
-For `n` controlled target trips over `D` days, the planned call count is approximately `2 × n × D`, plus `D` manager reflections and scheduled policy calls when enabled. `--max-requests` counts client calls including output repairs; internal HTTP retries may send additional requests. Leave room for repairs and retries.
+For `n` LLM-controlled target trips over `D` days, plan the following client calls before structural repairs:
+
+| Enabled stage | Planned calls |
+| --- | --- |
+| Traveler choices and daily reflection | `2 × n × D` |
+| Optional traveler semantic review | An additional `2 × n × D` |
+| Manager daily reflection and policy | `D + P`, where `P` is the number of scheduled policy opportunities |
+
+With the default 20 free days and 30-day policy interval, `P=0` for `D<=20`, otherwise `P=1+floor((D-21)/30)`. For three controlled trips over 100 days, the base traveler count is 600; review raises it to 1,200. Enabling the manager adds 103, for a combined 1,303 before repairs.
+
+`--max-requests` caps shared client dispatches including structural repair/task retries; HTTP-level retries are internal to the client. Preflight includes semantic review and both manager stages. Set a budget above the planned count and inspect dispatch counters separately from successful-response token usage in `api-usage.json`.
 
 ### Traveler v9: continuous memory and bounded output
 
-Decision reasons default to 120 Unicode characters, including spaces and punctuation. Private memory targets 240 characters and is capped at 500. Decisions and reflection each default to 1024 output tokens. Character and token limits measure different things.
+The traveler maintains one continuous summary alongside a bounded window of exact execution facts:
 
-Before choice, the default factual window covers days D-3 through D-1; reflection covers D-2 through D. Fewer facts are supplied initially. The previous summary is always passed to the next reflection; the three-day window does not limit memory age. The program retains complete execution records separately.
+| Phase on day D | Input and result |
+| --- | --- |
+| Choose | Fixed personal facts, legal route/time candidates, previous private summary, and actual results from D-3 through D-1 by default |
+| Execute | Record actual route, departure/arrival, travel time, lateness, completion, and payments |
+| Reflect | Integrate the previous summary with actual results from D-2 through D, including today, to create the next summary |
+| Next day | Carry the accepted summary into both choice and reflection |
 
-`--repair-attempts 3` means three total output attempts, not three retries. Empty/whitespace-only output, truncation, invalid JSON, duplicate/extra fields, excessive text, and illegal actions are rejected. The program does not complete truncated JSON or invent an action. Actual lateness is an experience, not a validation error.
+Initial reflection starts with empty memory; later live reflections receive the preceding day's summary. Fewer facts are supplied on initial days. `--history-window` accepts 1..3 for choice; reflection uses three days including today. The summary carries useful older experience beyond that factual window, within its text limit. The complete execution archive remains separate and is not retrieved to restore forgotten personal knowledge.
 
-Optional `--traveler-semantic-review` enables at most one additional model review per legal decision or memory output. It uses only visible fixed facts and recent execution records, requires grounded claim/evidence quotes, and locks the selected route and departure time. Unresolved or failed reviews retain a structurally legal result and are explicitly audited. Reviews are model judgments, not guaranteed factual verification; no older archive is retrieved. Enabling both stages approximately doubles planned traveler calls before repairs.
+Decision reasons default to **120 Unicode characters**, including spaces and punctuation. Private memory targets **240 characters** and is capped at **500**. Both tasks default to **1024 output tokens**. The prompt specifies compact, complete JSON; local validation enforces text, field, and action constraints. Character and token limits measure different things. Explicit CLI settings override environment values; `AGENTIC_MAX_OUTPUT_TOKENS` and `AGENTIC_REASON_MAX_CHARS` can otherwise override the Morning defaults. `.env.example` documents the earlier prototype as well, so its values should not be treated as the v9 experiment settings.
+
+`--repair-attempts 3` means one initial attempt and at most two retries. Empty/whitespace-only output, token-limit truncation, malformed/trailing JSON, duplicate/extra fields, excessive text, and illegal actions are rejected and retried with the error. Exhaustion fails the experiment. The program does not complete truncated JSON, clip memory, or invent an action. Actual lateness is recorded for reflection and does not require a route switch or an earlier departure.
+
+Semantic review is **disabled by default**. Enable it for an LLM-traveler run as follows, with a budget that includes the extra calls:
+
+```bash
+java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
+  --policy llm --llm-agents 3 --concurrency 3 \
+  --thinking omit --response-format omit \
+  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
+  --traveler-semantic-review --semantic-review-max-output-tokens 2048 \
+  --max-requests 2000 --output output/llm-reviewed
+```
+
+PowerShell uses the same CLI switches; its convenience runner offers `-TravelerSemanticReview`. The Qwen template accepts `TRAVELER_SEMANTIC_REVIEW=1`.
+
+Each valid choice or memory can receive **at most one additional review call**, outside structural retries. The model checks clear factual contradictions against visible fixed facts and recent executed records, with previous subjective memory supplied separately. Claim/evidence quotes must occur in the original text and factual input. The selected route and numeric departure time are locked: review may revise only the reason or memory.
+
+| Review status | Accepted result |
+| --- | --- |
+| `no_conflict` | Original output |
+| `corrected` | Reviewed text passing local checks, with actions unchanged |
+| `unresolved` | Structurally legal reviewed output, explicitly marked unresolved |
+| `review_failed` | Original legal output; no second semantic attempt |
+
+Malformed/truncated review, unsupported evidence quotes, API/budget errors, or action changes retain the original valid output. Unverified older experience is not automatically discarded. Quotes establish provenance; the model's interpretation can still be wrong. No hidden policy, live road information, other travelers' experiences, or older private archive is added.
 
 See [Traveler v9 protocol](docs/traveler-v9.md) for parameters, audit fields, and service-side whitespace diagnostics.
 
@@ -261,20 +381,29 @@ Each experiment writes MATSim outputs and a `morning/` record directory. `--outp
 
 | Record | What to inspect |
 | --- | --- |
-| `manifest.json` | Inputs, seeds, population hash, runtime/JAR hash, model settings, and protocol versions |
+| `manifest.json` | Schema 23: inputs, seeds, population/runtime hashes, protocol versions, fact-window/length limits, review switch, and per-task settings |
 | `status.json`, `progress.json` | Completion, completed days, current phase, and failures |
 | `metrics.jsonl.gz`, `link-hours.jsonl.gz` | Daily evaluation, all-car travel, aggregate link traffic, and completion counts |
 | `cohort.jsonl.gz`, `candidates.jsonl.gz` | Fixed target membership and frozen route options |
 | `decisions.jsonl.gz`, `trips.jsonl.gz`, `experiences.jsonl.gz` | Intended choices, executed travel, and personal outcomes |
 | `memory-updates.jsonl.gz`, `memory-final.jsonl.gz` | Traveler summaries |
+| `llm-results.jsonl.gz` | Accepted traveler decisions, structural attempts, and final semantic-review status |
 | `policies.jsonl.gz`, `policy-applications.jsonl.gz`, `toll-payments.jsonl.gz` | Accepted policies, daily effective versions, and actual entry charges |
 | `manager-contexts.jsonl.gz`, `manager-decisions.jsonl.gz` | Policy inputs and accepted decisions |
 | `manager-memory-contexts.jsonl.gz`, `manager-memory-updates.jsonl.gz` | Daily manager reflection inputs and replacement/retained memory |
 | `attempts.jsonl.gz`, `memory-attempts.jsonl.gz`, `manager-attempts.jsonl.gz`, `manager-memory-attempts.jsonl.gz` | Prompts, responses, settings, validation, latency, and reported token/cache usage |
-| `semantic-reviews.jsonl.gz` | Original output, quoted conflict evidence, review response/output, final result, and unresolved status when enabled |
+| `semantic-reviews.jsonl.gz` | Original response/output, visible context, quoted evidence, review response/output, final result, hashes, settings, usage, and unresolved status when enabled |
 | `api-usage.json` | Traveler/manager/review call counters and service-reported usage |
 
 Check `morning/status.json` for `complete=true` and the expected number of days before analyzing a completed run. `--validate-only` uses validation-specific status fields. Process exit status and console/MATSim logs also report errors and interruptions.
+
+### Prompt and output diagnostics
+
+Attempt records include `outputCharacters`, `outputWhitespaceCharacters`, `outputWhitespaceRatio`, `blankOutput`, and `finishReason`. These fields distinguish excessive formatting whitespace from a long valid explanation. They record the response without stripping meaningful spaces or salvaging incomplete JSON; increasing output tokens alone does not resolve whitespace generation.
+
+Shared instructions precede fixed personal facts, route attributes, and changing daily state. Compact tables retain route/time choices, costs, profiles, and personal history. Prefix caching depends on the inference service; inspect reported `promptCacheHitTokens`, `promptCacheMissTokens`, `promptCacheUsageReported`, and latency rather than assuming a cache hit. Caching can reduce shared-input processing, but does not shorten the prompt, increase the context limit, or reduce output generation.
+
+`api-usage.json` separates `attemptedDecisionCalls`, `attemptedMemoryCalls`, `attemptedTravelerSemanticReviewCalls`, and manager policy/memory counters. Token/cache totals rely on service reporting; missing usage is not evidence of zero consumption.
 
 ### Evaluation metrics
 
@@ -321,7 +450,7 @@ flowchart LR
 
 ## Documentation
 
-The existing detailed guides below are in Chinese; this README provides the English entry point and runnable examples.
+This README and the Traveler v9 guide are in English. The detailed operating, scenario, and manager guides are in Chinese. For current Slurm defaults, use the template and examples above; older deployment notes may describe earlier sampling or memory settings.
 
 | Guide | Contents |
 | --- | --- |
@@ -365,9 +494,11 @@ Normal regression tests use offline clients or local test services. Full-backgro
 | `release version 25 not supported` | Align `JAVA_HOME`, `PATH`, and Maven with JDK 25 |
 | HTTP 400 for `response_format` | Use `--response-format omit`, or a format supported by the service |
 | Model context-length error | Reduce input/output allocation or increase service context; include chat-template overhead |
+| Empty/whitespace output or token-limit truncation | Inspect whitespace ratios and finish reasons; check compact JSON generation and service behavior before raising token limits |
+| Changed settings after loading environment variables | Set explicit v9 limits; the earlier prototype's `.env.example` values can override Morning defaults |
 | Connection refused / model not found | Verify service node, port, API credentials, and exact model name |
 | No pricing during the first 20 days | Expected: policy decisions begin on day 21; manager reflection begins on day 1 |
-| Insufficient request budget | Include traveler choices/reflections, daily manager reflections, and policy calls |
+| Insufficient request budget | Include traveler choices/reflections, optional semantic reviews, daily manager reflections, policy calls, and repair allowance |
 
 Contributions can include reproducible bug reports, tests, compatibility fixes, and documented experiment protocols. Include the commit, runtime configuration, and relevant logs when reporting a problem, with credentials removed.
 
