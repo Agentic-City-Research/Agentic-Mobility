@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="656" viewBox="0 0 1120 656" role="img" aria-labelledby="title description">
+  <title id="title">AgenticMobility: decisions, traffic, and memory</title>
+  <desc id="description">LLM travelers select target-trip routes and departure times. An LLM manager sets tolls on scheduled days. These decisions enter a full-day MATSim simulation alongside native traffic. Personal outcomes feed private traveler memory, public aggregates feed manager memory, and execution records are saved for inspection. Both reflect daily; default pricing updates occur on days 21, 51, 81, and later.</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/></marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/></marker>
+    <style>
+      text { font-family: Inter, "Segoe UI", Arial, sans-serif; }
+      .heading { font-size: 22px; font-weight: 650; fill: #0f172a; }
+      .body { font-size: 17px; fill: #475569; }
+      .label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
+      .line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+  <rect x="1" y="1" width="1118" height="654" rx="22" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="560" y="46" text-anchor="middle" font-size="27" font-weight="650" fill="#0f172a">Decisions meet executable traffic</text>
+  <text x="560" y="74" text-anchor="middle" class="body">One environment · individual experience · public feedback</text>
+
+  <!-- Daily feedback returns within each information boundary. -->
+  <path d="M 48 503 H 22 V 228 H 48" class="line" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+  <path d="M 1072 503 H 1098 V 228 H 1072" class="line" stroke="#0f766e" marker-end="url(#arrow-teal)"/>
+
+  <!-- Actions enter the common execution environment. -->
+  <path d="M 352 276 H 408" class="line" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+  <path d="M 768 276 H 712" class="line" stroke="#0f766e" marker-end="url(#arrow-teal)"/>
+  <path d="M 560 168 V 198" class="line" stroke="#64748b" marker-end="url(#arrow-gray)"/>
+
+  <!-- Executed outcomes split into personal, public, and audit records. -->
+  <path d="M 496 356 V 392 H 200 V 450" class="line" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+  <path d="M 624 356 V 392 H 920 V 450" class="line" stroke="#0f766e" marker-end="url(#arrow-teal)"/>
+  <path d="M 560 356 V 450" class="line" stroke="#64748b" stroke-dasharray="6 6" marker-end="url(#arrow-gray)"/>
+  <text x="300" y="380" text-anchor="middle" font-size="14" fill="#2563eb">Personal outcomes</text>
+  <text x="820" y="380" text-anchor="middle" font-size="14" fill="#0f766e">Public aggregates</text>
+
+  <rect x="408" y="106" width="304" height="62" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="560" y="132" text-anchor="middle" font-size="17" font-weight="600" fill="#334155">Native MATSim travelers</text>
+  <text x="560" y="153" text-anchor="middle" font-size="14" fill="#64748b">Full-day background activity chains</text>
+
+  <rect x="48" y="198" width="304" height="158" rx="16" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="70" y="225" class="label" fill="#2563eb">INDIVIDUAL DECISIONS</text>
+  <text x="70" y="258" class="heading">LLM travelers</text>
+  <text x="70" y="286" class="body">Choose route and departure time</text>
+  <text x="70" y="313" class="body">Use assigned information</text>
+  <text x="70" y="338" class="body">and private personal memory</text>
+
+  <rect x="408" y="198" width="304" height="158" rx="16" fill="#0f172a"/>
+  <text x="430" y="225" class="label" fill="#94a3b8">SHARED ENVIRONMENT</text>
+  <text x="430" y="258" font-size="22" font-weight="650" fill="#ffffff">MATSim · Sioux Falls</text>
+  <text x="430" y="286" font-size="17" fill="#cbd5e1">Run full-day traffic</text>
+  <text x="430" y="313" font-size="17" fill="#cbd5e1">Execute trips and link-entry tolls</text>
+  <text x="430" y="338" font-size="17" fill="#cbd5e1">Record observed outcomes</text>
+
+  <rect x="768" y="198" width="304" height="158" rx="16" fill="#f0fdfa" stroke="#99f6e4"/>
+  <text x="790" y="225" class="label" fill="#0f766e">SYSTEM INTERVENTION</text>
+  <text x="790" y="258" class="heading">LLM pricing manager</text>
+  <text x="790" y="286" class="body">Set all-day link-entry prices</text>
+  <text x="790" y="313" class="body">Use public aggregate feedback</text>
+  <text x="790" y="338" class="body">and the manager's own memory</text>
+
+  <rect x="48" y="450" width="304" height="106" rx="16" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="70" y="478" class="label" fill="#2563eb">DAILY PRIVATE REFLECTION</text>
+  <text x="70" y="510" class="heading">Traveler memory</text>
+  <text x="70" y="538" class="body">Previous summary + recent facts</text>
+
+  <rect x="408" y="450" width="304" height="106" rx="16" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="430" y="478" class="label" fill="#64748b">RECORDS FOR INSPECTION</text>
+  <text x="430" y="510" class="heading">Experiment audit trail</text>
+  <text x="430" y="538" class="body">Inputs · actions · outcomes · usage</text>
+
+  <rect x="768" y="450" width="304" height="106" rx="16" fill="#f0fdfa" stroke="#99f6e4"/>
+  <text x="790" y="478" class="label" fill="#0f766e">DAILY PUBLIC REFLECTION</text>
+  <text x="790" y="510" class="heading">Manager memory</text>
+  <text x="790" y="538" class="body">Traffic aggregates + prior memory</text>
+
+  <rect x="48" y="584" width="1024" height="44" rx="10" fill="#e2e8f0"/>
+  <text x="560" y="612" text-anchor="middle" font-size="16" fill="#334155">Default timing: reflection every completed day · 20 free days · pricing on days 21, 51, 81, …</text>
+</svg>

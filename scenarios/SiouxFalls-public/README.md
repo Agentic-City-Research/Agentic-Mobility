@@ -199,7 +199,7 @@ fixed-routes 恢复当前 selected plan 的原始活动结束时间；hybrid 默
 
 当前 Basic 不提供行为成本指导、避让优先位置或自动保护，只提供事实及执行协议；详见顶部当前协议。
 
-默认 basic 的 `morning-pricing-v10-daily-memory` 使用精简输入，细节见 [根目录 README 的输入精简说明](../../README.md#manager-input)。保留完整拓扑与必要容量参数，按观测周期和近期趋势汇总交通；道路细节筛选主要拥堵、当前收费和近期撤销收费道路，较早策略合并为摘要。目标记忆 400–600 英文词，硬上限 1000 词，允许更短。路网与参数表提前，变化的策略和每日数据后置，前缀缓存测试方法见根目录 README。
+默认 basic 的 `morning-pricing-v10-daily-memory` 使用精简输入，细节见 [英文操作指南的输入精简说明](../../docs/usage-guide.md#manager-input)。保留完整拓扑与必要容量参数，按观测周期和近期趋势汇总交通；道路细节筛选主要拥堵、当前收费和近期撤销收费道路，较早策略合并为摘要。目标记忆 400–600 英文词，硬上限 1000 词，允许更短。路网与参数表提前，变化的策略和每日数据后置，前缀缓存记录说明见 [英文操作指南](../../docs/usage-guide.md#prompt-and-output-diagnostics)。
 
 以下详细环境/诊断说明对应 controlled 模式；每日管理记忆按当前独立反思协议执行；basic 不发送 `routingCostScale`、`chargingSuitability`、`routeAlternatives` 或 `safetyMonitoring`。
 
@@ -705,6 +705,6 @@ comparisons 标注同一展示顺序和重复次序下的模型分歧，以及�
 
 本次增加评价和记录功能，原生 `TimeAllocationMutator`、策略权重、活动时刻处理和 manager 控制逻辑沿用当前 GitHub 协议。
 
-新增每日字段及分母说明见 [README 的评价指标](../../README.md#evaluation-metrics)。`fullDayCarTravel` 统计所有计划汽车行程从汽车出发到汽车到达的耗时，包含入网前等待；完整总人时仅在全部计划行程完成时提供。有失败时同时保留已完成部分、中止/未完成/未开始数量及观测耗时下界。cohort 另记录最慢 5% 平均车程、所选路线距离、旅行时间指数、入网前等待和按原计划到达的准时率。
+新增每日字段及分母说明见 [英文操作指南的评价指标](../../docs/usage-guide.md#evaluation-metrics)。`fullDayCarTravel` 统计所有计划汽车行程从汽车出发到汽车到达的耗时，包含入网前等待；完整总人时仅在全部计划行程完成时提供。有失败时同时保留已完成部分、中止/未完成/未开始数量及观测耗时下界。cohort 另记录最慢 5% 平均车程、所选路线距离、旅行时间指数、入网前等待和按原计划到达的准时率。
 
 manifest 增加实际 `selectionSeeds`、`simulatedPersonIdsSha256`、`runtime`、`codeArtifact` 和 `evaluationProtocol`。以 JAR 运行时 `codeArtifact.sha256` 是实际执行包的哈希，可与提交作业前计算的 JAR SHA-256 对照；运行脚本的私有 JAR 路径可能在结束后清理，哈希记录仍保留。新字段需要重新构建并使用新运行包。
