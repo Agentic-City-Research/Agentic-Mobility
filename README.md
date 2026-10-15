@@ -30,7 +30,12 @@ interconnected urban systems.
 
 ![AgenticMobility mechanism: traveler decisions and manager policies are executed in Sioux Falls networks, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
 
+Travelers choose actions using personal information, recent
+experience, private memory, and policy information available
+to their assigned group. The manager uses public traffic
+aggregates, policy history, and its own memory.
 
+```mermaid
 flowchart LR
     A["🧩 Prepare once<br/>Population · groups · candidate actions"]
     B["🧭 Decide<br/>LLM travel choices · scheduled pricing"]
@@ -44,6 +49,7 @@ flowchart LR
     style B fill:#eff6ff,stroke:#60a5fa
     style C fill:#f0fdfa,stroke:#2dd4bf
     style D fill:#faf5ff,stroke:#c084fc
+```
 
 Traveler decisions use personal experience, private memory, and information permitted by their assigned group. The manager uses public aggregates and its own memory. Both reflect daily; default pricing opportunities follow 20 toll-free days, on days **21, 51, 81, ...**.
 
