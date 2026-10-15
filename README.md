@@ -20,7 +20,7 @@ The current v1 implementation supports joint route and departure-time choice, da
 
 ## 🔄How it works
 
-![AgenticMobility mechanism: traveler decisions and manager policies are executed in MATSim, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop.svg)
+![AgenticMobility mechanism: traveler decisions and manager policies are executed in MATSim, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
 
 | Stage | What happens |
 | --- | --- |
@@ -35,13 +35,12 @@ LLM control applies to selected target trips. Other trips retain native behavior
 
 ## 🎯Research questions
 
-| Question | Experiment |
-| --- | --- |
-| How do LLM travelers choose and adapt? | LLM target trips with native background traffic |
-| How does information access affect choices? | Informed and uninformed traveler groups |
-| How does adaptive pricing affect native traffic? | Native travelers with an LLM manager |
-| How do travelers and managers respond to each other? | Joint traveler-and-manager experiments |
-| How do adaptive policies compare with fixed interventions? | Native baseline, fixed tolls, and manager experiments |
+| Research focus | Experiment setup |
+| :--- | :--- |
+| 📊 **Traveler adaptation** | LLM travelers + native travelers |
+| 🔎 **Information access** | Informed vs. uninformed travelers |
+| 🚦 **Adaptive pricing** | Native travelers + LLM manager |
+| 🔄 **Traveler–manager interaction & Policy comparison** | LLM travelers + LLM manager |
 
 [Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
 
