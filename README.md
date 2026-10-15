@@ -12,7 +12,11 @@
 
 <div align="left">
 
-A mobility research project within the Agentic City. Agentic Mobility connects LLM travelers and traffic managers through a shared transportation environment to study travel decisions, memory, policy responses, and collective outcomes.
+A mobility research project within the AgenticCity initiative.
+
+AgenticMobility connects LLM travelers and traffic managers
+through a shared transportation environment to study travel
+decisions, memory, policy responses, and collective outcomes.
 
 
 </div>
