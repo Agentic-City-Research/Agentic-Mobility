@@ -2,7 +2,7 @@
 
 <h1>Agentic Mobility</h1>
 
-<p><strong>Research platform for LLM-agent-driven mobility systems.</strong></p>
+<p><strong>An open research platform for interactions between LLM travelers and traffic managers.</strong></p>
 
 
 English | [中文](README.zh.md)
@@ -20,7 +20,7 @@ agents and interconnected urban systems, starting with transportation.
 
 <div align="center">
     
-🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Join WeChat Group](docs/wechat.md)
+🚀[Quickstart](#quickstart) | 🗺️[Documentation](#documentation) |📣[Research questions](#research-questions) |  💬[Community](docs/wechat.md)
 
 </div>
 
@@ -66,12 +66,12 @@ LLM control applies to selected target trips. Other trips retain native behavior
 
 | Research focus | Experiment setup |
 | :--- | :--- |
-| 📊 **Traveler adaptation** | LLM travelers vs. native travelers |
-| 🔎 **Information access** | Informed vs. uninformed travelers |
-| 🚦 **Policy comparison** | Native travelers + LLM manager vs. Native travelers |
-| 🔄 **Traveler–manager interaction** | LLM travelers + LLM manager vs. LLM travelers |
+| 📊 **Traveler adaptation** | Native baseline vs. LLM-controlled target trips |
+| 🔎 **Information access** | Informed vs. uninformed controlled travelers |
+| 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
+| 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
 
-
+Comparisons require matched population, scenario, and background-traffic settings; detailed configurations are documented separately.
 
 [Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
 
