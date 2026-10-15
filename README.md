@@ -2,7 +2,7 @@
 
 # Agentic Mobility
 
-<h3>Research platform for LLM-driven mobility systems</h3>
+<h3>Research platform for LLM-agent-driven mobility systems</h3>
 
 [English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
 
