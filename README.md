@@ -10,11 +10,11 @@
 [Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
 
 [English operating guide](docs/usage-guide.md) · [中文操作指南](docs/usage-guide.zh.md)
+</div>
 
+<div align="left">
 
-A mobility research project within the Agentic City.
-
-Agentic Mobility connects LLM travelers and traffic managers through a shared transportation environment to study travel decisions, memory, policy responses, and collective outcomes.
+A mobility research project within the Agentic City. Agentic Mobility connects LLM travelers and traffic managers through a shared transportation environment to study travel decisions, memory, policy responses, and collective outcomes.
 
 
 </div>
