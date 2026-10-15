@@ -5,7 +5,7 @@
 <p><strong>Research platform for LLM-agent-driven mobility systems.</strong></p>
 
 
-English | [中文](README.zh.md)
+[English](README.md) | 中文
 
 <p>A mobility research project within the <a href="https://github.com/Agentic-City-Research">AgenticCity</a>.</p>
 
