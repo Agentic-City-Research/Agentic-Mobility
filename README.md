@@ -5,7 +5,7 @@
 <p><strong>Research platform for LLM-agent-driven mobility systems.</strong></p>
 
 
-[English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
+English | [中文](README.zh.md)
 
 <p>A mobility research project within the <a href="https://github.com/Agentic-City-Research">AgenticCity</a>.</p>
 
@@ -14,12 +14,12 @@
 </div>
 
 ## 🧩Overview
-AgenticMobility connects LLM travelers and traffic managers 
-through a shared transportation environment to study decisions,
-memory, policy responses, and collective outcomes. 
 
 ![AgenticMobility framework](docs/assets/mobility-loop-sioux-falls.svg)
 
+AgenticMobility connects LLM travelers and traffic managers 
+through a shared transportation environment to study decisions,
+memory, policy responses, and collective outcomes. 
 
 The current v1 implementation supports joint route and departure-time
 choice, daily reflection, and periodic congestion pricing in a full-day
