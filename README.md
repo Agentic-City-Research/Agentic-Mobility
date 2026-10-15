@@ -7,11 +7,14 @@
 
 English | [中文](README.zh.md)
 
+<div align="left">
+    
 Agentic Mobility is the mobility research project within the 
 [AgenticCity](https://github.com/Agentic-City-Research), which
 aims to build an open research community around interacting 
 agents and interconnected urban systems, starting with transportation.
 
+</div>
 
 🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Community](#community)
 
