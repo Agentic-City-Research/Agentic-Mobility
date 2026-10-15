@@ -16,7 +16,10 @@ A mobility research project within the Agentic City. Agentic Mobility connects L
 
 
 </div>
+
 [Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
+
+
 ## Overview
 
 AgenticMobility is a research platform for studying how travel choices, personal memory, and congestion pricing interact. LLM travelers choose routes and departure times, experience the resulting traffic and tolls, and reflect on their own outcomes. An LLM manager observes public traffic aggregates and revises pricing policies at scheduled opportunities.
