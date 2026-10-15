@@ -6,6 +6,7 @@
 
 
 English | [中文](README.zh.md)
+</div>
 
 <div align="left">
     
@@ -16,6 +17,9 @@ agents and interconnected urban systems, starting with transportation.
 
 </div>
 
+
+<div align="center">
+    
 🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Community](#community)
 
 </div>
@@ -62,10 +66,12 @@ LLM control applies to selected target trips. Other trips retain native behavior
 
 | Research focus | Experiment setup |
 | :--- | :--- |
-| 📊 **Traveler adaptation** | LLM travelers + native travelers |
+| 📊 **Traveler adaptation** | LLM travelers vs. native travelers |
 | 🔎 **Information access** | Informed vs. uninformed travelers |
-| 🚦 **Adaptive pricing** | Native travelers + LLM manager |
-| 🔄 **Traveler–manager interaction & Policy comparison** | LLM travelers + LLM manager |
+| 🚦 **Policy comparison** | Native travelers + LLM manager vs. Native travelers |
+| 🔄 **Traveler–manager interaction** | LLM travelers + LLM manager vs. LLM travelers |
+
+
 
 [Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
 
