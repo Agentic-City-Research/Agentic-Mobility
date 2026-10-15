@@ -12,13 +12,13 @@ A mobility research project within the Agentic City.
 
 </div>
 
-## Overview
+## 🧩Overview
 
 AgenticMobility connects LLM travelers and traffic managers through a shared transportation environment to study decisions, memory, policy responses, and collective outcomes. It is the mobility component of **Agentic City**, which aims to study interacting agents across interconnected urban systems.
 
 The current v1 implementation supports joint route and departure-time choice, daily reflection, and periodic congestion pricing in a full-day **enriched Sioux Falls MATSim simulation**, alongside native traffic.
 
-## How it works
+## 🔄How it works
 
 ![AgenticMobility mechanism: traveler decisions and manager policies are executed in MATSim, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop.svg)
 
@@ -33,7 +33,7 @@ Traveler decisions use personal experience, private memory, and information perm
 
 LLM control applies to selected target trips. Other trips retain native behavior. Adaptation uses model inference and memory updates; model weights remain unchanged.
 
-## Research questions
+## 🎯Research questions
 
 | Question | Experiment |
 | --- | --- |
@@ -45,7 +45,7 @@ LLM control applies to selected target trips. Other trips retain native behavior
 
 [Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
 
-## Quickstart
+## 📦Quickstart
 
 Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
 
@@ -71,7 +71,7 @@ In the output directory reported by the run, inspect `morning/status.json` for `
 
 For [LLM travelers](docs/usage-guide.md#llm-travelers), [manager experiments](docs/usage-guide.md#native-travelers--manager), and [joint experiments](docs/usage-guide.md#llm-travelers--manager), configure a reachable Chat Completions service and follow the operating guide. MATSim runs on CPU; the repository calls an existing model service.
 
-## Experiment status
+## 🧪Experiment status
 
 | Area | Current status |
 | --- | --- |
@@ -85,7 +85,7 @@ Each run records its manifest, completion status, decisions, trips, policies, me
 
 Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, and policy benefits require experimental evidence beyond successful execution.
 
-## Documentation
+## 📖Documentation
 
 | Guide | Contents |
 | --- | --- |
@@ -98,7 +98,7 @@ Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, a
 | [Outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) | Records, metric scopes, and completion checks |
 | [Data provenance](THIRD_PARTY.md) | Sources, attribution, modifications, and input hashes |
 
-## Community
+## 🤝Community & Contributing
 
 We welcome contributions from researchers and developers working on agents, transportation, simulation, and policy evaluation:
 
@@ -108,7 +108,7 @@ We welcome contributions from researchers and developers working on agents, tran
 
 [Open an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) to discuss a contribution. The [contribution guide](CONTRIBUTING.md) describes the current entry points, development checks, and experiment-report requirements.
 
-## Citation and license
+## 📚Citation and license
 
 For research use, reference [Agentic-City-Research/Agentic-Mobility](https://github.com/Agentic-City-Research/Agentic-Mobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
