@@ -17,8 +17,10 @@ A mobility research project within the Agentic City. Agentic Mobility connects L
 
 </div>
 
-[Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
 
+<div align="center">
+[Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
+</div>
 
 ## Overview
 
