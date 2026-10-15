@@ -128,11 +128,10 @@ Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, a
 
 We welcome contributions from researchers and developers working on agents, transportation, simulation, and policy evaluation:
 
-- Report reproducibility issues or improve the documentation.
-- Share a documented experiment, baseline, or method comparison.
-- Develop analysis tools, visualizations, or scenario extensions.
+- Join Discord to share your recipes, ask implementation questions, and discuss new features.
+- [Join the WeChat group](docs/wechat.md): the group is full, so add the assistant and it will invite you.
 
-[Open an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) to discuss a contribution. The [contribution guide](CONTRIBUTING.md) describes the current entry points, development checks, and experiment-report requirements.
+If Agentic Mobility looks useful to you, please give it a ⭐ — it helps the community to discover and contribute to the project.
 
 ## 📚Citation and license
 
