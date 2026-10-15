@@ -6,7 +6,7 @@
 
 `mvnw`、`mvnw.cmd`、`.mvn/wrapper/maven-wrapper.properties` 来自 Apache Maven Wrapper，保留其 Apache-2.0 文件头，许可证全文见 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)。
 
-2026-10-15 发布整理移除了上游示例入口、equil 场景、相关测试基准及独立早高峰单程场景。它们的原始归属、校验值和使用说明仍保存在 [整理前的历史版本](https://github.com/Jiaheng-Xiao/AgenticMobility/blob/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c/THIRD_PARTY.md) 中；这些文件不再属于当前源码分发。
+2026-10-15 发布整理移除了上游示例入口、equil 场景、相关测试基准及独立早高峰单程场景。它们的原始归属、校验值和使用说明仍保存在 [整理前的历史版本](https://github.com/Agentic-City-Research/Agentic-Mobility/blob/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c/THIRD_PARTY.md) 中；这些文件不再属于当前源码分发。
 
 ## Sioux Falls 输入
 

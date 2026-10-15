@@ -63,8 +63,8 @@ The simulation separates daily observation and memory from periodic policy inter
 MATSim runs on the CPU. Model serving can run locally or on a separate GPU server. This repository calls an existing service; it does not start a model server.
 
 ```bash
-git clone https://github.com/Jiaheng-Xiao/AgenticMobility.git
-cd AgenticMobility
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+cd Agentic-Mobility
 java -version
 javac -version
 ```
@@ -447,7 +447,7 @@ flowchart LR
 | [`scenarios/Souix Falls 2014/`](../scenarios/Souix%20Falls%202014) | Car network, facilities, and original/doubled-demand populations |
 | [`scripts/`](../scripts) | Runners, replay, analysis, scenario conversion, and Slurm templates |
 
-`MorningExperiment` is the full-day entry point. `MorningReplay` evaluates saved traveler contexts without QSim or memory updates. Superseded prototypes and upstream examples are available in [the pre-cleanup source history](https://github.com/Jiaheng-Xiao/AgenticMobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c).
+`MorningExperiment` is the full-day entry point. `MorningReplay` evaluates saved traveler contexts without QSim or memory updates. Superseded prototypes and upstream examples are available in [the pre-cleanup source history](https://github.com/Agentic-City-Research/Agentic-Mobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c).
 
 ## Documentation
 

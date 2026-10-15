@@ -50,8 +50,8 @@ LLM control applies to selected target trips. Other trips retain native behavior
 Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
 
 ```bash
-git clone https://github.com/Jiaheng-Xiao/AgenticMobility.git
-cd AgenticMobility
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+cd Agentic-Mobility
 sh ./mvnw -B clean package
 ```
 
@@ -106,10 +106,10 @@ We welcome contributions from researchers and developers working on agents, tran
 - Share a documented experiment, baseline, or method comparison.
 - Develop analysis tools, visualizations, or scenario extensions.
 
-[Open an issue](https://github.com/Jiaheng-Xiao/AgenticMobility/issues) to discuss a contribution. The [contribution guide](CONTRIBUTING.md) describes the current entry points, development checks, and experiment-report requirements.
+[Open an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) to discuss a contribution. The [contribution guide](CONTRIBUTING.md) describes the current entry points, development checks, and experiment-report requirements.
 
 ## Citation and license
 
-For research use, reference [Jiaheng-Xiao/AgenticMobility](https://github.com/Jiaheng-Xiao/AgenticMobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
+For research use, reference [Agentic-City-Research/Agentic-Mobility](https://github.com/Agentic-City-Research/Agentic-Mobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
 Code is licensed under [GPL-2.0](LICENSE). Third-party code and data retain their documented terms in [THIRD_PARTY.md](THIRD_PARTY.md). Built on MATSim and its example-project lineage.

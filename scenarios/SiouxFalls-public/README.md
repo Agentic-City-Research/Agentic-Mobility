@@ -1,6 +1,6 @@
 # 公开 Sioux Falls 全天场景与早高峰路线选择实验
 
-本目录是当前全天场景入口，保留完整活动链和背景交通。旧的独立早高峰单程场景可在 [发布整理前的历史版本](https://github.com/Jiaheng-Xiao/AgenticMobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c/scenarios/SiouxFalls-AM) 中查阅。
+本目录是当前全天场景入口，保留完整活动链和背景交通。旧的独立早高峰单程场景可在 [发布整理前的历史版本](https://github.com/Agentic-City-Research/Agentic-Mobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c/scenarios/SiouxFalls-AM) 中查阅。
 
 **2026-10-12 当前协议**：LLM 联合选择路线与出发时间，原始时刻前 90 分钟至后 30 分钟，间隔 15 分钟；Manager 按 link 全天定价。
 Manager 默认 Basic，完整记忆最多 1000 英文词、最多 40 个收费 link，每个 link 全天使用一个固定金额，无自动策略干预。

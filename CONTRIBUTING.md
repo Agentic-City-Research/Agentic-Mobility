@@ -1,6 +1,6 @@
 # Contributing to AgenticMobility
 
-Contributions can include reproducible bug reports, documentation, experiment protocols, scenario extensions, analysis tools, and implementation changes. Start with an [issue](https://github.com/Jiaheng-Xiao/AgenticMobility/issues) when the scope needs discussion.
+Contributions can include reproducible bug reports, documentation, experiment protocols, scenario extensions, analysis tools, and implementation changes. Start with an [issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) when the scope needs discussion.
 
 ## Current implementation
 
@@ -11,7 +11,7 @@ Contributions can include reproducible bug reports, documentation, experiment pr
 - [`scenarios/SiouxFalls-public/`](scenarios/SiouxFalls-public/) contains experiment configuration; [`scenarios/Souix Falls 2014/`](scenarios/Souix%20Falls%202014/) supplies the full-day inputs.
 - [`scripts/`](scripts/) contains runners, replay, analysis, population restoration, and Slurm templates.
 
-Superseded standalone prototypes and upstream examples are available in [the source history before publication cleanup](https://github.com/Jiaheng-Xiao/AgenticMobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c).
+Superseded standalone prototypes and upstream examples are available in [the source history before publication cleanup](https://github.com/Agentic-City-Research/Agentic-Mobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c).
 
 ## Report a problem or experiment
 

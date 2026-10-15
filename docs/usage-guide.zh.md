@@ -3,7 +3,7 @@
 此文件保留原 README 的详细操作说明；英文项目入口见 [README](../README.md)。下文中的终端命令均从仓库根目录执行。
 
 
-本项目在 MATSim 2026.0 上实现 LLM 出行者的路线与出发时间联合选择、个人经历与自写记忆，以及收费管理者实验。默认使用 Sioux Falls 全天活动链；核心和缓冲早高峰单程场景单独保留。
+本项目在 MATSim 2026.0 上实现 LLM 出行者的路线与出发时间联合选择、个人经历与自写记忆，以及收费管理者实验。当前发行使用 Sioux Falls 全天活动链；旧的独立早高峰单程场景保存在源码历史中。
 
 当前运行入口是 `org.matsim.agentic.MorningExperiment`。项目以 Java 源码、场景输入和脚本分发，运行前需要构建 JAR。
 
@@ -13,8 +13,8 @@
 其他使用者可以克隆仓库。以下命令使用当前仓库地址；私有仓库需要使用有权限的 GitHub 账号认证。
 
 ```powershell
-git clone https://github.com/Jiaheng-Xiao/AgenticMobility.git
-Set-Location AgenticMobility
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+Set-Location Agentic-Mobility
 ```
 
 | 环境 | 用途 |
@@ -23,7 +23,7 @@ Set-Location AgenticMobility
 | Git | 上传、克隆与更新源码 |
 | Maven Wrapper | 项目自带，首次构建联网下载 Maven 和依赖；也可使用已有 Maven |
 | PowerShell | 执行 Windows 运行和回放脚本 |
-| Python 3 | 场景转换、出行选择分析及相关测试，脚本使用标准库 |
+| Python 3 | 人口恢复与出行选择分析，脚本使用标准库 |
 | 可访问的模型服务 | 仅真实 LLM 出行者或管理者实验需要；使用兼容的 Chat Completions 接口 |
 
 先检查 Java：
