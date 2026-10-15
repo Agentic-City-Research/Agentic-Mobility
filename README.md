@@ -38,7 +38,7 @@ aggregates, policy history, and its own memory.
 ```mermaid
 flowchart LR
     A["<div style='width:200px'>🧩 Prepare once<br/>Population · groups<br/>Candidate actions</div>"]
-    B["🧭 Decide<br/>LLM travel choices · scheduled pricing"]
+    B["<div style='width:200px'>🧭 Decide<br/>LLM travel choices · scheduled pricing</div>"]
     C["🚗 Execute<br/>Full-day traffic simulation"]
     D["🪞 Reflect<br/>Separate role memories"]
 
