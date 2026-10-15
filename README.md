@@ -37,7 +37,7 @@ aggregates, policy history, and its own memory.
 
 ```mermaid
 flowchart LR
-    A["<div style='width:300px'>🧩 Prepare once<br/>Population · groups<br/>Candidate actions</div>"]
+    A["<div style='width:200px'>🧩 Prepare once<br/>Population · groups<br/>Candidate actions</div>"]
     B["🧭 Decide<br/>LLM travel choices · scheduled pricing"]
     C["🚗 Execute<br/>Full-day traffic simulation"]
     D["🪞 Reflect<br/>Separate role memories"]
@@ -45,10 +45,10 @@ flowchart LR
     A --> B --> C --> D
     D -->|Next simulation day| B
 
-    style A fill:#f1f5f9,stroke:#94a3b8
-    style B fill:#eff6ff,stroke:#60a5fa
-    style C fill:#f0fdfa,stroke:#2dd4bf
-    style D fill:#faf5ff,stroke:#c084fc
+    style A fill:#f1f5f9,stroke:#94a3b8,color:#2563eb
+    style B fill:#eff6ff,stroke:#60a5fa,color:#2563eb
+    style C fill:#f0fdfa,stroke:#2dd4bf,color:#2563eb
+    style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
 ```
 
 Traveler decisions use personal experience, private memory, and information permitted by their assigned group. The manager uses public aggregates and its own memory. Both reflect daily; default pricing opportunities follow 20 toll-free days, on days **21, 51, 81, ...**.
