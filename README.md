@@ -2,8 +2,7 @@
 
 # AgenticMobility
 
-**LLM travelers and congestion-pricing managers in a shared MATSim environment.**
-
+**An open research platform for LLM-driven mobility systems.**
 [![Java](https://img.shields.io/badge/Java-25-orange)](pom.xml)
 [![MATSim](https://img.shields.io/badge/MATSim-2026.0-blue)](pom.xml)
 [![License](https://img.shields.io/badge/License-GPL--2.0-green)](LICENSE)
@@ -11,6 +10,10 @@
 [Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
 
 [English operating guide](docs/usage-guide.md) · [中文操作指南](docs/usage-guide.zh.md)
+A mobility research project within the Agentic City.
+
+Agentic Mobility connects LLM travelers and traffic managers through a shared transportation environment to study travel decisions, memory, policy responses, and collective outcomes.
+
 
 </div>
 
