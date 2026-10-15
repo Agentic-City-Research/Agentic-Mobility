@@ -1,34 +1,32 @@
 <div align="center">
 
-# Agentic Mobility
+<h1>Agentic Mobility</h1>
 
-<h3>Research platform for LLM-agent-driven mobility systems</h3>
+<p><strong>Research platform for LLM-agent-driven mobility systems.</strong></p>
+
 
 [English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
 
-A mobility research project within the Agentic City.
+<p>A mobility research project within the <a href="https://github.com/Agentic-City-Research">AgenticCity</a>.</p>
 
 🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Community](#community)
 
 </div>
 
 ## 🧩Overview
-
 AgenticMobility connects LLM travelers and traffic managers 
 through a shared transportation environment to study decisions,
 memory, policy responses, and collective outcomes. 
+
+![AgenticMobility framework](docs/assets/mobility-loop-sioux-falls.svg)
+
 
 The current v1 implementation supports joint route and departure-time
 choice, daily reflection, and periodic congestion pricing in a full-day
 **enriched Sioux Falls MATSim simulation**, alongside native traffic.
 
-Agentic Mobility is the mobility component of the **Agentic City**
-, which aims to study interacting agents across
-interconnected urban systems.
 
 ## 🔄How it works
-
-![AgenticMobility mechanism: traveler decisions and manager policies are executed in Sioux Falls networks, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
 
 Travelers choose actions using personal information, recent
 experience, private memory, and policy information available
@@ -50,8 +48,6 @@ flowchart LR
     style C fill:#f0fdfa,stroke:#2dd4bf,color:#2563eb
     style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
 ```
-
-Traveler decisions use personal experience, private memory, and information permitted by their assigned group. The manager uses public aggregates and its own memory. Both reflect daily; default pricing opportunities follow 20 toll-free days, on days **21, 51, 81, ...**.
 
 LLM control applies to selected target trips. Other trips retain native behavior. Adaptation uses model inference and memory updates; model weights remain unchanged.
 
