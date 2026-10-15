@@ -7,9 +7,7 @@
 [![MATSim](https://img.shields.io/badge/MATSim-2026.0-blue)](pom.xml)
 [![License](https://img.shields.io/badge/License-GPL--2.0-green)](LICENSE)
 
-[Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
-
-[English operating guide](docs/usage-guide.md) · [中文操作指南](docs/usage-guide.zh.md)
+[English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
 </div>
 
 <div align="left">
@@ -18,7 +16,7 @@ A mobility research project within the Agentic City. Agentic Mobility connects L
 
 
 </div>
-
+[Quickstart](#quickstart) · [Experiments](#what-can-you-study) · [Documentation](#documentation) · [Citation](#citation)
 ## Overview
 
 AgenticMobility is a research platform for studying how travel choices, personal memory, and congestion pricing interact. LLM travelers choose routes and departure times, experience the resulting traffic and tolls, and reflect on their own outcomes. An LLM manager observes public traffic aggregates and revises pricing policies at scheduled opportunities.
