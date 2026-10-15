@@ -30,6 +30,7 @@ interconnected urban systems.
 
 ![AgenticMobility mechanism: traveler decisions and manager policies are executed in Sioux Falls networks, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
 
+
 flowchart LR
     A["🧩 Prepare once<br/>Population · groups · candidate actions"]
     B["🧭 Decide<br/>LLM travel choices · scheduled pricing"]
