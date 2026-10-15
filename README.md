@@ -20,7 +20,7 @@ agents and interconnected urban systems, starting with transportation.
 
 <div align="center">
     
-🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Community](#community)
+🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Join WeChat Group](docs/wechat.md)
 
 </div>
 
@@ -117,16 +117,12 @@ Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, a
 
 ## 📖Documentation
 
-| Guide | Contents |
-| --- | --- |
-| [Operating guide](docs/usage-guide.md) | Setup, experiment commands, sampling, budgets, outputs, and troubleshooting |
-| [Chinese operating guide](docs/usage-guide.zh.md) | Detailed instructions in Chinese |
-| [Traveler v9](docs/traveler-v9.md) | Private memory, recent facts, and output validation |
-| [Traveler and manager protocol](scripts/manager_basic_joint.md) | Actions, information boundaries, and pricing |
-| [Daily manager memory](scripts/manager_daily_memory.md) | Daily reflection, policy timing, and failure handling |
-| [Public scenario](scenarios/SiouxFalls-public/README.md) | Inputs, candidate actions, and evaluation protocol |
-| [Outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) | Records, metric scopes, and completion checks |
-| [Data provenance](THIRD_PARTY.md) | Sources, attribution, modifications, and input hashes |
+| Guide | What you will find |
+| :--- | :--- |
+| [Getting started](docs/README.md#getting-started) | Installation, first run, and troubleshooting |
+| [Methods & protocols](docs/README.md#methods--protocols) | Agent roles, information access, memory, and pricing |
+| [Experiments & evaluation](docs/README.md#experiments--evaluation) | Experiment settings, baselines, outputs, and metrics |
+| [Scenarios & data](docs/README.md#scenarios--data) | Scenario inputs, data provenance, and extensions |
 
 ## 🤝Community & Contributing
 
