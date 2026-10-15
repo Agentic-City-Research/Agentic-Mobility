@@ -1,14 +1,14 @@
 <div align="center">
 
-# AgenticMobility
+# Agentic Mobility
 
 **An open research platform for LLM-driven mobility systems.**
 
+[English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
+
 A mobility research project within the Agentic City.
 
-[Quickstart](#quickstart) · [Research questions](#research-questions) · [Documentation](#documentation) · [Community](#community)
-
-[English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
+🚀[Quickstart](#quickstart) | 📣[Research questions](#research-questions) | 🗺️[Documentation](#documentation) | 💬[Community](#community)
 
 </div>
 
