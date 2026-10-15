@@ -14,20 +14,35 @@ A mobility research project within the Agentic City.
 
 ## 🧩Overview
 
-AgenticMobility connects LLM travelers and traffic managers through a shared transportation environment to study decisions, memory, policy responses, and collective outcomes. It is the mobility component of **Agentic City**, which aims to study interacting agents across interconnected urban systems.
+AgenticMobility connects LLM travelers and traffic managers 
+through a shared transportation environment to study decisions,
+memory, policy responses, and collective outcomes. 
 
-The current v1 implementation supports joint route and departure-time choice, daily reflection, and periodic congestion pricing in a full-day **enriched Sioux Falls MATSim simulation**, alongside native traffic.
+The current v1 implementation supports joint route and departure-time
+choice, daily reflection, and periodic congestion pricing in a full-day
+**enriched Sioux Falls MATSim simulation**, alongside native traffic.
+
+Agentic Mobility is the mobility component of the **Agentic City**
+, which aims to study interacting agents across
+interconnected urban systems.
 
 ## 🔄How it works
 
-![AgenticMobility mechanism: traveler decisions and manager policies are executed in MATSim, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
+![AgenticMobility mechanism: traveler decisions and manager policies are executed in Sioux Falls networks, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop-sioux-falls.svg)
 
-| Stage | What happens |
-| --- | --- |
-| Prepare | Fix the sampled population, target cohort, information groups, and candidate actions. |
-| Decide | Travelers select routes and departure times; the manager updates pricing on scheduled days. |
-| Execute | MATSim runs full-day traffic and records trips and actual toll payments. |
-| Reflect | Each role updates its own memory using the feedback available to it. |
+flowchart LR
+    A["🧩 Prepare once<br/>Population · groups · candidate actions"]
+    B["🧭 Decide<br/>LLM travel choices · scheduled pricing"]
+    C["🚗 Execute<br/>Full-day traffic simulation"]
+    D["🪞 Reflect<br/>Separate role memories"]
+
+    A --> B --> C --> D
+    D -->|Next simulation day| B
+
+    style A fill:#f1f5f9,stroke:#94a3b8
+    style B fill:#eff6ff,stroke:#60a5fa
+    style C fill:#f0fdfa,stroke:#2dd4bf
+    style D fill:#faf5ff,stroke:#c084fc
 
 Traveler decisions use personal experience, private memory, and information permitted by their assigned group. The manager uses public aggregates and its own memory. Both reflect daily; default pricing opportunities follow 20 toll-free days, on days **21, 51, 81, ...**.
 
