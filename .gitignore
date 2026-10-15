@@ -51,6 +51,7 @@ venv/
 
 # Temporary runtime copies and local test fixtures
 /tmp/
+/cache/
 *.dumpstream
 *.dump
 

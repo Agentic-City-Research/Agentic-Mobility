@@ -3,8 +3,7 @@ package org.matsim.agentic;
 import java.util.Map;
 
 /**
- * Engineering defaults and run parameters for the agentic-mobility prototype.
- * Mirrors the tunable defaults of implementation-v1.zh-CN.md §4.
+ * Shared model-service settings. MorningModelOptions applies traveler defaults.
  */
 public final class AgenticConfig {
 

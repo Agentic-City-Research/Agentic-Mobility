@@ -410,13 +410,12 @@ manifest 的 schemaVersion 为 `23`（v21 记录全天收费，v22 拆分每日�
 
 ```powershell
 .\mvnw.cmd -B test
-python -m unittest discover -s scripts -p test_extract_morning_scenario.py
 pwsh -File scripts/test_run_public_experiment.ps1
 ```
 
 普通回归测试使用离线策略或本机测试接口。完整交通背景验证默认跳过，可通过 Maven 参数 `-Dmorning.fullTrafficValidation=true` 显式启用。
 
-2026-10-07，本地 JDK 25 / Maven 3.9.15 验证结果：158 项 Java 测试中 157 项通过、1 项按配置跳过；Python 提取测试、PowerShell 运行脚本测试、打包及 Java `--help` 均通过。此记录不代表已经验证某个真实模型服务或收费政策的研究效果。
+历史测试记录对应当时的源码版本。2026-10-15 发布整理移除了旧原型、上游演示及其专用测试；本次仅做静态检查，尚未重新运行构建与回归测试。旧测试数量和结果不代表当前源码已经通过验证。
 
 | 情况 | 处理 |
 | --- | --- |
@@ -436,13 +435,10 @@ pwsh -File scripts/test_run_public_experiment.ps1
 | 路径 | 用途 |
 | --- | --- |
 | `src/main/java/org/matsim/agentic/` | 出行者、记忆、路线候选、收费策略、管理者与输出 |
-| `src/main/java/org/matsim/other/`、`src/main/java/org/matsim/project/` | MATSim 原生入口与上游兼容代码 |
-| `src/test/java/`、`test/input/` | 回归测试与必要的公开基准文件 |
+| `src/test/java/org/matsim/agentic/` | 当前功能的回归测试与测试辅助类 |
 | `scripts/` | 运行、回放、场景转换、选择分析及 Slurm 模板 |
 | `scenarios/SiouxFalls-public/` | 当前全天实验配置和固定收费示例 |
 | `scenarios/Souix Falls 2014/` | car-only 路网、设施、100pct/200pct 全天人口及参考配置 |
-| `scenarios/SiouxFalls-AM/` | 核心与缓冲早高峰单程场景 |
-| `scenarios/equil/` | 上游小型示例场景 |
 
 保留项目原有 [GPL-2.0 许可证](../LICENSE) 与源文件版权声明。Maven Wrapper 使用 [Apache-2.0](../LICENSES/Apache-2.0.txt)；Sioux Falls 输入及派生人口遵循来源数据的 CC BY 4.0 署名条件。来源、修改说明及输入校验值见 [THIRD_PARTY.md](../THIRD_PARTY.md)。
 

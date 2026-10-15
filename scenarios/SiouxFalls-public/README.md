@@ -1,6 +1,6 @@
 # 公开 Sioux Falls 全天场景与早高峰路线选择实验
 
-本目录是当前全天场景入口；`SiouxFalls-AM` 保留独立的早高峰单程场景。
+本目录是当前全天场景入口，保留完整活动链和背景交通。旧的独立早高峰单程场景可在 [发布整理前的历史版本](https://github.com/Jiaheng-Xiao/AgenticMobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c/scenarios/SiouxFalls-AM) 中查阅。
 
 **2026-10-12 当前协议**：LLM 联合选择路线与出发时间，原始时刻前 90 分钟至后 30 分钟，间隔 15 分钟；Manager 按 link 全天定价。
 Manager 默认 Basic，完整记忆最多 1000 英文词、最多 40 个收费 link，每个 link 全天使用一个固定金额，无自动策略干预。
@@ -485,7 +485,7 @@ LLM 旅客保留记忆模式，离线受控策略标出 `ctrl人数`，MNL 额�
 完整参数始终保存在 `morning/manifest.json`；其中 `outputNaming` 记录参数名称、实际目录和重复序号。
 
 `-Output` / `--output` 仍可显式指定完整目录，重名时同样自动追加序号。
-旧 AgenticMobilityApplication 保留旧命名与双向决策流程，早高峰实验使用这里的入口。
+当前实验统一使用 `MorningExperiment`；早期双向决策原型保存在发布整理前的历史版本中。
 旧实验目录保持原样。控制台日志统一存放在 `output/_logs/`。
 建议独立使用 4711/9261/278 三个种子。
 如 Windows 执行策略阻止脚本，可以直接运行 Java，无须修改系统策略：
@@ -498,7 +498,7 @@ java -Xmx8g -cp .\matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.M
 
 Java `--help` 显示全部参数；时段参数为午夜起秒数，07:00=25200，09:00=32400。
 控制全缓冲时段人群可用 `--peak-start 23400 --peak-end 39600`，这会改变受控人群，必须标注。
-不要通过旧 AgenticMobilityApplication 入口运行本设计，它仍保留此前双向决策逻辑。
+本设计使用 `MorningExperiment` 入口；历史双向决策原型不属于当前发行内容。
 
 ## 输出与定义
 

@@ -23,13 +23,6 @@ jobs:
       - name: Test and package
         shell: bash
         run: bash ./mvnw --batch-mode clean package
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Test morning scenario extraction
-        shell: bash
-        run: |
-          python -B -m unittest discover -s scripts -p 'test_extract_morning_scenario.py'
       - name: Test experiment runner
         if: runner.os == 'Windows'
         shell: pwsh

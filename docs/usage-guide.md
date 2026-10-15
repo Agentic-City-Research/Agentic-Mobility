@@ -94,7 +94,7 @@ Build on Windows PowerShell:
 .\mvnw.cmd -B clean package
 ```
 
-An installed Maven can also run `mvn -B clean package`. The build produces **`matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root**. Rebuild after changing Java source code. Use the explicit entry point below; the JAR's default main class is an upstream MATSim example.
+An installed Maven can also run `mvn -B clean package`. The build produces **`matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root**. Rebuild after changing Java source code. The executable JAR's main class is `org.matsim.agentic.MorningExperiment`; the explicit entry point below also works.
 
 ### Update a server checkout
 
@@ -345,7 +345,7 @@ The traveler maintains one continuous summary alongside a bounded window of exac
 
 Initial reflection starts with empty memory; later live reflections receive the preceding day's summary. Fewer facts are supplied on initial days. `--history-window` accepts 1..3 for choice; reflection uses three days including today. The summary carries useful older experience beyond that factual window, within its text limit. The complete execution archive remains separate and is not retrieved to restore forgotten personal knowledge.
 
-Decision reasons default to **120 Unicode characters**, including spaces and punctuation. Private memory targets **240 characters** and is capped at **500**. Both tasks default to **1024 output tokens**. The prompt specifies compact, complete JSON; local validation enforces text, field, and action constraints. Character and token limits measure different things. Explicit CLI settings override environment values; `AGENTIC_MAX_OUTPUT_TOKENS` and `AGENTIC_REASON_MAX_CHARS` can otherwise override the Morning defaults. `.env.example` documents the earlier prototype as well, so its values should not be treated as the v9 experiment settings.
+Decision reasons default to **120 Unicode characters**, including spaces and punctuation. Private memory targets **240 characters** and is capped at **500**. Both tasks default to **1024 output tokens**. The prompt specifies compact, complete JSON; local validation enforces text, field, and action constraints. Character and token limits measure different things. Explicit CLI settings override environment values; `AGENTIC_MAX_OUTPUT_TOKENS` and `AGENTIC_REASON_MAX_CHARS` can otherwise override the Morning defaults. `.env.example` documents the current traveler defaults; record effective settings for each experiment.
 
 `--repair-attempts 3` means one initial attempt and at most two retries. Empty/whitespace-only output, token-limit truncation, malformed/trailing JSON, duplicate/extra fields, excessive text, and illegal actions are rejected and retried with the error. Exhaustion fails the experiment. The program does not complete truncated JSON, clip memory, or invent an action. Actual lateness is recorded for reflection and does not require a route switch or an earlier departure.
 
@@ -447,7 +447,7 @@ flowchart LR
 | [`scenarios/Souix Falls 2014/`](../scenarios/Souix%20Falls%202014) | Car network, facilities, and original/doubled-demand populations |
 | [`scripts/`](../scripts) | Runners, replay, analysis, scenario conversion, and Slurm templates |
 
-`MorningExperiment` is the current full-day entry point. `MorningReplay` evaluates saved traveler contexts without QSim or memory updates. `AgenticMobilityApplication` is a separate earlier prototype; its options and semantics differ.
+`MorningExperiment` is the full-day entry point. `MorningReplay` evaluates saved traveler contexts without QSim or memory updates. Superseded prototypes and upstream examples are available in [the pre-cleanup source history](https://github.com/Jiaheng-Xiao/AgenticMobility/tree/065f6cda9eab4dca7034bcfe07cae0e3a0bacf1c).
 
 ## Documentation
 
@@ -477,7 +477,6 @@ The [PowerShell runner](../scripts/run_public_experiment.ps1) additionally creat
 
 ```bash
 sh ./mvnw -B test
-python -B -m unittest discover -s scripts -p 'test_extract_morning_scenario.py'
 ```
 
 Windows runner checks:
@@ -496,7 +495,7 @@ Normal regression tests use offline clients or local test services. Full-backgro
 | HTTP 400 for `response_format` | Use `--response-format omit`, or a format supported by the service |
 | Model context-length error | Reduce input/output allocation or increase service context; include chat-template overhead |
 | Empty/whitespace output or token-limit truncation | Inspect whitespace ratios and finish reasons; check compact JSON generation and service behavior before raising token limits |
-| Changed settings after loading environment variables | Set explicit v9 limits; the earlier prototype's `.env.example` values can override Morning defaults |
+| Changed settings after loading environment variables | Set explicit v9 limits and check exported variables against the run manifest |
 | Connection refused / model not found | Verify service node, port, API credentials, and exact model name |
 | No pricing during the first 20 days | Expected: policy decisions begin on day 21; manager reflection begins on day 1 |
 | Insufficient request budget | Include traveler choices/reflections, optional semantic reviews, daily manager reflections, policy calls, and repair allowance |

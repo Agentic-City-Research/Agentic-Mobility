@@ -6,79 +6,48 @@
 
 A mobility research project within the Agentic City.
 
-[Quickstart](#quickstart) ·
-[Research Questions](#research-questions) ·
-[Documentation](#documentation) ·
-[Community](#community)
+[Quickstart](#quickstart) · [Research questions](#research-questions) · [Documentation](#documentation) · [Community](#community)
 
-[English](docs/usage-guide.md) ·
-[中文](docs/usage-guide.zh.md)
+[English](docs/usage-guide.md) · [中文](docs/usage-guide.zh.md)
 
 </div>
 
 ## Overview
 
-AgenticMobility connects LLM travelers and managers
-through a shared transportation environment to study travel
-decisions, memory, policy responses, and collective outcomes.
+AgenticMobility connects LLM travelers and traffic managers through a shared transportation environment to study decisions, memory, policy responses, and collective outcomes. It is the mobility component of **Agentic City**, which aims to study interacting agents across interconnected urban systems.
 
-The current v1 version supports joint route and departure-time
-choice, daily reflection, and periodic congestion pricing in 
-enriched Sioux Falls MATSim simulation.
-
-AgenticMobility is the mobility component of the Agentic City
-, which aims to study interacting agents across interconnected
-urban systems.
+The current v1 implementation supports joint route and departure-time choice, daily reflection, and periodic congestion pricing in a full-day **enriched Sioux Falls MATSim simulation**, alongside native traffic.
 
 ## How it works
 
-![AgenticMobility mechanism overview](docs/assets/mobility-loop.svg)
-
-Travelers choose actions using personal information, recent
-experience, private memory, and policy information available
-to their assigned group. The manager uses public traffic
-aggregates, policy history, and its own memory.
-
-MATSim scenario executes the decisions and produces personal outcomes
-and public observations, which inform subsequent decisions.
+![AgenticMobility mechanism: traveler decisions and manager policies are executed in MATSim, with personal outcomes and public aggregates feeding separate memories.](docs/assets/mobility-loop.svg)
 
 | Stage | What happens |
 | --- | --- |
-| Prepare | Fix the population, target cohort, information groups, and candidate actions. |
-| Decide | LLM Travelers select routes and departure times; the manager updates pricing on scheduled days. |
-| Execute | Scenario runs full-day traffic and records trips and actual toll payments. |
-| Reflect | Travelers and the manager update their separate memories using the feedback available to them. |
+| Prepare | Fix the sampled population, target cohort, information groups, and candidate actions. |
+| Decide | Travelers select routes and departure times; the manager updates pricing on scheduled days. |
+| Execute | MATSim runs full-day traffic and records trips and actual toll payments. |
+| Reflect | Each role updates its own memory using the feedback available to it. |
 
-Both roles reflect after completed simulation days. By default,
-the manager has an initial 20-day toll-free period and 
-opportunities on days 21, 51, 81, and so on.
+Traveler decisions use personal experience, private memory, and information permitted by their assigned group. The manager uses public aggregates and its own memory. Both reflect daily; default pricing opportunities follow 20 toll-free days, on days **21, 51, 81, ...**.
 
-LLM control applies to selected target trips. Other trips retain
-native behavior. Adaptation occurs through decisions and memory
-updates; model weights remain unchanged.
+LLM control applies to selected target trips. Other trips retain native behavior. Adaptation uses model inference and memory updates; model weights remain unchanged.
 
 ## Research questions
 
-| Research question | Available experiment |
+| Question | Experiment |
 | --- | --- |
-| How do LLM travelers choose and adapt? | LLM-controlled target trips within native background traffic |
-| How does information access affect decisions? | Informed and uninformed traveler groups |
-| How does adaptive pricing affect traffic? | Native travelers with an LLM pricing manager |
+| How do LLM travelers choose and adapt? | LLM target trips with native background traffic |
+| How does information access affect choices? | Informed and uninformed traveler groups |
+| How does adaptive pricing affect native traffic? | Native travelers with an LLM manager |
 | How do travelers and managers respond to each other? | Joint traveler-and-manager experiments |
 | How do adaptive policies compare with fixed interventions? | Native baseline, fixed tolls, and manager experiments |
 
-The platform records decisions, execution, memories, and effective
-policies to support inspection and controlled comparisons.
-
-See the [experiment guide](docs/usage-guide.md#experiments)
-for configurations and commands.
+[Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
 
 ## Quickstart
 
-### Install
-
-Requires **JDK 25**, including `javac`, and Git.
-The Maven Wrapper downloads Maven and dependencies on first use.
+Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
 
 ```bash
 git clone https://github.com/Jiaheng-Xiao/AgenticMobility.git
@@ -86,16 +55,9 @@ cd AgenticMobility
 sh ./mvnw -B clean package
 ```
 
-On Windows PowerShell, build with:
+On Windows PowerShell, build with `.\mvnw.cmd -B clean package`.
 
-```powershell
-.\mvnw.cmd -B clean package
-```
-
-### Run a native baseline
-
-Start with a two-day diagnostic simulation with 100 people
-and no model calls:
+Run a two-day, 100-person diagnostic baseline with **no model calls**:
 
 ```bash
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
@@ -105,29 +67,11 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
   --output output/quickstart
 ```
 
-Inspect `morning/status.json` within the run's output directory.
-A completed example should report `complete=true` and
-`daysCompleted=2`.
+In the output directory reported by the run, inspect `morning/status.json` for `complete=true` and `daysCompleted=2`. Diagnostic sampling does not scale road capacity; use the documented sampling configuration for research experiments.
 
-This diagnostic subsample does not scale road capacity.
-Use the documented population-sampling configuration for
-research experiments.
-
-### Run with LLM agents
-
-LLM experiments require a reachable Chat Completions service.
-The operating guide provides instructions for:
-
-- [LLM travelers](docs/usage-guide.md#llm-travelers)
-- [Native travelers with a manager](docs/usage-guide.md#native-travelers--manager)
-- [LLM travelers with a manager](docs/usage-guide.md#llm-travelers--manager)
-- [Sampling and reproducibility](docs/usage-guide.md#sampling-and-reproducibility)
+For [LLM travelers](docs/usage-guide.md#llm-travelers), [manager experiments](docs/usage-guide.md#native-travelers--manager), and [joint experiments](docs/usage-guide.md#llm-travelers--manager), configure a reachable Chat Completions service and follow the operating guide. MATSim runs on CPU; the repository calls an existing model service.
 
 ## Experiment status
-
-The project is under active research development.
-Experimental evaluation focuses on day-to-day behavior,
-traffic outcomes, convergence, and sensitivity to random seeds.
 
 | Area | Current status |
 | --- | --- |
@@ -135,69 +79,37 @@ traffic outcomes, convergence, and sensitivity to random seeds.
 | Evaluation | Exploratory runs are under analysis; multi-seed comparisons are being prepared. |
 | Manuscript | In preparation. |
 
-Verified experimental configurations and results will be added
-with their code versions, model settings, seeds, evaluation
-procedures, and limitations.
+Verified configurations and results will be published with their code versions, model settings, seeds, and evaluation procedures.
 
-The Sioux Falls inputs form a synthetic research scenario.
-Behavioral realism and policy benefits require experimental
-evidence beyond successful execution.
+Each run records its manifest, completion status, decisions, trips, policies, memories, and API usage. See [outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) for record definitions and metric scopes.
+
+Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, and policy benefits require experimental evidence beyond successful execution.
 
 ## Documentation
 
 | Guide | Contents |
 | --- | --- |
-| [Operating guide](docs/usage-guide.md) | Setup, experiment commands, deployment, budgets, and troubleshooting |
-| [中文操作指南](docs/usage-guide.zh.md) | Detailed instructions in Chinese |
-| [Traveler](docs/traveler-v9.md) | Private memory, recent facts, and output validation |
+| [Operating guide](docs/usage-guide.md) | Setup, experiment commands, sampling, budgets, outputs, and troubleshooting |
+| [Chinese operating guide](docs/usage-guide.zh.md) | Detailed instructions in Chinese |
+| [Traveler v9](docs/traveler-v9.md) | Private memory, recent facts, and output validation |
 | [Traveler and manager protocol](scripts/manager_basic_joint.md) | Actions, information boundaries, and pricing |
-| [Daily manager memory](scripts/manager_daily_memory.md) | Reflection, policy timing, and failure handling |
-| [Public scenario](scenarios/SiouxFalls-public/README.md) | Inputs, sampling, candidate actions, and evaluation scope |
-| [Outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) | Records, metrics, completion, and interpretation |
-| [Data provenance](THIRD_PARTY.md) | Sources, modifications, attribution, and hashes |
+| [Daily manager memory](scripts/manager_daily_memory.md) | Daily reflection, policy timing, and failure handling |
+| [Public scenario](scenarios/SiouxFalls-public/README.md) | Inputs, candidate actions, and evaluation protocol |
+| [Outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) | Records, metric scopes, and completion checks |
+| [Data provenance](THIRD_PARTY.md) | Sources, attribution, modifications, and input hashes |
 
 ## Community
 
-We welcome researchers and developers interested in language-model
-agents, transportation, simulation, and policy evaluation.
+We welcome contributions from researchers and developers working on agents, transportation, simulation, and policy evaluation:
 
-You can participate by:
+- Report reproducibility issues or improve the documentation.
+- Share a documented experiment, baseline, or method comparison.
+- Develop analysis tools, visualizations, or scenario extensions.
 
-- Reporting reproducibility issues or improving documentation.
-- Comparing decision, memory, or information-access settings.
-- Sharing a documented experiment or baseline.
-- Developing analysis tools and visualizations.
-- Proposing scenario extensions and future research directions.
+[Open an issue](https://github.com/Jiaheng-Xiao/AgenticMobility/issues) to discuss a contribution. The [contribution guide](CONTRIBUTING.md) describes the current entry points, development checks, and experiment-report requirements.
 
-For experimental contributions, please include:
+## Citation and license
 
-- The research question and comparison conditions.
-- The code version and configuration.
-- Model settings, seeds, and repetitions.
-- Results, analysis procedures, and limitations.
+For research use, reference [Jiaheng-Xiao/AgenticMobility](https://github.com/Jiaheng-Xiao/AgenticMobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
-[Open an issue](https://github.com/Jiaheng-Xiao/AgenticMobility/issues)
-to report a problem or propose a contribution.
-
-Development instructions are in the
-[operating guide](docs/usage-guide.md#development-and-troubleshooting).
-
-## Citation
-
-When using AgenticMobility in research, reference this repository
-and identify the exact commit used, together with the scenario,
-model, and experimental settings.
-
-Repository:
-https://github.com/Jiaheng-Xiao/AgenticMobility
-
-Please also cite the underlying software and scenario sources
-where applicable. See [THIRD_PARTY.md](THIRD_PARTY.md).
-
-## License and acknowledgments
-
-Code is licensed under [GPL-2.0](LICENSE).
-Third-party code and scenario data retain their documented terms
-in [THIRD_PARTY.md](THIRD_PARTY.md).
-
-Built on MATSim and its example-project lineage.
+Code is licensed under [GPL-2.0](LICENSE). Third-party code and data retain their documented terms in [THIRD_PARTY.md](THIRD_PARTY.md). Built on MATSim and its example-project lineage.
