@@ -20,7 +20,7 @@ AgenticMobility is a research platform for studying how travel choices, personal
 
 Both operate in a shared, full-day **Sioux Falls MATSim simulation**, alongside native MATSim travelers. The platform records intended decisions, executed trips, payments, policies, and memories so that researchers can examine the feedback between individual behavior and system-level intervention.
 
-![AgenticMobility mechanism: traveler choices and manager tolls enter MATSim; personal experience feeds private traveler memory, while public aggregates feed manager memory. Both reflect daily, and manager pricing changes on scheduled days.](docs/assets/mobility-loop.svg)
+![AgenticMobility mechanism: traveler choices and manager tolls enter MATSim; personal experience feeds private traveler memory, while public aggregates feed manager memory. Both reflect daily, and manager pricing changes on scheduled days.](docs/assets/agenticmobility.png)
 
 The diagram shows the joint traveler-and-manager mode. The experiment modes below enable each component separately. Travelers receive information according to their assigned group; the manager receives public aggregates and its own memory.
 
