@@ -37,13 +37,12 @@ agents and interconnected urban systems, starting with transportation.
 
 ![AgenticMobility framework](docs/assets/mobility-loop-simple.svg)
 
-AgenticMobility connects LLM travelers and traffic managers 
-through a shared transportation environment to study decisions,
-memory, policy responses, and collective outcomes. 
+Agentic Mobility connects LLM travelers and traffic managers in a
+shared MATSim environment to study travel choices, memory, and policy
+responses. The current implementation supports joint route and 
+departure-time choice, daily reflection, and periodic congestion 
+pricing in an **enriched Sioux Falls scenario**.
 
-The current v1 implementation supports joint route and departure-time
-choice, daily reflection, and periodic congestion pricing in a full-day
-**enriched Sioux Falls MATSim simulation**, alongside native traffic.
 
 
 ## 🔄How it works
@@ -65,12 +64,12 @@ flowchart LR
     style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
 ```
 
-
 Each simulation day follows a decide–execute–reflect cycle, 
 with pricing updates on scheduled days.
-LLM control applies to selected target trips. Other trips 
-retain native behavior. Adaptation uses model inference and 
-memory updates; model weights remain unchanged.
+
+LLMs control selected target trips; other trips follow native
+simulation behavior. Agents adapt through memory updates 
+while model weights remain fixed.
 
 ## 🎯Research questions
 
@@ -83,7 +82,7 @@ memory updates; model weights remain unchanged.
 
 Comparisons require matched population, scenario, and background-traffic settings; detailed configurations are documented separately.
 
-[Fixed tolls](scenarios/SiouxFalls-public/fixed-tolls.md) and replay of saved traveler contexts provide additional comparisons. See the [experiment guide](docs/usage-guide.md#experiments) for commands and settings.
+See the experiment guide for configurations and comparison settings.
 
 ## 📦Quickstart
 
@@ -111,7 +110,18 @@ In the output directory reported by the run, inspect `morning/status.json` for `
 
 For [LLM travelers](docs/usage-guide.md#llm-travelers), [manager experiments](docs/usage-guide.md#native-travelers--manager), and [joint experiments](docs/usage-guide.md#llm-travelers--manager), configure a reachable Chat Completions service and follow the operating guide. MATSim runs on CPU; the repository calls an existing model service.
 
-## 🧪Experiment status
+
+## 📖Documentation
+
+| Guide | What you will find |
+| :--- | :--- |
+| [Getting started](docs/README.md#getting-started) | Installation, first run, and troubleshooting |
+| [Methods & protocols](docs/README.md#methods--protocols) | Agent roles, information access, memory, and pricing |
+| [Experiments & evaluation](docs/README.md#experiments--evaluation) | Experiment settings, baselines, outputs, and metrics |
+| [Scenarios & data](docs/README.md#scenarios--data) | Scenario inputs, data provenance, and extensions |
+
+
+## 🧪Project status
 
 | Area | Current status |
 | --- | --- |
@@ -125,14 +135,6 @@ Each run records its manifest, completion status, decisions, trips, policies, me
 
 Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, and policy benefits require experimental evidence beyond successful execution.
 
-## 📖Documentation
-
-| Guide | What you will find |
-| :--- | :--- |
-| [Getting started](docs/README.md#getting-started) | Installation, first run, and troubleshooting |
-| [Methods & protocols](docs/README.md#methods--protocols) | Agent roles, information access, memory, and pricing |
-| [Experiments & evaluation](docs/README.md#experiments--evaluation) | Experiment settings, baselines, outputs, and metrics |
-| [Scenarios & data](docs/README.md#scenarios--data) | Scenario inputs, data provenance, and extensions |
 
 ## 🤝Community & Contributing
 
