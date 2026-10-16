@@ -21,7 +21,7 @@ AgenticMobility 是 [AgenticCity](https://github.com/Agentic-City-Research) 的�
 
 ## 🧩 项目概览
 
-![AgenticMobility 框架：出行者选择路线与出发时刻，管理者设置拥堵收费；个人行程结果和公共交通统计分别进入两类主体的记忆。](docs/assets/mobility-loop-homepage.svg)
+![AgenticMobility 框架：出行者选择路线与出发时刻，管理者设置拥堵收费；个人行程结果和公共交通统计分别进入两类主体的记忆。](docs/assets/mobility-loop-simple.svg)
 
 AgenticMobility 将 LLM 出行者、LLM 交通管理者与共享的 MATSim 交通环境连接起来，用于研究出行选择、记忆更新和政策响应。当前实现基于增强的 Sioux Falls 场景，支持路线与出发时刻联合选择、每日反思和周期性拥堵收费，并保留背景交通及全日活动链。
 
