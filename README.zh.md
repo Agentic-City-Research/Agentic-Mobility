@@ -13,7 +13,7 @@
 
 AgenticMobility 是 [AgenticCity](https://github.com/Agentic-City-Research) 的交通研究项目，以交通为起点，探索智能体与城市系统的持续交互。
 
-🚀 [快速开始](#quickstart) · 🗺️ [文档](#documentation) · 🎯 [研究问题](#research-questions) · 🤝 [参与社区](#community)
+🚀 [快速开始](#quickstart) · 📖 [文档](#documentation) · 🎯 [研究问题](#research-questions) · 🤝 [参与社区](#community)
 
 </div>
 
@@ -64,7 +64,7 @@ LLM 控制选定的目标行程，其他行程按 MATSim 原生行为机制运�
 
 <a id="quickstart"></a>
 
-## 📦 快速开始
+## 🚀 快速开始
 
 需要 **JDK 25**（包含 `javac`）和 Git。首次构建时，Maven Wrapper 会下载 Maven 与所需依赖。以下命令均从仓库根目录执行。
 
