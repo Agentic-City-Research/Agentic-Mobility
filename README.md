@@ -19,10 +19,9 @@ English | [中文](README.zh.md)
 
 <div align="left">
     
-Agentic Mobility is the mobility research project within the 
-[AgenticCity](https://github.com/Agentic-City-Research), which
-aims to build an open research community around interacting 
-agents and interconnected urban systems, starting with transportation.
+Part of [AgenticCity](https://github.com/Agentic-City-Research),
+an open research exploring interconnected urban systems,
+starting with transportation.
 
 </div>
 
@@ -82,9 +81,8 @@ while model weights remain fixed.
 | 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
 | 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
 
-Comparisons require matched population, scenario, and background-traffic settings; detailed configurations are documented separately.
-
-See the experiment guide for configurations and comparison settings.
+For comparisons with matched population, scenario, and background-traffic
+settings, see the [experiment guide](docs/experiments-and-evaluation.md).
 
 ## 🚀Quickstart
 
@@ -145,26 +143,30 @@ For installation, troubleshooting, and additional instructions, see the [operati
 
 | Guide | What you will find |
 | :--- | :--- |
-| [Getting started](docs/getting-started.md) | Installation, first run, and troubleshooting |
-| [Methods & protocols](docs/methods--protocols.md) | Agent roles, information access, memory, and pricing |
-| [Experiments & evaluation](docs/experiments--evaluation.md) | Experiment settings, baselines, outputs, and metrics |
-| [Scenarios & data](docs/scenarios--data.md) | Scenario inputs, data provenance, and extensions |
+| [Getting started](docs/getting-started.md) | Installation, API setup, first run, and troubleshooting |
+| [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, memory, and pricing |
+| [Experiments & evaluation](docs/experiments-and-evaluation.md) | Experiment configurations, baselines, and run records |
+| [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
 
 
 ## 🧪Project status
 
 | Area | Current status |
-| --- | --- |
-| Implementation | Traveler decisions, private memory, manager policies, and execution records are implemented. |
-| Evaluation | Exploratory runs are under analysis; multi-seed comparisons are being prepared. |
+| :--- | :--- |
+| Implementation | Traveler decisions, role-specific memory, pricing, and execution records are implemented. |
+| Evaluation | Exploratory analysis underway; multi-seed comparisons in preparation. |
 | Manuscript | In preparation. |
 
-Verified configurations and results will be published with their code versions, model settings, seeds, and evaluation procedures.
+Verified results will be released with their code version, model settings,
+seeds, and evaluation procedures.
 
 
 ## 🤝Community & Contributing
 
-We welcome contributions to documentation, reproducible examples, analysis tools, and scenario extensions on agents, transportation, simulation, and policy evaluation.
+We welcome contributions from researchers and developers working on
+agents, transportation, simulation, and policy evaluation. You can help
+improve documentation, add reproducible examples, develop analysis tools,
+or extend simulation scenarios.
 
 Report an issue · Read the contribution guide · [Join the WeChat group](docs/wechat.md)
 
