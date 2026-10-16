@@ -28,7 +28,7 @@ starting with transportation.
 
 <div align="center">
     
-🚀[Quickstart](#quickstart) | 📖[Documentation](#documentation) |🎯[Research questions](#research-questions) |  🤝[Community](docs/wechat.md)
+🚀[Quickstart](#quickstart) | 📖[Documentation](#documentation) |🎯[Research questions](#research-questions) |  🤝[Community](#Community & Contributing)
 
 </div>
 
