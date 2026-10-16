@@ -39,9 +39,11 @@ agents and interconnected urban systems, starting with transportation.
 
 Agentic Mobility connects LLM travelers and traffic managers in a
 shared MATSim environment to study travel choices, memory, and policy
-responses. The current implementation supports joint route and 
+responses. 
+
+The current implementation supports joint route and 
 departure-time choice, daily reflection, and periodic congestion 
-pricing in an **enriched Sioux Falls scenario**.
+pricing in **enriched Sioux Falls scenario**.
 
 
 
