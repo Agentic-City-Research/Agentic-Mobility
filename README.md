@@ -3,7 +3,16 @@
 <h1>Agentic Mobility</h1>
 
 <p><strong>An open research platform for interactions between LLM travelers and traffic managers.</strong></p>
-
+<p align="center">
+  <a href="#quickstart">
+    <img src="https://img.shields.io/badge/Java-25-blue?style=flat"
+         alt="Requires Java 25">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat"
+         alt="License: GPL-2.0">
+  </a>
+</p>
 
 English | [中文](README.zh.md)
 </div>
@@ -26,7 +35,7 @@ agents and interconnected urban systems, starting with transportation.
 
 ## 🧩Overview
 
-![AgenticMobility framework](docs/assets/mobility-loop-sioux-falls.svg)
+![AgenticMobility framework](docs/assets/mobility-loop-simple.svg)
 
 AgenticMobility connects LLM travelers and traffic managers 
 through a shared transportation environment to study decisions,
@@ -39,10 +48,6 @@ choice, daily reflection, and periodic congestion pricing in a full-day
 
 ## 🔄How it works
 
-Travelers choose actions using personal information, recent
-experience, private memory, and policy information available
-to their assigned group. The manager uses public traffic
-aggregates, policy history, and its own memory.
 
 ```mermaid
 flowchart LR
@@ -60,7 +65,12 @@ flowchart LR
     style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
 ```
 
-LLM control applies to selected target trips. Other trips retain native behavior. Adaptation uses model inference and memory updates; model weights remain unchanged.
+
+Each simulation day follows a decide–execute–reflect cycle, 
+with pricing updates on scheduled days.
+LLM control applies to selected target trips. Other trips 
+retain native behavior. Adaptation uses model inference and 
+memory updates; model weights remain unchanged.
 
 ## 🎯Research questions
 
