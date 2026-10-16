@@ -29,7 +29,7 @@ agents and interconnected urban systems, starting with transportation.
 
 <div align="center">
     
-🚀[Quickstart](#quickstart) | 🗺️[Documentation](#documentation) |📣[Research questions](#research-questions) |  💬[Community](docs/wechat.md)
+🚀[Quickstart](#quickstart) | 📖[Documentation](#documentation) |🎯[Research questions](#research-questions) |  🤝[Community](docs/wechat.md)
 
 </div>
 
@@ -84,7 +84,7 @@ Comparisons require matched population, scenario, and background-traffic setting
 
 See the experiment guide for configurations and comparison settings.
 
-## 📦Quickstart
+## 🚀Quickstart
 
 Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
 
