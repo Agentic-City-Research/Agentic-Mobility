@@ -88,9 +88,10 @@ See the experiment guide for configurations and comparison settings.
 
 ## 🚀Quickstart
 
-**Get the source and build**
 
 Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
+
+**Get the source and build**
 
 ```bash
 git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
