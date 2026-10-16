@@ -96,29 +96,54 @@ sh ./mvnw -B clean package
 
 On Windows PowerShell, build with `.\mvnw.cmd -B clean package`.
 
-Run a two-day, 100-person diagnostic baseline with **no model calls**:
+**Run a diagnostic baseline without model API calls**
+
+The following command runs a two-day diagnostic baseline with 100 native travelers.
 
 ```bash
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
   --config scenarios/SiouxFalls-public/config.xml \
   --mode hybrid --policy mnl --llm-agents 0 \
-  --demand 100 --sample-persons 100 --days 2 --seed 4711 \
+  --demand 100 --sample-persons 100 --days 2 \
+  --population-seed 4711 --seed 4711 \
   --output output/quickstart
 ```
 
-In the output directory reported by the run, inspect `morning/status.json` for `complete=true` and `daysCompleted=2`. Diagnostic sampling does not scale road capacity; use the documented sampling configuration for research experiments.
+<details>
+<summary>Windows PowerShell command</summary>
 
-For [LLM travelers](docs/usage-guide.md#llm-travelers), [manager experiments](docs/usage-guide.md#native-travelers--manager), and [joint experiments](docs/usage-guide.md#llm-travelers--manager), configure a reachable Chat Completions service and follow the operating guide. MATSim runs on CPU; the repository calls an existing model service.
+```powershell
+java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
+  --config scenarios/SiouxFalls-public/config.xml `
+  --mode hybrid --policy mnl --llm-agents 0 `
+  --demand 100 --sample-persons 100 --days 2 `
+  --population-seed 4711 --seed 4711 `
+  --output output/quickstart
+```
+
+</details>
+
+After a successful run, `morning/status.json` in the actual output directory should contain `complete=true` and `daysCompleted=2`. If the requested directory already exists, the application creates a numbered alternative. Use the output path reported in the console.
+
+This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
+
+**Connect a model API**
+
+Before running LLM travelers, an LLM manager, or joint experiments, follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to configure `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY`. The platform then calls the configured service automatically during decisions, reflection, and other enabled stages. The service must support the Chat Completions API. MATSim runs on CPU, and the model service can be hosted on another machine.
+
+For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
+
+<a id="documentation"></a>
 
 
 ## 📖Documentation
 
 | Guide | What you will find |
 | :--- | :--- |
-| [Getting started](docs/README.md#getting-started) | Installation, first run, and troubleshooting |
-| [Methods & protocols](docs/README.md#methods--protocols) | Agent roles, information access, memory, and pricing |
-| [Experiments & evaluation](docs/README.md#experiments--evaluation) | Experiment settings, baselines, outputs, and metrics |
-| [Scenarios & data](docs/README.md#scenarios--data) | Scenario inputs, data provenance, and extensions |
+| [Getting started](docs/getting-started.md) | Installation, first run, and troubleshooting |
+| [Methods & protocols](docs/methods--protocols.md) | Agent roles, information access, memory, and pricing |
+| [Experiments & evaluation](docs/experiments--evaluation.md) | Experiment settings, baselines, outputs, and metrics |
+| [Scenarios & data](docs/scenarios--data.md) | Scenario inputs, data provenance, and extensions |
 
 
 ## 🧪Project status
@@ -131,17 +156,12 @@ For [LLM travelers](docs/usage-guide.md#llm-travelers), [manager experiments](do
 
 Verified configurations and results will be published with their code versions, model settings, seeds, and evaluation procedures.
 
-Each run records its manifest, completion status, decisions, trips, policies, memories, and API usage. See [outputs and evaluation](docs/usage-guide.md#outputs-and-evaluation) for record definitions and metric scopes.
-
-Sioux Falls is a synthetic research scenario. Behavioral realism, convergence, and policy benefits require experimental evidence beyond successful execution.
-
 
 ## 🤝Community & Contributing
 
-We welcome contributions from researchers and developers working on agents, transportation, simulation, and policy evaluation:
+We welcome contributions to documentation, reproducible examples, analysis tools, and scenario extensions on agents, transportation, simulation, and policy evaluation.
 
-- Join Discord to share your recipes, ask implementation questions, and discuss new features.
-- [Join the WeChat group](docs/wechat.md): the group is full, so add the assistant and it will invite you.
+Report an issue · Read the contribution guide · [Join the WeChat group](docs/wechat.md)
 
 If Agentic Mobility looks useful to you, please give it a ⭐ — it helps the community to discover and contribute to the project.
 
