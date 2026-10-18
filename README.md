@@ -72,17 +72,55 @@ LLMs control selected target trips; other trips follow native
 simulation behavior. Agents adapt through memory updates 
 while model weights remain fixed.
 
-## 🎯Research questions
 
-| Research focus | Experiment setup |
-| :--- | :--- |
-| 📊 **Traveler adaptation** | Native baseline vs. LLM-controlled target trips |
-| 🔎 **Information access** | Informed vs. uninformed controlled travelers |
-| 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
-| 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
+## 🧪 Experimental results
 
-For comparisons with matched population, scenario, and background-traffic
-settings, see the [experiment guide](docs/experiments-and-evaluation.md).
+The following exploratory experiments examine two settings: LLM travelers choosing routes and departure times without pricing, and an LLM manager setting congestion tolls for native travelers. Each setting is compared with its corresponding native MATSim baseline.
+
+### LLM travelers: route and departure-time choice
+
+We compare LLM travelers with memory against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
+
+Across these days, the LLM run records lower average target-trip travel times and fewer late work arrivals. Total daily car travel time across the full population is also lower.
+
+| Metric | Native MATSim | LLM + memory | Change vs. native |
+| :--- | ---: | ---: | ---: |
+| Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
+| Mean target-trip door-to-door travel time (min) | 41.02 | 36.48 | −11.06% |
+| P95 target-trip car travel time (min) | 70.55 | 57.99 | −17.80% |
+| Late work arrivals (%) | 15.48 | 6.02 | −9.46 pp |
+| Total daily car travel time (person-hours) | 11,424.11 | 10,480.04 | −8.26% |
+
+Values are daily averages over Days 0–60. P95 is the average of daily P95 values, and pp denotes percentage points. Target-trip metrics cover 11,793 trips/day, work lateness covers 11,332 work trips/day, and total car travel time covers 33,644 car legs/day.
+
+![Daily outcomes for LLM travelers and native MATSim over Days 0–60](docs/assets/llm-vs-native-61days.png)
+
+<details>
+<summary>Traffic replay: Day 0 vs. Day 50</summary>
+
+This replay compares two days within the LLM run. It illustrates how traffic patterns change during that run; it is not a comparison against the native baseline.
+
+![Traffic replay within the LLM run: Day 0 versus Day 50](docs/assets/compare.1-50.gif)
+
+</details>
+
+### LLM manager: congestion pricing with native travelers
+
+We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. Both runs use `stuckTime = 50` seconds. All-day tolling begins on Day 20.
+
+Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. The time series shows periods of both improvement and deterioration, rather than a sustained reduction in every metric.
+
+[![Traffic outcomes under LLM pricing relative to the native baseline](docs/assets/traffic_outcomes_three_panels.png)](docs/assets/traffic_outcomes_manager.svg)
+
+Positive values in this figure indicate improvement. Charged-period percentages use ratios of totals over Days 20–499. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
+
+**Where do delays change?**
+
+The corridor comparison shows spatially uneven outcomes: some directed corridors experience less delay while others experience more. Colors report the change in mean daily corridor delay across the charged period. Diamonds identify corridors with at least one tolled link on at least one day during that period.
+
+![Directed corridor delay changes relative to the native baseline](docs/assets/corridor_network.png)
+
+These are descriptive comparisons from one LLM seed per setting, with different code builds across each pair. The traveler comparison also changes action constraints and departure timing, so its observed gains cannot be attributed to memory alone or interpreted as a complete measure of traveler welfare. The two experiments use different observation windows and metric scopes and do not establish a direct ranking of traveler and manager interventions.
 
 ## 🚀Quickstart
 
@@ -148,56 +186,16 @@ For installation, troubleshooting, and additional instructions, see the [operati
 | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Experiment configurations, baselines, and run records |
 | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
 
+## 🎯Research directions
 
-## 🧪 Experimental results
+| Research focus | Experiment setup |
+| :--- | :--- |
+| 📊 **Traveler adaptation** | Native baseline vs. LLM-controlled target trips |
+| 🔎 **Information access** | Informed vs. uninformed controlled travelers |
+| 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
+| 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
 
-The following exploratory experiments examine two settings: LLM travelers choosing routes and departure times without pricing, and an LLM manager setting congestion tolls for native travelers. Each setting is compared with its corresponding native MATSim baseline.
-
-### LLM travelers: route and departure-time choice
-
-We compare LLM travelers with memory against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
-
-Across these days, the LLM run records lower average target-trip travel times and fewer late work arrivals. Total daily car travel time across the full population is also lower.
-
-| Metric | Native MATSim | LLM + memory | Change vs. native |
-| :--- | ---: | ---: | ---: |
-| Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
-| Mean target-trip door-to-door travel time (min) | 41.02 | 36.48 | −11.06% |
-| P95 target-trip car travel time (min) | 70.55 | 57.99 | −17.80% |
-| Late work arrivals (%) | 15.48 | 6.02 | −9.46 pp |
-| Total daily car travel time (person-hours) | 11,424.11 | 10,480.04 | −8.26% |
-
-Values are daily averages over Days 0–60. P95 is the average of daily P95 values, and pp denotes percentage points. Target-trip metrics cover 11,793 trips/day, work lateness covers 11,332 work trips/day, and total car travel time covers 33,644 car legs/day.
-
-![Daily outcomes for LLM travelers and native MATSim over Days 0–60](docs/assets/llm-vs-native-61days.png)
-
-<details>
-<summary>Traffic replay: Day 0 vs. Day 50</summary>
-
-This replay compares two days within the LLM run. It illustrates how traffic patterns change during that run; it is not a comparison against the native baseline.
-
-![Traffic replay within the LLM run: Day 0 versus Day 50](docs/assets/compare.1-50.gif)
-
-</details>
-
-### LLM manager: congestion pricing with native travelers
-
-We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. Both runs use `stuckTime = 50` seconds. All-day tolling begins on Day 20.
-
-Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. The time series shows periods of both improvement and deterioration, rather than a sustained reduction in every metric.
-
-[![Traffic outcomes under LLM pricing relative to the native baseline](docs/assets/traffic_outcomes_three_panels.png)](docs/assets/traffic_outcomes_manager.svg)
-
-Positive values in this figure indicate improvement. Charged-period percentages use ratios of totals over Days 20–499. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
-
-**Where do delays change?**
-
-The corridor comparison shows spatially uneven outcomes: some directed corridors experience less delay while others experience more. Colors report the change in mean daily corridor delay across the charged period. Diamonds identify corridors with at least one tolled link on at least one day during that period.
-
-![Directed corridor delay changes relative to the native baseline](docs/assets/corridor_network.png)
-
-These are descriptive comparisons from one LLM seed per setting, with different code builds across each pair. The traveler comparison also changes action constraints and departure timing, so its observed gains cannot be attributed to memory alone or interpreted as a complete measure of traveler welfare. The two experiments use different observation windows and metric scopes and do not establish a direct ranking of traveler and manager interventions.
-
+The platform supports the following research directions. The experiments reported below currently cover traveler decision-making and manager-led congestion pricing.
 
 ## 🤝Community & Contributing
 
