@@ -149,17 +149,11 @@ For installation, troubleshooting, and additional instructions, see the [operati
 | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
 
 
-## 🧪Project status
-
-| Area | Current status |
-| :--- | :--- |
-| Implementation | Traveler decisions, role-specific memory, pricing, and execution records are implemented. |
-| Evaluation | Exploratory analysis underway; multi-seed comparisons in preparation. |
-| Manuscript | In preparation. |
-
-## Experimental results
+## 🧪Experimental results
 
 Exploratory comparison over **61 completed simulation days (Day 0–60)**, using **seed 9261** in both runs. Both runs use the same population, network and capacity settings, with no Manager or tolls.
+
+![Daily traffic outcomes for LLM and native MATSim](docs/assets/compare_1-50.png)
 
 ### Average performance
 
