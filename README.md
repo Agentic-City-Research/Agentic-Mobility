@@ -85,7 +85,7 @@ This replay compares two days within the LLM run. It illustrates how traffic pat
 
 ### LLM manager: congestion pricing with native travelers
 
-We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. Both runs use `stuckTime = 50` seconds. All-day tolling begins on Day 20.
+We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. All-day tolling begins on Day 20.
 
 Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. The time series shows periods of both improvement and deterioration, rather than a sustained reduction in every metric.
 
