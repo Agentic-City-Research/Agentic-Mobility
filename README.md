@@ -151,11 +151,27 @@ For installation, troubleshooting, and additional instructions, see the [operati
 
 ## 🧪Experimental results
 
-Exploratory comparison over **61 completed simulation days (Day 0–60)**, using **seed 9261** in both runs. Both runs use the same population, network and capacity settings, with no Manager or tolls.
+The LLM run was planned for Day 60 simulation.
+We compare its 61 completed simulation days (Day 0–60)
+with the same days of the native MATSim baseline, using
+seed 9261 in both runs. Both runs share the same population,
+network and capacity settings, with no Manager or tolls.
 
-![Day 0 vs. Day 50](docs/assets/compare.1-50.gif)
 
-### Average performance
+### Traffic replay: Day 0 vs. Day 50
+
+Network replay outputs followed the preconfigured checkpoints.
+The GIF below compares Day 0 and Day 50 within the LLM run;
+the numerical results below include all completed days
+through Day 60.
+
+<p align="center">
+  <img src="docs/assets/compare.1-50.gif"
+       alt="Traffic replay from the LLM run: Day 0 versus Day 50"
+       width="900">
+</p>
+
+### Average performance over Day 0–60
 
 | Metric | Native MATSim | LLM + memory | Change vs. native |
 | :--- | ---: | ---: | ---: |
