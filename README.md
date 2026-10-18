@@ -153,18 +153,7 @@ For installation, troubleshooting, and additional instructions, see the [operati
 
 Exploratory comparison over **61 completed simulation days (Day 0–60)**, using **seed 9261** in both runs. Both runs use the same population, network and capacity settings, with no Manager or tolls.
 
-<table>
-  <tr>
-    <th align="center">Simulation Day</th>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="docs/assets/compare_1-50.gif"
-           alt="Traffic conditions on Day 0& Day50"
-           width="420">
-    </td>
-  </tr>
-</table>
+![Day 0 vs. Day 50](docs/assets/compare.1-50.gif)
 
 ### Average performance
 
