@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Getting started](getting-started.md) · [Methods & protocols](methods-and-protocols.md) · [Scenarios & data](scenarios-and-data.md)
 
-This edition covers **experiment configuration, supported run modes, and reproducibility records**. Experimental results, metric definitions, statistical procedures, and policy-effect evaluation are deferred to a later edition.
+This guide covers **experiment configuration, supported run modes, and reproducibility records**. For the completed exploratory comparisons shown on the homepage, see [Reported experiments](reported-experiments.md), which records model settings, runtime build identifiers, metric definitions, aggregate data, and interpretation limits.
 
 Build the project and check a small native run with [Getting started](getting-started.md) before using these templates. Commands below describe configurations; they are not reports of completed experiments.
 

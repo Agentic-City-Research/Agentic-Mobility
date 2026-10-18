@@ -1,7 +1,7 @@
-# Join the Reef WeChat Group
+# Community
 
-The group has reached WeChat's member limit, so it can no longer be joined by scanning a group code. Scan the assistant's code below with WeChat, add it as a friend, and it will invite you into the group.
+For Agentic Mobility questions, research ideas, and contribution proposals, use this project's [GitHub Issues](https://github.com/Agentic-City-Research/Agentic-Mobility/issues).
 
-% ![Reef WeChat assistant QR code](../assets/reef-wechat-assistant.jpg)%
+See the [contribution guide](../CONTRIBUTING.md) for bug reports, experiment records, and development checks, or browse the [contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors).
 
-If the QR code has expired, join the [Discord](https://discord.gg/5y8e5f937k) and ask for a fresh invite.
+A project-specific WeChat invitation can be added here when the maintainers provide a verified invitation.

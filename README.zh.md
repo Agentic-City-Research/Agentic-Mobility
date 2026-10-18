@@ -2,7 +2,7 @@
 
 <h1>Agentic Mobility</h1>
 
-<p><strong>面向 LLM 出行者与交通管理者交互的开放研究平台</strong></p>
+<p><strong>研究 LLM 出行决策与交通管理的开放平台</strong></p>
 
 <p>
   <a href="#quickstart"><img src="https://img.shields.io/badge/Java-25-blue?style=flat" alt="需要 Java 25"></a>
@@ -13,7 +13,7 @@
 
 AgenticMobility 是 [AgenticCity](https://github.com/Agentic-City-Research) 的交通研究项目，以交通为起点，探索智能体与城市系统的持续交互。
 
-🚀 [快速开始](#quickstart) · 📖 [文档](#documentation) · 🎯 [研究问题](#research-questions) · 🤝 [参与社区](#community)
+🧪 [实验结果](#experimental-results) · 🚀 [快速开始](#quickstart) · 📖 [文档](#documentation) · 🎯 [研究方向](#research-directions) · 🤝 [参与社区](#community)
 
 </div>
 
@@ -21,46 +21,70 @@ AgenticMobility 是 [AgenticCity](https://github.com/Agentic-City-Research) 的�
 
 ## 🧩 项目概览
 
-![AgenticMobility 框架：出行者选择路线与出发时刻，管理者设置拥堵收费；个人行程结果和公共交通统计分别进入两类主体的记忆。](docs/assets/mobility-loop-simple.svg)
+![AgenticMobility 框架：出行者选择路线与出发时刻，管理者设置拥堵收费，双方通过共享交通环境获得反馈。](docs/assets/mobility-loop-simple.svg)
 
-AgenticMobility 将 LLM 出行者、LLM 交通管理者与共享的 MATSim 交通环境连接起来，用于研究出行选择、记忆更新和政策响应。当前实现基于增强的 Sioux Falls 场景，支持路线与出发时刻联合选择、每日反思和周期性拥堵收费，并保留背景交通及全日活动链。
+AgenticMobility 将 LLM 出行者、交通管理者与共享的 MATSim 环境连接起来，用于研究出行决策、管理政策与每日交通反馈。平台支持仅启用 LLM 出行者、仅启用 LLM 管理者及双方联合的配置；本页实验分别评估出行者决策与管理者收费。
 
-<a id="how-it-works"></a>
+当前实现基于增强的 Sioux Falls 场景，支持路线与出发时刻联合选择、每日反思和周期性拥堵收费，并保留背景交通及全日活动链。
 
-## 🔄 运行机制
+### 每日仿真流程
 
-每个模拟日依次完成决策、交通执行和反思；管理者在预定日期调整收费政策。
+每个模拟日依次完成决策、交通执行和反思：出行者选择路线与出发时刻，系统应用已启用的收费政策，MATSim 执行全日交通仿真；各角色随后接收其权限范围内的反馈并更新自身经历记录。管理者在预定日期评审和调整收费政策。
 
-```mermaid
-flowchart LR
-    A["🧩 一次性准备<br/>固定人口、分组与候选动作"]
-    B["🧭 决策<br/>选择路线与出发时刻<br/>按计划更新收费政策"]
-    C["🚗 执行<br/>运行全日交通仿真"]
-    D["🪞 反思<br/>各角色更新自身记忆"]
+LLM 控制选定的目标行程，其他行程按 MATSim 原生行为机制运行，仿真期间模型权重保持不变。信息权限、反思与政策执行细节见[方法与协议](docs/methods-and-protocols.md)。
 
-    A --> B --> C --> D
-    D -->|下一个模拟日| B
+<a id="experimental-results"></a>
 
-    style A fill:#f1f5f9,stroke:#94a3b8,color:#2563eb
-    style B fill:#eff6ff,stroke:#60a5fa,color:#2563eb
-    style C fill:#f0fdfa,stroke:#2dd4bf,color:#2563eb
-    style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
-```
+## 🧪 实验结果
 
-LLM 控制选定的目标行程，其他行程按 MATSim 原生行为机制运行。出行者和管理者分别依据个人经历与公共反馈更新各自的记忆；适应过程通过模型推理和记忆更新实现，模型权重保持不变。
+以下探索性实验分别研究无收费条件下的 LLM 出行决策，以及面向原生出行者的 LLM 拥堵收费。每组实验均与各自的原生 MATSim 基线比较。
 
-<a id="research-questions"></a>
+### LLM 出行者：路线与出发时刻联合选择
 
-## 🎯 研究问题
+比较 LLM 出行者与原生 MATSim 在相同 61 个完整模拟日（Day 0–60）的结果，两组均使用随机种子 9261，人口、路网及容量设置一致，均未启用管理者或收费。
 
-| 研究方向 | 可采用的比较设置 |
-| :--- | :--- |
-| 📊 **出行者如何适应？** | 原生交通基线 vs. LLM 控制目标行程 |
-| 🔎 **信息权限如何影响选择？** | 知情 vs. 不知情受控出行者 |
-| 🚦 **不同收费政策如何影响交通？** | 无收费 vs. 固定收费 vs. LLM 动态调价 |
-| 🔄 **出行者与管理者如何相互响应？** | 仅 LLM 出行者 vs. LLM 出行者与管理者联合实验 |
+在这一观测窗口内，LLM 组的目标行程平均耗时更低，工作迟到比例更小，全体人口的全日汽车出行总耗时也更低。
 
-这些设置用于组织研究比较，具体实验需匹配人口、场景和背景交通等条件。实验模式与命令见[实验配置指南](docs/experiments-and-evaluation.md)。
+| 指标 | 原生 MATSim | LLM 出行者 | 相对原生组的变化 |
+| :--- | ---: | ---: | ---: |
+| 目标行程平均汽车耗时（分钟） | 22.29 | 17.76 | −20.35% |
+| 目标行程平均门到门耗时（分钟） | 41.02 | 36.48 | −11.06% |
+| 目标行程汽车耗时 P95（分钟） | 70.55 | 57.99 | −17.80% |
+| 工作迟到比例（%） | 15.48 | 6.02 | −9.46 个百分点 |
+| 全日汽车出行总耗时（人时） | 11,424.11 | 10,480.04 | −8.26% |
+
+表中数值为 Day 0–60 的逐日均值，P95 为每日 P95 的平均值。目标行程指标覆盖每天 11,793 次出行，迟到比例覆盖 11,332 次工作出行，全日汽车耗时覆盖 33,644 个汽车行程段。
+
+[![Day 0–60 的 LLM 出行者与原生 MATSim 逐日结果](docs/assets/llm-vs-native-61days.png)](docs/assets/llm-vs-native-61days.svg)
+
+灰线表示另外两组原生运行（种子 268、4711），主要比较为两组种子 9261 的运行；阴影标记 Day 56–60。
+
+<details>
+<summary>交通回放：Day 0 与 Day 50</summary>
+
+回放展示同一次 LLM 运行中两个日期的交通状态变化，不构成与原生基线的对照。
+
+![LLM 运行内部的 Day 0 与 Day 50 交通回放](docs/assets/compare.1-50.gif)
+
+</details>
+
+### LLM 管理者：面向原生出行者的拥堵收费
+
+比较启用 LLM 收费管理者的原生出行者与无管理者基线，共 500 个完整模拟日（Day 0–499），均使用随机种子 9261。人口、路网、容量和原生策略设置一致，均采用 `stuckTime = 50` 秒，从 Day 20 开始全日收费。
+
+收费期（Day 20–499）内，管理者组的全网延误比基线**低 0.29%**，早高峰路段延误**高 0.26%**，全日汽车出行总耗时**低 3.52%**。各指标随时间呈现改善与恶化交替的情况。
+
+[![LLM 收费管理相对原生基线的交通结果](docs/assets/traffic_outcomes_three_panels.png)](docs/assets/traffic_outcomes_manager.svg)
+
+图中正值表示改善。收费期百分比按该期间两组指标总量之比计算。全网延误不含入网前等待，全日汽车出行耗时包含该等待；早高峰路段延误按 07:00–09:00 进入路段的车辆分组统计。
+
+**延误在哪里变化？**
+
+有向走廊对比显示，部分走廊延误减少，另一些走廊延误增加。颜色表示收费期平均每日走廊延误相对基线的变化；菱形表示该走廊至少一条路段曾在期内某一天收费。
+
+![相对原生基线的有向走廊延误变化](docs/assets/corridor_network.png)
+
+每种设置目前仅包含一个 LLM 随机种子。代码构建版本与决策约束的差异限制了对单项设计的归因，两组实验的观测窗口和指标范围也不同。模型设置、构建标识、指标定义、汇总数据及解释范围见[实验记录与数据](docs/reported-experiments.md)。
 
 <a id="quickstart"></a>
 
@@ -122,23 +146,28 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 | 指南 | 主要内容 |
 | :--- | :--- |
 | [快速上手](docs/getting-started.md) | 环境安装、首次运行、API 配置与故障排查 |
-| [方法与协议](docs/methods-and-protocols.md) | 主体角色、动作范围、信息权限、记忆与收费机制 |
-| [实验与评估](docs/experiments-and-evaluation.md) | 当前提供实验模式、配置与运行记录；具体结果和评估后续补充 |
+| [方法与协议](docs/methods-and-protocols.md) | 主体角色、动作范围、信息权限、反思与收费机制 |
+| [实验与评估](docs/experiments-and-evaluation.md) | 实验模式、配置、基线与运行记录 |
+| [已报告实验](docs/reported-experiments.md) | 模型设置、构建标识、结果定义与汇总数据 |
 | [场景与数据](docs/scenarios-and-data.md) | 场景输入、数据来源、人口采样与扩展要求 |
 
-以上四篇专题指南目前为英文。完整入口见[文档索引](docs/README.md)，中文说明见[操作指南](docs/usage-guide.zh.md)。
+专题指南目前为英文。完整入口见[文档索引](docs/README.md)，中文说明见[操作指南](docs/usage-guide.zh.md)。
 
-<a id="project-status"></a>
+<a id="research-questions"></a>
+<a id="research-directions"></a>
 
-## 🧪 项目进展
+## 🎯 研究方向
 
-| 方向 | 当前进展 |
+平台支持以下研究方向。本页已展示出行者决策与管理者收费的独立对比；信息权限及双方联合交互仍是后续研究方向。
+
+| 研究方向 | 可采用的比较设置 |
 | :--- | :--- |
-| 功能实现 | 已实现出行决策、私人记忆、管理者收费政策与执行过程记录。 |
-| 实验研究 | 探索性运行正在分析，多随机种子比较正在准备。 |
-| 研究论文 | 正在撰写。 |
+| 📊 **出行决策** | 原生交通基线 vs. LLM 控制目标行程的路线与出发时刻 |
+| 🔎 **信息权限** | 知情 vs. 不知情受控出行者 |
+| 🚦 **收费政策** | 无收费 vs. 固定收费 vs. LLM 调价 |
+| 🔄 **出行者与管理者交互** | 仅 LLM 出行者 vs. LLM 出行者与管理者联合实验 |
 
-经核实的实验配置和结果将随代码版本、模型设置、随机种子及评估方法一并发布。
+具体实验需记录并匹配人口、动作约束、背景交通与评估协议，配置模板见[实验指南](docs/experiments-and-evaluation.md)。
 
 <a id="community"></a>
 
@@ -150,7 +179,7 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 - 分享记录完整的实验配置、基线方案或方法比较。
 - 开发分析工具、可视化和新的交通场景。
 
-可通过本项目的 [GitHub Issues](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) 提问、反馈或讨论贡献计划。[贡献指南](CONTRIBUTING.md) 介绍了当前参与入口、开发检查和实验报告要求。
+可通过本项目的 [GitHub Issues](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) 提问、反馈或讨论贡献计划。[贡献指南](CONTRIBUTING.md) 介绍了当前参与入口、开发检查和实验报告要求。也可查看[贡献者](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)。
 
 <a id="citation-and-license"></a>
 

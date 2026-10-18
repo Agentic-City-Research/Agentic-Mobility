@@ -2,7 +2,7 @@
 
 <h1>Agentic Mobility</h1>
 
-<p><strong>An open research platform for interactions between LLM travelers and traffic managers.</strong></p>
+<p><strong>A research platform for studying LLM-driven travel decisions and traffic management in a shared MATSim environment.</strong></p>
 <p align="center">
   <a href="#quickstart">
     <img src="https://img.shields.io/badge/Java-25-blue?style=flat"
@@ -28,62 +28,39 @@ starting with transportation.
 
 <div align="center">
     
-🚀[Quickstart](#quickstart) | 📖[Documentation](#documentation) |🎯[Research questions](#research-questions) |  🤝[Community](#Community & Contributing)
+🧪 [Results](#experimental-results) · 🚀 [Quickstart](#quickstart) · 📖 [Documentation](#documentation) · 🎯 [Research directions](#research-directions) · 🤝 [Community](#community--contributing)
 
 </div>
 
-## 🧩Overview
+<a id="overview"></a>
+
+## 🧩 Overview
 
 ![AgenticMobility framework](docs/assets/mobility-loop-simple.svg)
 
-Agentic Mobility connects LLM travelers and traffic managers in a
-shared MATSim environment to study travel choices, memory, and policy
-responses. 
+Agentic Mobility connects LLM travelers and traffic managers in a shared MATSim environment to study travel decisions, management policies, and day-to-day traffic feedback. The platform supports traveler-only, manager-only, and joint configurations. The experiments reported here evaluate traveler decisions and manager pricing separately.
 
-The current implementation supports joint route and 
-departure-time choice, daily reflection, and periodic congestion 
-pricing in **enriched Sioux Falls scenario**.
+The current implementation supports joint route and departure-time choice, daily reflection, and periodic congestion pricing in **enriched Sioux Falls scenario**.
 
+### Daily simulation cycle
 
+Each day follows a decide–execute–reflect cycle: travelers select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Manager policy changes occur on scheduled review days.
 
-## 🔄How it works
+LLMs control selected target trips; other trips follow native simulation behavior. Model weights remain fixed during the simulation. See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
 
-
-```mermaid
-flowchart LR
-    A["<div style='width:200px'>🧩 Prepare once<br/>Population · groups<br/>Candidate actions</div>"]
-    B["<div style='width:200px'>🧭 Decide<br/>LLM travel choices · scheduled pricing</div>"]
-    C["🚗 Execute<br/>Full-day traffic simulation"]
-    D["🪞 Reflect<br/>Separate role memories"]
-
-    A --> B --> C --> D
-    D -->|Next simulation day| B
-
-    style A fill:#f1f5f9,stroke:#94a3b8,color:#2563eb
-    style B fill:#eff6ff,stroke:#60a5fa,color:#2563eb
-    style C fill:#f0fdfa,stroke:#2dd4bf,color:#2563eb
-    style D fill:#faf5ff,stroke:#c084fc,color:#2563eb
-```
-
-Each simulation day follows a decide–execute–reflect cycle, 
-with pricing updates on scheduled days.
-
-LLMs control selected target trips; other trips follow native
-simulation behavior. Agents adapt through memory updates 
-while model weights remain fixed.
-
+<a id="experimental-results"></a>
 
 ## 🧪 Experimental results
 
-The following exploratory experiments examine two settings: LLM travelers choosing routes and departure times without pricing, and an LLM manager setting congestion tolls for native travelers. Each setting is compared with its corresponding native MATSim baseline.
+The following exploratory experiments examine traveler decisions and traffic management separately: LLM travelers choosing routes and departure times without pricing, and an LLM manager setting congestion tolls for native travelers. Each setting is compared with its corresponding native MATSim baseline.
 
 ### LLM travelers: route and departure-time choice
 
-We compare LLM travelers with memory against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
+We compare LLM-driven travelers against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
 
 Across these days, the LLM run records lower average target-trip travel times and fewer late work arrivals. Total daily car travel time across the full population is also lower.
 
-| Metric | Native MATSim | LLM + memory | Change vs. native |
+| Metric | Native MATSim | LLM travelers | Change vs. native |
 | :--- | ---: | ---: | ---: |
 | Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
 | Mean target-trip door-to-door travel time (min) | 41.02 | 36.48 | −11.06% |
@@ -93,7 +70,9 @@ Across these days, the LLM run records lower average target-trip travel times an
 
 Values are daily averages over Days 0–60. P95 is the average of daily P95 values, and pp denotes percentage points. Target-trip metrics cover 11,793 trips/day, work lateness covers 11,332 work trips/day, and total car travel time covers 33,644 car legs/day.
 
-![Daily outcomes for LLM travelers and native MATSim over Days 0–60](docs/assets/llm-vs-native-61days.png)
+[![Daily outcomes for LLM travelers and native MATSim over Days 0–60](docs/assets/llm-vs-native-61days.png)](docs/assets/llm-vs-native-61days.svg)
+
+The gray curves show two additional native runs (seeds 268 and 4711); the primary comparison uses seed 9261 in both conditions. Shading marks Days 56–60.
 
 <details>
 <summary>Traffic replay: Day 0 vs. Day 50</summary>
@@ -120,9 +99,11 @@ The corridor comparison shows spatially uneven outcomes: some directed corridors
 
 ![Directed corridor delay changes relative to the native baseline](docs/assets/corridor_network.png)
 
-These are descriptive comparisons from one LLM seed per setting, with different code builds across each pair. The traveler comparison also changes action constraints and departure timing, so its observed gains cannot be attributed to memory alone or interpreted as a complete measure of traveler welfare. The two experiments use different observation windows and metric scopes and do not establish a direct ranking of traveler and manager interventions.
+These exploratory comparisons include one LLM seed per setting. Different code builds and decision constraints limit attribution to individual design choices. The experiments also use different observation windows and metric scopes. See the [experiment records and data](docs/reported-experiments.md) for model settings, build identifiers, metric definitions, and interpretation.
 
-## 🚀Quickstart
+<a id="quickstart"></a>
+
+## 🚀 Quickstart
 
 
 Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
@@ -177,38 +158,48 @@ For installation, troubleshooting, and additional instructions, see the [operati
 <a id="documentation"></a>
 
 
-## 📖Documentation
+## 📖 Documentation
 
 | Guide | What you will find |
 | :--- | :--- |
 | [Getting started](docs/getting-started.md) | Installation, API setup, first run, and troubleshooting |
 | [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, memory, and pricing |
 | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Experiment configurations, baselines, and run records |
+| [Reported experiments](docs/reported-experiments.md) | Model settings, build identifiers, result definitions, and aggregate data |
 | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
 
-## 🎯Research directions
+<a id="research-questions"></a>
+<a id="research-directions"></a>
 
-| Research focus | Experiment setup |
+## 🎯 Research directions
+
+The platform supports the following research directions. The results above currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
+
+| Research focus | Comparison setting |
 | :--- | :--- |
-| 📊 **Traveler adaptation** | Native baseline vs. LLM-controlled target trips |
+| 📊 **Traveler decisions** | Native baseline vs. LLM-controlled route and departure-time choices |
 | 🔎 **Information access** | Informed vs. uninformed controlled travelers |
 | 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
 | 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
 
-The platform supports the following research directions. The experiments reported below currently cover traveler decision-making and manager-led congestion pricing.
+Configuration templates are provided in the [experiment guide](docs/experiments-and-evaluation.md). Each comparison requires its own documented population, action constraints, background traffic, and evaluation protocol.
 
-## 🤝Community & Contributing
+<a id="community--contributing"></a>
+
+## 🤝 Community & Contributing
 
 We welcome contributions from researchers and developers working on
 agents, transportation, simulation, and policy evaluation. You can help
 improve documentation, add reproducible examples, develop analysis tools,
 or extend simulation scenarios.
 
-Report an issue · Read the contribution guide · [Join the WeChat group](docs/wechat.md)
+[Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [Read the contribution guide](CONTRIBUTING.md) · [Contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
 
 If Agentic Mobility looks useful to you, please give it a ⭐ — it helps the community to discover and contribute to the project.
 
-## 📚Citation and license
+<a id="citation-and-license"></a>
+
+## 📚 Citation and license
 
 For research use, reference [Agentic-City-Research/Agentic-Mobility](https://github.com/Agentic-City-Research/Agentic-Mobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
