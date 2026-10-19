@@ -132,32 +132,34 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 
 ### Pricing agent: interventions and system responses
 
-> We compare native travelers with and without an LLM pricing agent over 500 simulation days (Days 0–499),
-> using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match 
-> across the two scenarios. All-day tolling begins on Day 20 in the pricing-agent scenario.
->
-> Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. Aggregate gains are modest, and the direction of change varies over time and across metrics.
->
-> [![Traffic outcomes under LLM pricing relative to the native baseline](docs/assets/traffic_outcomes_three_panels.png)](docs/assets/traffic_outcomes_manager.svg)
->
-> Positive values in this figure indicate improvement. Charged-period percentages use ratios of totals over Days 20–499. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
->
-> System responses vary across space: some corridors experience lower delay, while others experience higher delay.
->
-> <details>
-> <summary>Spatial variation across corridors</summary>
->
-> ![Directed corridor delay changes relative to the native baseline](docs/assets/corridor_network.png)
->
-> </details>
+We compare native MATSim travelers with and without an LLM pricing agent over the first **100 simulation days (Days 0–99)** of the original 500-day runs, using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match across the two scenarios. All-day tolling begins on Day 20.
+
+During the charged period (**Days 20–99**), total network delay is **9.22% higher**, morning link delay is **9.10% higher**, and total daily car travel time is **3.12% lower** than the native baseline. The reduction in total car time mainly reflects less pre-traffic waiting; it does not indicate lower delay within the road network.
+
+[![First 100 days: traffic outcomes under LLM pricing relative to the native baseline](docs/assets/first100_traffic_outcomes.png)](docs/assets/first100_traffic_outcomes.svg)
+
+Positive values indicate improvement. Thin gray lines show daily differences; dark lines show trailing seven-day ratios of totals. Summary percentages cover Days 20–99. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
+
+The pricing agent introduces tolls on **20 links on Day 20**, holds the same prices on **Day 50**, and adjusts the policy to cover **23 links on Day 80**. Network delay remains above the same-day baseline in each stage, although the gap narrows from **15.40%** during Days 20–49 to **2.70%** during Days 80–99. The final stage contains only 20 observed days, and this change cannot be attributed solely to the Day 80 adjustment.
+
+<details>
+<summary>Spatial variation across corridors</summary>
+
+![Directed corridor delay changes during Days 20–99](docs/assets/first100_corridor_comparison.png)
+
+Local improvements coexist with larger increases elsewhere. For example, corridor C60 (20 → 18) experiences **51.67 fewer vehicle-hours of delay per day**, while C51 (17 → 10) experiences **96.11 more** than the baseline.
+
+Corridors are directed road chains between route-choice junctions, rather than complete traveler routes. Blue indicates less delay; orange indicates more delay.
+
+</details>
+
+All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
 
 **[Experiment settings, data, and reproduction →](docs/reported-experiments.md)**
 
 See the experiment records for configurations, metric definitions, aggregate data, and available reproduction instructions.
 
-
 <br>
-
 <a id="quickstart"></a>
 
 ## QUICKSTART 🚀
