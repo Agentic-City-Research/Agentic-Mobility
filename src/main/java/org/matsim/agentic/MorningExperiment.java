@@ -46,6 +46,8 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names="--traveler-semantic-review",description="Optional one-shot model review of traveler reason/memory against visible facts; disabled by default") boolean travelerSemanticReview;
     @Option(names="--semantic-review-max-output-tokens",defaultValue="2048",description="Output limit of the optional one-shot traveler semantic review") int semanticReviewMaxOutputTokens=2048;
     @Mixin MorningModelOptions modelOptions = new MorningModelOptions();
+    @Mixin MorningManagerModelOptions managerModelOptions = new MorningManagerModelOptions();
+    private AgenticConfig managerLlmConfig;
     @Option(names = "--concurrency", defaultValue = "8") int concurrency;
     @Option(names = "--repair-attempts", defaultValue = "3") int repairAttempts;
     @Option(names = "--timeout-seconds") int timeoutSeconds = llmConfig.timeoutSeconds;
@@ -108,11 +110,18 @@ public final class MorningExperiment implements Callable<Integer> {
     boolean reflects() { return policyName.equals("llm"); }
     boolean fixedTollsEnabled() { return fixedTollPolicyFile != null; }
     boolean pricingEnabled() { return managerEnabled || fixedTollsEnabled(); }
+    AgenticConfig managerModelConfig(int tokens) {
+        if (managerLlmConfig == null) managerLlmConfig = managerModelOptions.resolve(llmConfig);
+        return managerLlmConfig.withOutputLimit(tokens);
+    }
     String pricingMode() { return managerEnabled ? "manager" : fixedTollsEnabled() ? "fixed" : "none"; }
     public static void main(String[] args) { System.exit(new CommandLine(new MorningExperiment()).execute(args)); }
 
     @Override public Integer call() throws Exception {
         validateOptions();
+        llmConfig.concurrency = concurrency; llmConfig.repairAttempts = repairAttempts;
+        llmConfig.timeoutSeconds = timeoutSeconds; llmConfig.llmStallSeconds = stallSeconds; llmConfig.maxRequests = maxRequests;
+        if (managerEnabled) managerLlmConfig = managerModelOptions.resolve(llmConfig);
         Config config = ConfigUtils.loadConfig(configFile.toAbsolutePath().toString());
         if (seed != null) config.global().setRandomSeed(seed);
         long actualSeed = config.global().getRandomSeed();
@@ -170,15 +179,17 @@ public final class MorningExperiment implements Callable<Integer> {
         long minimumCalls = policyName.equals("llm") ? cohort.members.values().stream().filter(m -> m.controlled).count()
                 * (config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L) * 2L : 0;
         if(travelerSemanticReview) minimumCalls*=2;
+        long minimumTravelerCalls = minimumCalls;
         minimumCalls += managerEnabled ? MorningManager.minimumCalls(config.controller().getFirstIteration(), config.controller().getLastIteration(), managerUpdateInterval) : 0;
         minimumCalls += managerEnabled ? MorningManager.minimumMemoryCalls(config.controller().getFirstIteration(), config.controller().getLastIteration()) : 0;
         if (!validateOnly && minimumCalls > 0) {
-            if (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()) throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler/manager calls; --manager needs daily reflection calls from the first day");
+            if (minimumTravelerCalls > 0 && (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()))
+                throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler calls");
+            if (managerEnabled && (managerLlmConfig.apiKey == null || managerLlmConfig.apiKey.isBlank()))
+                throw new IllegalArgumentException("Set AGENTIC_MANAGER_API_KEY for live manager policy/daily-memory calls; AGENTIC_API_KEY is inherited only when sharing the traveler endpoint");
             if (maxRequests > 0 && minimumCalls > maxRequests) throw new IllegalArgumentException("Minimum LLM calls " + minimumCalls
                     + " exceed --max-requests " + maxRequests + "; explicitly choose a sufficient request budget");
         }
-        llmConfig.concurrency = concurrency; llmConfig.repairAttempts = repairAttempts;
-        llmConfig.timeoutSeconds = timeoutSeconds; llmConfig.llmStallSeconds = stallSeconds; llmConfig.maxRequests = maxRequests;
         parameterRunName = MorningExperimentOutputs.parameterName(this, config, controlled);
         outputReservation = MorningExperimentOutputs.reserve(outputDirectory != null ? outputDirectory
                 : MorningExperimentOutputs.projectOutputRoot(configFile).resolve(parameterRunName));
@@ -387,8 +398,11 @@ public final class MorningExperiment implements Callable<Integer> {
             pricing.put("policyLifecycle", "Load and validate once before simulation; changing the source file during a run has no effect");
         }
         result.put("pricing", pricing);
-        if (managerEnabled) result.put("managerSettings", llmConfig.withOutputLimit(managerMaxOutputTokens).publicModelSettings());
-        if (managerEnabled) result.put("managerMemorySettings", llmConfig.withOutputLimit(managerMemoryMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerSettings", managerModelConfig(managerMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerMemorySettings", managerModelConfig(managerMemoryMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerServiceRouting", Map.of("version", "morning-role-models-v1",
+                "settingsSource", managerModelOptions.hasOverrides() ? "manager-overrides" : "traveler-defaults",
+                "separateEndpoint", managerModelOptions.separateEndpoint(llmConfig), "policyAndMemoryShareService", true));
         if (managerEnabled) {
             var managerContext = new LinkedHashMap<String, Object>(Map.of("templateVersion", MorningManager.VERSION,
                     "environmentVersion", MorningManagerEnvironment.VERSION, "feedbackVersion", MorningManagerFeedback.VERSION,

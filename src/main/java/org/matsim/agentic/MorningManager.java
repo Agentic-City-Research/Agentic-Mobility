@@ -359,7 +359,8 @@ final class MorningManager {
                 feedback.compactContext((Map<String, Object>) full.get("policyFeedback"), state.policy()),
                 window, feedback.recentPricingWindows(state.policy()), state.policy()) : full;
         String base = Json.write(context), hash = MorningPromptRenderer.hash(base);
-        String system = controls.basic() ? BASIC_SYSTEM : SYSTEM;
+        var outputSchema = schema();
+        String system = MorningOutputContract.jsonObjectSystem(controls.basic() ? BASIC_SYSTEM : SYSTEM, modelSettings, outputSchema);
         output.appendLine("manager-contexts.jsonl", context);
         if (controls.basic()) output.appendLine("manager-contexts-full.jsonl", full);
         String fullJson = Json.write(full);
@@ -373,7 +374,7 @@ final class MorningManager {
         int calls = 0;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             budget.reserve(); attemptedCalls.incrementAndGet(); calls++;
-            var schema = schema();
+            var schema = outputSchema;
             String user = base + (error == null ? "" : "\nPrevious output was invalid: " + error
                     + ". Correct the execution or JSON error; return complete JSON only.");
             var log = new LinkedHashMap<String, Object>();

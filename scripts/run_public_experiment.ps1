@@ -9,6 +9,16 @@ param(
     [ValidateRange(1, 2147483647)][int]$ManagerUpdateInterval = 30,
     [int]$ManagerMaxOutputTokens = 8192,
     [ValidateRange(1, 2147483647)][int]$ManagerMemoryMaxOutputTokens = 2048,
+    [string]$ManagerModel,
+    [string]$ManagerBaseUrl,
+    [ValidateSet('auto', 'omit', 'enabled', 'disabled')][string]$ManagerThinking,
+    [ValidateSet('omit', 'json_object', 'json_schema')][string]$ManagerResponseFormat,
+    [ValidateSet('max_tokens', 'max_completion_tokens')][string]$ManagerTokenLimitField,
+    [string]$ManagerGenerationParams,
+    [Nullable[double]]$ManagerTemperature,
+    [Nullable[double]]$ManagerTopP,
+    [Nullable[int]]$ManagerGenerationSeed,
+    [ValidateRange(0, 2147483647)][int]$ManagerTimeoutSeconds = 0,
     [ValidateSet('basic', 'controlled')][string]$ManagerProfile = 'basic',
     [double]$ManagerMaxCorridorMinutes = 5,
     [double]$ManagerMaxStepMinutes = 2,
@@ -154,6 +164,25 @@ if ($MaxOutputTokens -gt 0) { $taskArguments += @('--max-output-tokens', "$MaxOu
 if ($TokenLimitField) { $taskArguments += @('--token-limit-field', $TokenLimitField) }
 if ($ResponseFormat) { $taskArguments += @('--response-format', $ResponseFormat) }
 if ($GenerationParams) { $taskArguments += @('--generation-params', $GenerationParams) }
+foreach ($taskManagerEntry in @{
+    Model=$ManagerModel; BaseUrl=$ManagerBaseUrl; Thinking=$ManagerThinking;
+    ResponseFormat=$ManagerResponseFormat; TokenLimitField=$ManagerTokenLimitField;
+    GenerationParams=$ManagerGenerationParams
+}.GetEnumerator()) {
+    if ($taskManagerEntry.Value) {
+        $taskManagerFlag = '--manager-' + ($taskManagerEntry.Key -creplace '([a-z])([A-Z])', '$1-$2').ToLowerInvariant()
+        $taskArguments += @($taskManagerFlag, $taskManagerEntry.Value)
+    }
+}
+foreach ($taskManagerNumber in @{
+    Temperature=$ManagerTemperature; TopP=$ManagerTopP; GenerationSeed=$ManagerGenerationSeed
+}.GetEnumerator()) {
+    if ($null -ne $taskManagerNumber.Value) {
+        $taskManagerFlag = '--manager-' + ($taskManagerNumber.Key -creplace '([a-z])([A-Z])', '$1-$2').ToLowerInvariant()
+        $taskArguments += @($taskManagerFlag, ([string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $taskManagerNumber.Value)))
+    }
+}
+if ($ManagerTimeoutSeconds -gt 0) { $taskArguments += @('--manager-timeout-seconds', "$ManagerTimeoutSeconds") }
 if ($Output) { $taskArguments += @('--output', $Output) }
 if ($RunDate) { $taskArguments += @('--run-date', $RunDate) }
 if ($CandidateFile) { $taskArguments += @('--candidate-file', (Resolve-Path -LiteralPath $CandidateFile).Path) }

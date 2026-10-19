@@ -65,7 +65,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         if (settings.fixedTollsEnabled()) output.writeDoc("fixed-toll-policy.json", settings.fixedTollPolicy.inputJson());
         if (settings.managerEnabled) {
             if (tolls == null) throw new IllegalStateException("Manager pricing needs a registered toll event handler");
-            var managerConfig = settings.llmConfig.withOutputLimit(settings.managerMaxOutputTokens);
+            var managerConfig = settings.managerModelConfig(settings.managerMaxOutputTokens);
             var environment = MorningManagerEnvironment.from(scenario, settings, manifest);
             var publicEnvironment=new LinkedHashMap<>(environment.context(scenario.getConfig().controller().getFirstIteration(),tolls.state().policy(),settings.managerControls.basic()));
             publicEnvironment.put("pricingControls",settings.managerControls.context(environment,scenario.getConfig().qsim().getEndTime().seconds()));
@@ -74,7 +74,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                     environment,
                     settings.clientFactory.apply(managerConfig, usage), output, budget, settings.repairAttempts, managerConfig.publicModelSettings(),
                     settings.managerUpdateInterval, scenario.getConfig().controller().getLastIteration(),settings.managerControls);
-            var managerMemoryConfig=settings.llmConfig.withOutputLimit(settings.managerMemoryMaxOutputTokens);
+            var managerMemoryConfig=settings.managerModelConfig(settings.managerMemoryMaxOutputTokens);
             manager.setMemoryClient(settings.clientFactory.apply(managerMemoryConfig,usage),managerMemoryConfig.publicModelSettings());
         }
         if (settings.policyName.equals("llm") && !cohort.controlledPersons.isEmpty()) {

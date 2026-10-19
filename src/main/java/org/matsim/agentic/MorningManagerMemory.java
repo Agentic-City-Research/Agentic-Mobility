@@ -42,6 +42,8 @@ final class MorningManagerMemory {
 
     Update update(Map<String, Object> context) {
         String base=Json.write(context), hash=MorningPromptRenderer.hash(base), error=null;
+        var outputSchema=schema();
+        String system=MorningOutputContract.jsonObjectSystem(SYSTEM,settings,outputSchema);
         int day=((Number)context.get("day")).intValue(), calls=0;
         output.appendLine("manager-memory-contexts.jsonl", context);
         for (int attempt=1; attempt<=attempts; attempt++) {
@@ -51,13 +53,13 @@ final class MorningManagerMemory {
             String user=base+(error==null ? "" : "\nPrevious output was invalid: "+error+". Return only valid replacement memory JSON.");
             var log=new LinkedHashMap<String,Object>();
             log.put("day",day); log.put("role","manager-memory"); log.put("attempt",attempt); log.put("templateVersion",VERSION);
-            log.put("contextHash",hash); log.put("system",SYSTEM); log.put("user",user);
-            log.put("requestHash",MorningPromptRenderer.hash(SYSTEM+"\n"+user));
-            log.put("systemCharacters",SYSTEM.length()); log.put("userCharacters",user.length());
-            log.put("outputSchema",schema()); log.put("modelSettings",MorningOutputContract.requestSettings(settings,schema()));
+            log.put("contextHash",hash); log.put("system",system); log.put("user",user);
+            log.put("requestHash",MorningPromptRenderer.hash(system+"\n"+user));
+            log.put("systemCharacters",system.length()); log.put("userCharacters",user.length());
+            log.put("outputSchema",outputSchema); log.put("modelSettings",MorningOutputContract.requestSettings(settings,outputSchema));
             long start=System.nanoTime();
             try {
-                var response=client.complete("manager-memory",SYSTEM,user,schema());
+                var response=client.complete("manager-memory",system,user,outputSchema);
                 if (Thread.currentThread().isInterrupted()) return new Update(false,null,"Reflection interrupted",calls,hash);
                 log.put("response",response.content()); MorningOutputContract.responseMetadata(log,response);
                 log.put("usageReported",response.usageReported()); log.put("usage",MorningOutputContract.usage(response));

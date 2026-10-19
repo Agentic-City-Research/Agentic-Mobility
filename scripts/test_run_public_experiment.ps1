@@ -167,4 +167,27 @@ foreach ($taskDisableMutation in @($false, $true)) {
         throw 'Native time-mutation switch was not forwarded correctly'
     }
 }
-Write-Output "PASS: private JAR isolation, console capture, exit codes and cleanup; sampling/manager/fixed-pricing/candidate/time-mutation forwarding, llm-only memory and invalid-option rejection. Fixtures: $taskTestRoot"
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+[IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy llm -LlmAgents 1 -Manager `
+    -Model qwen-fixture -BaseUrl 'http://qwen.internal:8002/v1' -ResponseFormat json_schema `
+    -GenerationParams '{"chat_template_kwargs":{"enable_thinking":false}}' `
+    -ManagerModel deepseek-fixture -ManagerBaseUrl 'https://manager.example/v1' `
+    -ManagerThinking disabled -ManagerResponseFormat json_object -ManagerGenerationParams '{}' `
+    -ManagerTokenLimitField max_tokens -ManagerTimeoutSeconds 180 -ManagerTemperature 0.2 `
+    -ManagerTopP 0.9 -ManagerGenerationSeed 9261 | Out-Null
+$taskRoleArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+foreach ($taskPair in @(
+    @('--model','qwen-fixture'), @('--base-url','http://qwen.internal:8002/v1'), @('--response-format','json_schema'),
+    @('--generation-params','{"chat_template_kwargs":{"enable_thinking":false}}'),
+    @('--manager-model','deepseek-fixture'), @('--manager-base-url','https://manager.example/v1'),
+    @('--manager-thinking','disabled'), @('--manager-response-format','json_object'), @('--manager-generation-params','{}'),
+    @('--manager-token-limit-field','max_tokens'), @('--manager-timeout-seconds','180'),
+    @('--manager-temperature','0.2'), @('--manager-top-p','0.9'), @('--manager-generation-seed','9261')
+)) {
+    $taskIndex = [Array]::IndexOf($taskRoleArguments, $taskPair[0])
+    if ($taskIndex -lt 0 -or $taskRoleArguments[$taskIndex + 1] -ne $taskPair[1]) {
+        throw ('Independent role model option was not forwarded: ' + $taskPair[0])
+    }
+}
+Write-Output "PASS: private JAR isolation, console capture, exit codes and cleanup; independent role model/sampling/manager/fixed-pricing/candidate/time-mutation forwarding, llm-only memory and invalid-option rejection. Fixtures: $taskTestRoot"
