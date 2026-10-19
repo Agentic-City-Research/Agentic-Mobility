@@ -34,14 +34,14 @@ exploring AI agents and interconnected urban systems.
 
 Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Agents interact through shared network conditions: their decisions affect the environment experienced by other agents.
 
-The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports LLM-controlled travelers and a pricing manager, with the experiments below evaluating these roles separately.
+The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports LLM-controlled travelers and an LLM pricing agent, with the experiments below evaluating these roles separately.
 
 ![AgenticMobility framework](docs/assets/mobility-loop-homepage.svg)
 
 
 ### Daily simulation cycle
 
-Each day follows a decide–execute–reflect cycle: traveler agents select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Manager policy changes occur on scheduled review days.
+Each day follows a decide–execute–reflect cycle: traveler agents select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Pricing updates occur on scheduled review days.
 
 LLMs control selected target trips; other trips follow native simulation behavior. Model weights remain fixed during the simulation. See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
 
@@ -51,7 +51,7 @@ LLMs control selected target trips; other trips follow native simulation behavio
 
 The platform supports the following research directions. The results below currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
 
-| Research focus | Comparison setting |
+| Research focus | Research question |
 | :--- | :--- |
 | 📊 **Agent behavior** | How do AI agents make mobility decisions under different information and constraints? |
 | 🚦 **System dynamics** | How do individual decisions and shared conditions shape one another over time? |
@@ -64,11 +64,10 @@ Configuration templates are provided in the [experiment guide](docs/experiments-
 
 ## 🧪 Experiments
 
-The traveler agents case traces information, action, and realized outcomes at the individual level, while the aggregate time series and corridor comparisons describe temporal and spatial variation at the system level.
+The traveler case traces available information, selected actions, and realized outcomes. 
+The time series and corridor comparisons show how aggregate outcomes vary over time and across the network.
 
 ### Traveler agents: decisions and mobility outcomes
-
-This experiment examines how replacing selected travel decisions with LLM-based choices is associated with changes in individual journeys and aggregate mobility outcomes.
 
 We examine individual and aggregate mobility outcomes by comparing LLM-controlled route and departure-time choices with native MATSim over Days 0–60. Both runs use seed 9261 and share the same population, network, and capacity settings, without a pricing agent or tolls.
 
@@ -101,7 +100,7 @@ Car time includes pre-traffic waiting. Door-to-door time covers the complete tar
 
 </details>
 
-
+**Aggregate results over Days 0–60**
 | Metric | Native MATSim | LLM travelers | Change vs. native |
 | :--- | ---: | ---: | ---: |
 | Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
@@ -127,9 +126,11 @@ This replay compares two days within the LLM run. It illustrates how traffic pat
 
 ### Pricing agent: interventions and system responses
 
-This experiment examines how an agent’s repeated pricing interventions are accompanied by temporal and spatial changes in system outcomes.
-
-We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. All-day tolling begins on Day 20.
+We compare two scenarios to examines how an agent’s repeated pricing interventions in system 
+outcomes.: native travelers interacting with an LLM-based pricing agent and a baseline 
+scenario without a pricing agent. Both scenarios are simulated for 500 days (Days 0–499) using the 
+same random seed (9261). Population, network, capacity, and native traveler strategy settings are 
+held constant across scenarios. In the pricing-agent scenario, all-day tolling is introduced on Day 20.
 
 Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. Aggregate gains are modest, and the direction of change varies over time and across metrics.
 
@@ -146,7 +147,7 @@ System responses vary across space: some corridors experience lower delay, while
 
 </details>
 
-These exploratory comparisons include one LLM seed per setting. Different code builds and decision constraints limit attribution to individual design choices. The experiments also use different observation windows and metric scopes. See the [experiment records and data](docs/reported-experiments.md) for model settings, build identifiers, metric definitions, and interpretation.
+Each experimental setting includes one LLM-enabled simulation run. Different code builds and decision constraints limit attribution to individual design choices. The experiments also use different observation windows and metric scopes. See the [experiment records and data](docs/reported-experiments.md) for model settings, build identifiers, metric definitions, and interpretation.
 
 <a id="quickstart"></a>
 
@@ -198,7 +199,7 @@ This 100-person example checks installation and execution. The `--sample-persons
 
 **Connect a model API**
 
-Before running LLM travelers, an LLM manager, or joint experiments, follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to configure `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY`. The platform then calls the configured service automatically during decisions, reflection, and other enabled stages. The service must support the Chat Completions API. MATSim runs on CPU, and the model service can be hosted on another machine.
+Before running LLM travelers, a pricing agent, or both, follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to configure `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY`. The platform then calls the configured service automatically during decisions, reflection, and other enabled stages. The service must support the Chat Completions API. MATSim runs on CPU, and the model service can be hosted on another machine.
 
 **[Run your first LLM-controlled traveler experiment →](docs/getting-started.md#start-with-a-small-traveler-run)**
 
