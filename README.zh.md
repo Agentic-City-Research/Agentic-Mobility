@@ -2,7 +2,7 @@
 
 <h1>Agentic Mobility</h1>
 
-<p><strong>研究 LLM 出行决策与交通管理的开放平台</strong></p>
+<p><strong>基于共享 MATSim 环境的 LLM 出行决策与交通管理研究平台</strong></p>
 
 <p>
   <a href="#quickstart"><img src="https://img.shields.io/badge/Java-25-blue?style=flat" alt="需要 Java 25"></a>
@@ -70,7 +70,7 @@ LLM 控制选定的目标行程，其他行程按 MATSim 原生行为机制运�
 
 ### LLM 管理者：面向原生出行者的拥堵收费
 
-比较启用 LLM 收费管理者的原生出行者与无管理者基线，共 500 个完整模拟日（Day 0–499），均使用随机种子 9261。人口、路网、容量和原生策略设置一致，均采用 `stuckTime = 50` 秒，从 Day 20 开始全日收费。
+比较启用 LLM 收费管理者的原生出行者与无管理者基线，共 500 个完整模拟日（Day 0–499），均使用随机种子 9261。人口、路网、容量和原生策略设置一致，从 Day 20 开始全日收费。
 
 收费期（Day 20–499）内，管理者组的全网延误比基线**低 0.29%**，早高峰路段延误**高 0.26%**，全日汽车出行总耗时**低 3.52%**。各指标随时间呈现改善与恶化交替的情况。
 
@@ -179,7 +179,9 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 - 分享记录完整的实验配置、基线方案或方法比较。
 - 开发分析工具、可视化和新的交通场景。
 
-可通过本项目的 [GitHub Issues](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) 提问、反馈或讨论贡献计划。[贡献指南](CONTRIBUTING.md) 介绍了当前参与入口、开发检查和实验报告要求。也可查看[贡献者](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)。
+[报告问题](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [阅读贡献指南](CONTRIBUTING.md) · [查看贡献者](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
+
+如果 Agentic Mobility 对你的研究有帮助，欢迎点亮 ⭐，让更多研究者发现并参与项目。
 
 <a id="citation-and-license"></a>
 
