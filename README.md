@@ -236,17 +236,13 @@ For installation, troubleshooting, and additional instructions, see the [operati
 
 ## COMMUNITY & CONTRIBUTING 🤝
 
-We welcome contributions from researchers and developers working on
-agents, transportation, simulation, and policy evaluation. You can help
-improve documentation, add reproducible examples, develop analysis tools,
-or extend simulation scenarios.
+Contributions are welcome, including documentation, reproducible examples, analysis tools, and simulation scenarios.
 
-[Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [Read the contribution guide](CONTRIBUTING.md) · [Contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
+[Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [Contribution guide](CONTRIBUTING.md) · [Contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
 
-If Agentic Mobility looks useful to you, please give it a ⭐ — it helps the community to discover and contribute to the project.
+⭐ If you find Agentic Mobility useful, consider starring the repository.
 
-
-## 📚 Citation and license
+<br>
 
 For research use, reference [Agentic-City-Research/Agentic-Mobility](https://github.com/Agentic-City-Research/Agentic-Mobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
