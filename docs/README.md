@@ -1,6 +1,6 @@
 # Documentation
 
-[Project overview](../README.md) · [中文首页](../README.zh.md)
+[Project overview](../README.md)
 
 | Guide | Contents |
 | :--- | :--- |
