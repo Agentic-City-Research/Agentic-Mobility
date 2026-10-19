@@ -2,7 +2,7 @@
 
 <h1>Agentic Mobility</h1>
 
-<p><strong>A research platform for studying LLM-driven travel decisions and traffic management in a shared MATSim environment.</strong></p>
+<p><strong>Exploring AI Agents and Emergent Dynamics in Mobility Systems</strong></p>
 <p align="center">
   <a href="#quickstart">
     <img src="https://img.shields.io/badge/Java-25-blue?style=flat"
@@ -20,8 +20,7 @@ English | [中文](README.zh.md)
 <div align="left">
     
 Part of [AgenticCity](https://github.com/Agentic-City-Research),
-an open research exploring interconnected urban systems,
-starting with transportation.
+a research platform for studying how AI agents make decisions, interact, and adapt within shared mobility environments.
 
 </div>
 
@@ -38,9 +37,9 @@ starting with transportation.
 
 ![AgenticMobility framework](docs/assets/mobility-loop-simple.svg)
 
-Agentic Mobility connects LLM travelers and traffic managers in a shared MATSim environment to study travel decisions, management policies, and day-to-day traffic feedback. The platform supports traveler-only, manager-only, and joint configurations. The experiments reported here evaluate traveler decisions and manager pricing separately.
+Agentic Mobility is a research platform for studying how AI agents make mobility decisions, respond to shared conditions, and adapt through repeated interaction with their environment. It connects individual decisions with system-level outcomes, providing a setting for investigating collective patterns and their evolution over time.
 
-The current implementation supports joint route and departure-time choice, daily reflection, and periodic congestion pricing in **enriched Sioux Falls scenario**.
+The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports LLM-controlled travelers and a pricing manager, with the experiments below evaluating these roles separately.
 
 ### Daily simulation cycle
 
@@ -50,11 +49,26 @@ LLMs control selected target trips; other trips follow native simulation behavio
 
 <a id="experimental-results"></a>
 
-## 🧪 Experimental results
+## 🎯 Research Queations
 
-The following exploratory experiments examine traveler decisions and traffic management separately: LLM travelers choosing routes and departure times without pricing, and an LLM manager setting congestion tolls for native travelers. Each setting is compared with its corresponding native MATSim baseline.
+The platform supports the following research directions. The results above currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
 
-### LLM travelers: route and departure-time choice
+| Research focus | Comparison setting |
+| :--- | :--- |
+| 📊 **Agent behavior** | How do AI agents make mobility decisions under different information and constraints? |
+| 🚦 **System dynamics** | How do individual decisions and shared conditions shape one another over time? |
+| 🔄 **Collective patterns** | What spatial and temporal patterns arise from repeated decisions and interventions? |
+
+
+Configuration templates are provided in the [experiment guide](docs/experiments-and-evaluation.md). Each comparison requires its own documented population, action constraints, background traffic, and evaluation protocol.
+
+<a id="community--contributing"></a>
+
+## 🧪 Experiments
+
+These experiments illustrate two ways to study agents within a shared mobility system: agents making individual travel decisions, and an agent changing the incentives under which native travelers act. Each setting is evaluated against its corresponding native MATSim baseline.
+
+### Traveler agents: decisions and mobility outcomes
 
 We compare LLM-driven travelers against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
 
@@ -83,7 +97,7 @@ This replay compares two days within the LLM run. It illustrates how traffic pat
 
 </details>
 
-### LLM manager: congestion pricing with native travelers
+### Pricing agent: interventions and system responses
 
 We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. All-day tolling begins on Day 20.
 
@@ -171,20 +185,7 @@ For installation, troubleshooting, and additional instructions, see the [operati
 <a id="research-questions"></a>
 <a id="research-directions"></a>
 
-## 🎯 Research directions
 
-The platform supports the following research directions. The results above currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
-
-| Research focus | Comparison setting |
-| :--- | :--- |
-| 📊 **Traveler decisions** | Native baseline vs. LLM-controlled route and departure-time choices |
-| 🔎 **Information access** | Informed vs. uninformed controlled travelers |
-| 🚦 **Policy comparison** | Native baseline vs. fixed tolls vs. LLM pricing |
-| 🔄 **Traveler–manager interaction** | LLM travelers with vs. without an LLM manager |
-
-Configuration templates are provided in the [experiment guide](docs/experiments-and-evaluation.md). Each comparison requires its own documented population, action constraints, background traffic, and evaluation protocol.
-
-<a id="community--contributing"></a>
 
 ## 🤝 Community & Contributing
 
