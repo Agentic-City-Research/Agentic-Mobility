@@ -1,6 +1,6 @@
 # Reported experiments
 
-[Project overview](../README.md#experimental-results) · [Documentation](README.md) · [Configuration templates](experiments-and-evaluation.md)
+[Project overview](../README.md#experiments) · [Documentation](README.md) · [Configuration templates](experiments-and-evaluation.md)
 
 This record describes the exploratory results displayed on the homepage, as checked on 2026-10-18. The traveler and manager experiments evaluate different role configurations against their own native MATSim baselines.
 
