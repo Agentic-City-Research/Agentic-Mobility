@@ -24,7 +24,7 @@ exploring AI agents and interconnected urban systems.
 
 
     
-🎯 [Research questions](#research-questions)· 🧪 [Experiments](#experiments) · 🚀 [Quickstart](#quickstart) · 🤝 [Community](#community--contributing)
+🎯 [Research questions](#research-questions) · 🧪 [Experiments](#experiments) · 🚀 [Quickstart](#quickstart) · 🤝 [Community](#community--contributing)
 
 </div>
 
@@ -49,7 +49,8 @@ LLMs control selected target trips; other trips follow native simulation behavio
 
 ## 🎯 Research Questions
 
-The platform supports the following research directions. The results below currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
+The experiments below examine traveler decisions and pricing interventions separately. 
+Information-access effects and joint traveler–pricing-agent configurations remain further research directions.
 
 | Research focus | Research question |
 | :--- | :--- |
@@ -126,11 +127,9 @@ This replay compares two days within the LLM run. It illustrates how traffic pat
 
 ### Pricing agent: interventions and system responses
 
-We compare two scenarios to examines how an agent’s repeated pricing interventions in system 
-outcomes.: native travelers interacting with an LLM-based pricing agent and a baseline 
-scenario without a pricing agent. Both scenarios are simulated for 500 days (Days 0–499) using the 
-same random seed (9261). Population, network, capacity, and native traveler strategy settings are 
-held constant across scenarios. In the pricing-agent scenario, all-day tolling is introduced on Day 20.
+We compare native travelers with and without an LLM pricing agent over 500 simulation days (Days 0–499),
+using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match 
+across the two scenarios. All-day tolling begins on Day 20 in the pricing-agent scenario.
 
 Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. Aggregate gains are modest, and the direction of change varies over time and across metrics.
 
@@ -147,7 +146,11 @@ System responses vary across space: some corridors experience lower delay, while
 
 </details>
 
-Each experimental setting includes one LLM-enabled simulation run. Different code builds and decision constraints limit attribution to individual design choices. The experiments also use different observation windows and metric scopes. See the [experiment records and data](docs/reported-experiments.md) for model settings, build identifiers, metric definitions, and interpretation.
+
+**[Experiment settings, data, and reproduction →](docs/reported-experiments.md)**
+
+See the experiment records for configurations, metric definitions, aggregate data, and available reproduction instructions.
+
 
 <a id="quickstart"></a>
 
