@@ -15,19 +15,16 @@
 </p>
 
 English | [中文](README.zh.md)
-</div>
 
-<div align="left">
+
+
     
 Part of [AgenticCity](https://github.com/Agentic-City-Research),
-a research platform for studying how AI agents make decisions, interact, and adapt within shared mobility environments.
-
-</div>
+exploring AI agents and interconnected urban systems.
 
 
-<div align="center">
     
-🧪 [Results](#experimental-results) · 🚀 [Quickstart](#quickstart) · 📖 [Documentation](#documentation) · 🎯 [Research directions](#research-directions) · 🤝 [Community](#community--contributing)
+🎯 [Research questions](#research-questions)· 🧪 [Experiments](#experiments) · 🚀 [Quickstart](#quickstart) · 🤝 [Community](#community--contributing)
 
 </div>
 
@@ -35,23 +32,24 @@ a research platform for studying how AI agents make decisions, interact, and ada
 
 ## 🧩 Overview
 
-![AgenticMobility framework](docs/assets/mobility-loop-simple.svg)
-
-Agentic Mobility is a research platform for studying how AI agents make mobility decisions, respond to shared conditions, and adapt through repeated interaction with their environment. It connects individual decisions with system-level outcomes, providing a setting for investigating collective patterns and their evolution over time.
+Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Agents interact through shared network conditions: their decisions affect the environment experienced by other agents.
 
 The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports LLM-controlled travelers and a pricing manager, with the experiments below evaluating these roles separately.
 
+![AgenticMobility framework](docs/assets/mobility-loop-homepage.svg)
+
+
 ### Daily simulation cycle
 
-Each day follows a decide–execute–reflect cycle: travelers select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Manager policy changes occur on scheduled review days.
+Each day follows a decide–execute–reflect cycle: traveler agents select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Manager policy changes occur on scheduled review days.
 
 LLMs control selected target trips; other trips follow native simulation behavior. Model weights remain fixed during the simulation. See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
 
-<a id="experimental-results"></a>
+<a id="research-questions"></a>
 
-## 🎯 Research Queations
+## 🎯 Research Questions
 
-The platform supports the following research directions. The results above currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
+The platform supports the following research directions. The results below currently cover traveler decision-making and manager-led congestion pricing; information-access and joint traveler–manager comparisons are further research directions.
 
 | Research focus | Comparison setting |
 | :--- | :--- |
@@ -62,17 +60,47 @@ The platform supports the following research directions. The results above curre
 
 Configuration templates are provided in the [experiment guide](docs/experiments-and-evaluation.md). Each comparison requires its own documented population, action constraints, background traffic, and evaluation protocol.
 
-<a id="community--contributing"></a>
+<a id="experiments"></a>
 
 ## 🧪 Experiments
 
-These experiments illustrate two ways to study agents within a shared mobility system: agents making individual travel decisions, and an agent changing the incentives under which native travelers act. Each setting is evaluated against its corresponding native MATSim baseline.
+The traveler agents case traces information, action, and realized outcomes at the individual level, while the aggregate time series and corridor comparisons describe temporal and spatial variation at the system level.
 
 ### Traveler agents: decisions and mobility outcomes
 
-We compare LLM-driven travelers against native MATSim over the same 61 completed simulation days (Days 0–60), using seed 9261. Population, network and capacity settings match within the comparison. Neither run includes a manager or tolls.
+This experiment examines how replacing selected travel decisions with LLM-based choices is associated with changes in individual journeys and aggregate mobility outcomes.
 
-Across these days, the LLM run records lower average target-trip travel times and fewer late work arrivals. Total daily car travel time across the full population is also lower.
+We examine individual and aggregate mobility outcomes by comparing LLM-controlled route and departure-time choices with native MATSim over Days 0–60. Both runs use seed 9261 and share the same population, network, and capacity settings, without a pricing agent or tolls.
+
+**A decision in context.** On Day 60, a traveler without access to network traffic information selected route c1 and departed at 07:31, citing recent experience with route reliability. The simulated trip took 14.13 minutes by car, with arrival at 07:48:52 before the 09:00 arrival target.
+
+<details>
+<summary>A traveler decision: route choice under limited information</summary>
+
+This example follows simulated commuter `10042_2` on Day 60 (model: `qwen3.5-9b`; no manager or tolls).
+
+| Stage | Recorded example |
+| :--- | :--- |
+| Available information | Four candidate routes (`c0`–`c3`) with distances, static free-flow time estimates, and estimated costs; nine allowed departure times from **06:01:19 to 08:01:19**, at 15-minute intervals; a **09:00 arrival threshold**; and personal trip records from Days 57–59. Network-wide traffic information was unavailable. |
+| Selected action | Route **`c1`**, approximately **5.31 km**, departing at **07:31:19**. Its static free-flow car-time estimate was **6.37 min**, compared with **5.62 min** for `c0`. |
+| Recorded rationale | “Recent experience shows c1 is reliable with no lateness compared to volatile c0.” |
+| Realized outcome | Actual trip departure: **07:31:19**. Car time: **14.13 min**. Door-to-door time: **17.55 min**. Destination arrival: **07:48:52**, before the 09:00 threshold. The execution audit confirmed that the completed route matched `c1`. |
+
+**Recent trajectory of the same traveler**
+
+| Day | Route | Trip departure | Car time (min) | Destination arrival | Arrival status |
+| :--- | :--- | :--- | ---: | :--- | :--- |
+| 57 | c0 | 07:31:19 | 11.28 | 07:46:01 | On time |
+| 58 | c0 | 08:01:19 | 75.18 | 09:19:55 | 19 min 55 s late |
+| 59 | c1 | 07:31:19 | 14.83 | 07:49:34 | On time |
+| 60 | c1 | 07:31:19 | 14.13 | 07:48:52 | On time |
+
+The Day 60 explanation emphasizes reliability, and the selected action can be traced through physical execution to the realized outcome. This individual trajectory illustrates decisions under limited information and changing shared conditions. Routes and departure times both vary across the displayed days.
+
+Car time includes pre-traffic waiting. Door-to-door time covers the complete target trip. The rationale is the explanation recorded in the model output.
+
+</details>
+
 
 | Metric | Native MATSim | LLM travelers | Change vs. native |
 | :--- | ---: | ---: | ---: |
@@ -99,19 +127,24 @@ This replay compares two days within the LLM run. It illustrates how traffic pat
 
 ### Pricing agent: interventions and system responses
 
+This experiment examines how an agent’s repeated pricing interventions are accompanied by temporal and spatial changes in system outcomes.
+
 We compare native travelers under an LLM pricing manager with a native baseline without a manager over 500 completed simulation days (Days 0–499), using seed 9261. Population, network, capacity and native strategy settings match within this comparison. All-day tolling begins on Day 20.
 
-Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. The time series shows periods of both improvement and deterioration, rather than a sustained reduction in every metric.
+Across the charged period (Days 20–499), total network delay is **0.29% lower**, morning link delay is **0.26% higher**, and total daily car travel time is **3.52% lower** than the baseline. Aggregate gains are modest, and the direction of change varies over time and across metrics.
 
 [![Traffic outcomes under LLM pricing relative to the native baseline](docs/assets/traffic_outcomes_three_panels.png)](docs/assets/traffic_outcomes_manager.svg)
 
 Positive values in this figure indicate improvement. Charged-period percentages use ratios of totals over Days 20–499. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
 
-**Where do delays change?**
+System responses vary across space: some corridors experience lower delay, while others experience higher delay.
 
-The corridor comparison shows spatially uneven outcomes: some directed corridors experience less delay while others experience more. Colors report the change in mean daily corridor delay across the charged period. Diamonds identify corridors with at least one tolled link on at least one day during that period.
+<details>
+<summary>Spatial variation across corridors</summary>
 
 ![Directed corridor delay changes relative to the native baseline](docs/assets/corridor_network.png)
+
+</details>
 
 These exploratory comparisons include one LLM seed per setting. Different code builds and decision constraints limit attribution to individual design choices. The experiments also use different observation windows and metric scopes. See the [experiment records and data](docs/reported-experiments.md) for model settings, build identifiers, metric definitions, and interpretation.
 
@@ -167,6 +200,10 @@ This 100-person example checks installation and execution. The `--sample-persons
 
 Before running LLM travelers, an LLM manager, or joint experiments, follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to configure `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY`. The platform then calls the configured service automatically during decisions, reflection, and other enabled stages. The service must support the Chat Completions API. MATSim runs on CPU, and the model service can be hosted on another machine.
 
+**[Run your first LLM-controlled traveler experiment →](docs/getting-started.md#start-with-a-small-traveler-run)**
+
+After configuring your model service, follow the Bash or Windows PowerShell example to run seven simulation days with three LLM-controlled travelers in a 10% population sample.
+
 For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
 
 <a id="documentation"></a>
@@ -182,10 +219,8 @@ For installation, troubleshooting, and additional instructions, see the [operati
 | [Reported experiments](docs/reported-experiments.md) | Model settings, build identifiers, result definitions, and aggregate data |
 | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
 
-<a id="research-questions"></a>
-<a id="research-directions"></a>
 
-
+<a id="community--contributing"></a>
 
 ## 🤝 Community & Contributing
 
@@ -198,7 +233,6 @@ or extend simulation scenarios.
 
 If Agentic Mobility looks useful to you, please give it a ⭐ — it helps the community to discover and contribute to the project.
 
-<a id="citation-and-license"></a>
 
 ## 📚 Citation and license
 
