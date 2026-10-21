@@ -23,7 +23,7 @@ exploring AI agents and interconnected urban systems.
 
 
     
-[RESEARCH QUESTIONS 🎯](#research-questions) · [EXPERIMENT 01 🧪](#experiments) · [QUICKSTART 🚀](#quickstart) · [COMMUNITY 🤝](#community--contributing)
+[RESEARCH QUESTIONS 🎯](#research-questions) · [EXPERIMENT 01 🧪](#experiments) · [QUICKSTART 🚀](#quickstart) · [DOCUMENTATION 📖](#documentation) · [COMMUNITY 🤝](#community--contributing)
 
 </div>
 
@@ -107,6 +107,7 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 > </details>
 >
 > **Aggregate results over Days 0–60**
+>
 > | Metric | Native MATSim | LLM travelers | Change vs. native |
 > | :--- | ---: | ---: | ---: |
 > | Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
@@ -132,28 +133,28 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 
 ### Pricing agent: interventions and system responses
 
-We compare native MATSim travelers with and without an LLM pricing agent over the first **100 simulation days (Days 0–99)** of the original 500-day runs, using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match across the two scenarios. All-day tolling begins on Day 20.
-
-During the charged period (**Days 20–99**), total network delay is **9.22% higher**, morning link delay is **9.10% higher**, and total daily car travel time is **3.12% lower** than the native baseline. The reduction in total car time mainly reflects less pre-traffic waiting; it does not indicate lower delay within the road network.
-
-[![First 100 days: traffic outcomes under LLM pricing relative to the native baseline](docs/assets/first100_traffic_outcomes.png)](docs/assets/first100_traffic_outcomes.svg)
-
-Positive values indicate improvement. Thin gray lines show daily differences; dark lines show trailing seven-day ratios of totals. Summary percentages cover Days 20–99. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
-
-The pricing agent introduces tolls on **20 links on Day 20**, holds the same prices on **Day 50**, and adjusts the policy to cover **23 links on Day 80**. Network delay remains above the same-day baseline in each stage, although the gap narrows from **15.40%** during Days 20–49 to **2.70%** during Days 80–99. The final stage contains only 20 observed days, and this change cannot be attributed solely to the Day 80 adjustment.
-
-<details>
-<summary>Spatial variation across corridors</summary>
-
-![Directed corridor delay changes during Days 20–99](docs/assets/first100_corridor_comparison.png)
-
-Local improvements coexist with larger increases elsewhere. For example, corridor C60 (20 → 18) experiences **51.67 fewer vehicle-hours of delay per day**, while C51 (17 → 10) experiences **96.11 more** than the baseline.
-
-Corridors are directed road chains between route-choice junctions, rather than complete traveler routes. Blue indicates less delay; orange indicates more delay.
-
-</details>
-
-All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
+> We compare native MATSim travelers with and without an LLM pricing agent over the first **100 simulation days (Days 0–99)** of the original 500-day runs, using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match across the two scenarios. All-day tolling begins on Day 20.
+>
+> During the charged period (**Days 20–99**), total network delay is **9.22% higher**, morning link delay is **9.10% higher**, and total daily car travel time is **3.12% lower** than the native baseline. The reduction in total car time mainly reflects less pre-traffic waiting; it does not indicate lower delay within the road network.
+>
+> [![First 100 days: traffic outcomes under LLM pricing relative to the native baseline](docs/assets/first100_traffic_outcomes.png)](docs/assets/first100_traffic_outcomes.svg)
+>
+> Positive values indicate improvement. Thin gray lines show daily differences; dark lines show trailing seven-day ratios of totals. Summary percentages cover Days 20–99. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
+>
+> The pricing agent introduces tolls on **20 links on Day 20**, holds the same prices on **Day 50**, and adjusts the policy to cover **23 links on Day 80**. Network delay remains above the same-day baseline in each stage, although the gap narrows from **15.40%** during Days 20–49 to **2.70%** during Days 80–99. The final stage contains only 20 observed days, and this change cannot be attributed solely to the Day 80 adjustment.
+>
+> <details>
+> <summary>Spatial variation across corridors</summary>
+>
+> ![Directed corridor delay changes during Days 20–99](docs/assets/first100_corridor_comparison.png)
+>
+> Local improvements coexist with larger increases elsewhere. For example, corridor C60 (20 → 18) experiences **51.67 fewer vehicle-hours of delay per day**, while C51 (17 → 10) experiences **96.11 more** than the baseline.
+>
+> Corridors are directed road chains between route-choice junctions, rather than complete traveler routes. Blue indicates less delay; orange indicates more delay.
+>
+> </details>
+>
+> All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
 
 **[Experiment settings, data, and reproduction →](docs/reported-experiments.md)**
 
@@ -164,10 +165,11 @@ See the experiment records for configurations, metric definitions, aggregate dat
 
 ## QUICKSTART 🚀
 
+Build the project, run a small native baseline, and check that it completes. Then, optionally connect a model service to run LLM-controlled travelers.
 
-Requires **JDK 25** (including `javac`) and Git. The Maven Wrapper downloads Maven and dependencies on first use.
+**Prerequisites:** JDK 25 (including `javac`), Git, and network access for the first build. The bundled Maven Wrapper downloads Maven and dependencies. The native baseline requires no model API.
 
-**Get the source and build**
+### 1. Get the source and build
 
 ```bash
 git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
@@ -177,9 +179,13 @@ sh ./mvnw -B clean package
 
 On Windows PowerShell, build with `.\mvnw.cmd -B clean package`.
 
-**Run a diagnostic baseline without model API calls**
+The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root. Run the following commands from that directory.
 
-The following command runs a two-day diagnostic baseline with 100 native travelers.
+### 2. Run a native baseline
+
+Run a two-day diagnostic simulation with 100 native travelers and no model API calls.
+
+**Bash (Linux/macOS)**
 
 ```bash
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
@@ -204,33 +210,51 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 
 </details>
 
-After a successful run, `morning/status.json` in the actual output directory should contain `complete=true` and `daysCompleted=2`. If the requested directory already exists, the application creates a numbered alternative. Use the output path reported in the console.
+### 3. Confirm the run completed
+
+Use the output directory reported in the console (normally `output/quickstart`). If that directory already exists, the application creates a numbered alternative.
+
+Open `<output-directory>/morning/status.json` and check that it contains:
+
+```json
+{
+  "complete": true,
+  "daysCompleted": 2
+}
+```
+
+These are the completion fields to check; the file contains additional run information.
 
 This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
 
-**Connect a model API**
+### 4. Optional: run an LLM traveler experiment
 
-Before running LLM travelers, a pricing agent, or both, follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to configure `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY`. The platform then calls the configured service automatically during decisions, reflection, and other enabled stages. The service must support the Chat Completions API. MATSim runs on CPU, and the model service can be hosted on another machine.
+1. Follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to set `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY` for a Chat Completions-compatible service.
+2. Follow the [first LLM traveler experiment](docs/getting-started.md#start-with-a-small-traveler-run) to run seven simulation days with three LLM-controlled travelers in a 10% population sample. Bash and Windows PowerShell examples are provided.
 
-**[Run your first LLM-controlled traveler experiment →](docs/getting-started.md#start-with-a-small-traveler-run)**
-
-After configuring your model service, follow the Bash or Windows PowerShell example to run seven simulation days with three LLM-controlled travelers in a 10% population sample.
+MATSim runs on CPU; the model service can be hosted on another machine. Once configured, the platform calls the service automatically during enabled LLM stages. The same API setup is required for an LLM pricing agent.
 
 For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
 
+<br>
+
 <a id="documentation"></a>
 
+## DOCUMENTATION 📖
 
-## 📖 Documentation
+New to the project? Start with [Getting started](docs/getting-started.md). For research experiments, check the scenario and sampling settings, review the methods, then use the experiment guide to configure and record your runs.
 
-| Guide | What you will find |
-| :--- | :--- |
-| [Getting started](docs/getting-started.md) | Installation, API setup, first run, and troubleshooting |
-| [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, memory, and pricing |
-| [Experiments & evaluation](docs/experiments-and-evaluation.md) | Experiment configurations, baselines, and run records |
-| [Reported experiments](docs/reported-experiments.md) | Model settings, build identifiers, result definitions, and aggregate data |
-| [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, and extensions |
+| I want to… | Read | What it covers |
+| :--- | :--- | :--- |
+| Install and run my first simulation | [Getting started](docs/getting-started.md) | Requirements, diagnostic baseline, model API setup, and troubleshooting |
+| Choose data and set the simulation scale | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, population sampling, and road capacity |
+| Understand how the agents work | [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, decisions, memory, and pricing |
+| Design and evaluate an experiment | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Configuration templates, baselines, request budgets, and run records |
+| Inspect the reported results | [Reported experiments](docs/reported-experiments.md) | Completed comparisons, model settings, build identifiers, metrics, and aggregate data |
+| Find detailed operating instructions | [Operating guide](docs/usage-guide.md) | Execution options, deployment, outputs, and troubleshooting |
+| Read operating instructions in Chinese | [中文操作指南](docs/usage-guide.zh.md) | 安装、实验运行、部署、输出与故障排查 |
 
+Browse the [documentation index](docs/README.md) for all guides.
 
 <br>
 
