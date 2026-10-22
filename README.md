@@ -52,8 +52,8 @@ LLMs control selected target trips; other trips follow native simulation behavio
 
 ## RESEARCH QUESTIONS 🎯
 
-The experiments below examine traveler decisions and pricing interventions separately. 
-Information-access effects and joint traveler–pricing-agent configurations remain further research directions.
+The experiments below examine individual decisions and aggregate outcomes across five configurations. 
+Information-access effects and causal interactions between traveler and pricing agents remain open research questions.
 
 | Research focus | Research question |
 | :--- | :--- |
@@ -75,16 +75,16 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 
 ### Five configurations in a shared mobility system
 
-We compare individual decisions and system outcomes across five configurations of an enriched Sioux Falls scenario, using **simulation seed 268**. All configurations share the same network, population and facilities inputs, sampled population, target trips, candidate routes, and departure-time options. LLM traveler agents use `qwen3.5-9b`; the pricing agent uses `deepseek-flash`.
+We compare individual decisions and system outcomes across five configurations of an enriched Sioux Falls scenario, using **simulation seed 268**.All configurations share the same scenario inputs, sampled population, and target-trip cohort. Constrained MNL and the two LLM traveler configurations use the same candidate routes and departure-time options. LLM traveler agents use `qwen3.5-9b`; the pricing agent uses `deepseek-flash`.
 
 
-| Configuration       | Target-trip decisions                                                | Pricing                                          |
-| :------------------ | :------------------------------------------------------------------- | :----------------------------------------------- |
-| MATSim agents       | MATSim plan selection, rerouting, and time adjustment                | None                                             |
-| Constrained MNL     | Joint route and departure-time MNL choices from the fixed action set | None                                             |
-| LLM traveler agents | LLM-controlled route and departure-time choices                      | None                                             |
-| Manager             | MATSim decisions                                                     | LLM pricing agent; tolls first applied on Day 20 |
-| Joint               | LLM-controlled route and departure-time choices                      | LLM pricing agent; tolls first applied on Day 50 |
+| Configuration | Traveler decisions | Pricing agent |
+|---|---|---|
+| MATSim agents | MATSim replanning | None |
+| Constrained MNL | MNL over fixed route–departure options | None |
+| LLM traveler agents | LLM route–departure choices | None |
+| Manager | MATSim replanning | Enabled; tolls from Day 20 |
+| Joint | LLM route–departure choices | Enabled; tolls from Day 50 |
 
 
 >
@@ -131,7 +131,7 @@ Route and departure time both changed. This trip paid zero tolls; the trace does
 
 </details>
 
-[Case records and execution checks →](docs/assets/data/seed268seed268-individual-cases.md)
+[Case records and execution checks →](docs/assets/data/seed268-individual-cases.md)
 
 ### Individual and aggregate mobility outcomes
 
@@ -155,9 +155,7 @@ LLM traveler agents and Joint select departures an average of **34.93** and **39
 
 **Interpretation.** This is one run per configuration at a shared simulation seed. The results describe the observed configurations and do not establish cross-seed robustness or causal synergy between the two agent roles.
 
-**[Seed 268 experiment settings, data, and validation →](docs/assets/data/seed268seed268-experiments.md)**
-
-> All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
+**[Seed 268 experiment settings, data, and validation →](docs/assets/data/seed268-experiments.md)**
 
 
 <br>
