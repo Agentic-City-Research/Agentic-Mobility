@@ -157,14 +157,8 @@ LLM traveler agents and Joint select departures an average of **34.93** and **39
 
 **[Seed 268 experiment settings, data, and validation →](docs/seed268-experiments.md)**
 
-The records include the separate 100-day results for the four completed runs, metric definitions, policy history, aggregate CSVs, and execution-audit summaries.
-
-
 > All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
 
-**[Experiment settings, data, and reproduction →](docs/reported-experiments.md)**
-
-See the experiment records for configurations, metric definitions, aggregate data, and available reproduction instructions.
 
 <br>
 
