@@ -1,0 +1,8 @@
+{
+  "Native": "MATSim agents",
+  "MNL": "Constrained MNL",
+  "Constrained MNL": "Constrained MNL",
+  "Traveler": "LLM traveler agents",
+  "Manager": "Manager",
+  "Joint": "Joint"
+}

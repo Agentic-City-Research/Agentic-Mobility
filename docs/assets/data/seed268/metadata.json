@@ -1,0 +1,82 @@
+{
+  "analysis_snapshot": "2026-10-22",
+  "simulation_seed": 268,
+  "day_indexing": "zero-based",
+  "common_first_day": 0,
+  "common_last_day": 87,
+  "common_days": 88,
+  "joint_100_days_complete": false,
+  "partial_day88_excluded": true,
+  "source_report_sha256": "3f4e9eb8bc3b1890f62d215f392562f5781ccb3cc17daef57e3d9f08989908cf",
+  "runs": {
+    "Native": {
+      "metrics_days": 100,
+      "last_completed_day": 99,
+      "jar_sha256": "6eb4c0af3ffb03f4664a97b7d2e073de86ab3fd19a6b42bdf68c2b06f116d7b9",
+      "effective_config_available": true
+    },
+    "MNL": {
+      "metrics_days": 100,
+      "last_completed_day": 99,
+      "jar_sha256": "a5f0a7b3b9d91783769aa61802734233b736d414938ce8c1d81113059f54f8d9",
+      "effective_config_available": true
+    },
+    "Traveler": {
+      "metrics_days": 100,
+      "last_completed_day": 99,
+      "jar_sha256": "d840f208dc618cb4238df09b36b2b4bd386d663880b0dee1f293aeaf367b11c3",
+      "effective_config_available": true
+    },
+    "Manager": {
+      "metrics_days": 100,
+      "last_completed_day": 99,
+      "jar_sha256": "6eb4c0af3ffb03f4664a97b7d2e073de86ab3fd19a6b42bdf68c2b06f116d7b9",
+      "effective_config_available": true
+    },
+    "Joint": {
+      "metrics_days": 88,
+      "last_completed_day": 87,
+      "jar_sha256": "82b736e7e47940b08e6102a4805e7bf38b1042fd9d5b485cf7a4a2479a2dc153",
+      "effective_config_available": false
+    }
+  },
+  "files_sha256": {
+    "docs/assets/seed268_five_conditions_20261022/five_condition_trajectories.png": "ff2581c0fef52e7a4b3013ccd2bb3d01de195fbf5ebc96a510c4c943160ef0d9",
+    "docs/assets/seed268_five_conditions_20261022/five_condition_trajectories.svg": "d9ea6930393693e38b67dfe9112d37c5b4a11ebe184d98b7f34a838ef9255cf8",
+    "docs/assets/seed268_five_conditions_20261022/individual_outcome_distributions.png": "d3901845d8f48a7f0f00a99bb660649ddaecc626b6ad416881c02a22c0473f76",
+    "docs/assets/seed268_five_conditions_20261022/individual_outcome_distributions.svg": "1efbc4b4a77d2ea0282a9cfabb9243ce4c3016230f319da3f5d8ac6ed001b09c",
+    "docs/assets/seed268_five_conditions_20261022/joint_vs_traveler_decomposition.png": "ae29f4e704d1b264a71eb5040b12718bbbd74aaf6973e0d25aae418a7fbeee1c",
+    "docs/assets/seed268_five_conditions_20261022/joint_vs_traveler_decomposition.svg": "fc13dd43038bc6fa9cc3aac6563a75e00cd6d942527c8462329f88dd2978c99b",
+    "docs/data/seed268_five_conditions_20261022/comparison_common88.csv": "a5cc696dc0e13661d62d563788daf24645fc31c0895a9551c65dde1a87cae092",
+    "docs/data/seed268_five_conditions_20261022/condition-labels.json": "d38cc48286963eaff54caef4fdd2406f149376fcfaeb983a946845bde3f17b83",
+    "docs/data/seed268_five_conditions_20261022/daily_metrics.csv": "9730f81e9027c9357c993218ac3c9c0fce6938f3e668217ad3688d2e26b122c8",
+    "docs/data/seed268_five_conditions_20261022/individual-case-evidence.json": "97062ec905908d030f7b0efa54e0304561e8d45a6660c78ba88ff2dc6f11df0b",
+    "docs/data/seed268_five_conditions_20261022/individual-case-traces.csv": "012322259227410d02ad9fc37243b954af842b3bd08a653e6186ae7f3e6abfb9",
+    "docs/data/seed268_five_conditions_20261022/individual-case-validation.json": "a2c8b89d41d27131921f2487fc216e1a11b5f0f9995c7515b1f2538fd70f1690",
+    "docs/data/seed268_five_conditions_20261022/individual_effects.csv": "e33aa06bdef236cba928fbba8c830a6ff974257957ae1d8087a14a27f890903e",
+    "docs/data/seed268_five_conditions_20261022/joint_execution_audit.json": "79ae99e32b9e271326e4f3b04dd566cbedf4cf1f9daef3619cdab9d9656d26be",
+    "docs/data/seed268_five_conditions_20261022/matching_audit.json": "ff789bb5a5896d20ccc6e5ed0fa38bedecd26cf6966c45bfb31749fda8341bd2",
+    "docs/data/seed268_five_conditions_20261022/paired_comparisons.csv": "59b3d2688d34f483acaa523801644d3470b9bf7b33bd3ae4994afb4d17e97753",
+    "docs/data/seed268_five_conditions_20261022/period_summary.csv": "ca30b69d3b78155570616005883325d42c716086d18dafce638505deb1667a1d",
+    "docs/data/seed268_five_conditions_20261022/verification.json": "80f6cb13db40d717eacb43e52608d0d54a934a3ff02bb7d759398207609e94ff",
+    "docs/seed268-experiments.md": "142dcc1f320cad3ab7c244d0b09849af590c35cdb7aa443de3c0bd2eb5c14cf1",
+    "docs/seed268-individual-cases.md": "cd9bf4c18b4108bcc909a9b92c067eac3985c6c1bc70555604ab96c89f6045e3",
+    "README.md": "0e5cdf75bc43e38ec584ed2fab7106cba000041d7affb2c6bd4e41c6168d47aa",
+    "scripts/extract_seed268_readme_cases.py": "e104819c3953c86e1ac6ba343a6b3074765ab7cebc597cdea7e62c2c2f657d0d"
+  },
+  "note": "Source analysis snapshot; raw model logs and runtime binaries are not distributed in this README package.",
+  "individual_cases": {
+    "featured_homepage": 2,
+    "detailed_document": 3,
+    "verified_date_trip_records": 18,
+    "selection": "Purposeful cases, not representative sampling"
+  },
+  "display_labels": {
+    "Native": "MATSim agents",
+    "MNL": "Constrained MNL",
+    "Constrained MNL": "Constrained MNL",
+    "Traveler": "LLM traveler agents",
+    "Manager": "Manager",
+    "Joint": "Joint"
+  }
+}

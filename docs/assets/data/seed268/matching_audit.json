@@ -1,0 +1,26 @@
+{
+  "same_network_population_facilities_hashes": true,
+  "same_sampled_population_ids": true,
+  "same_cohort_original_times_endpoints_and_departure_options": true,
+  "same_candidate_contents": true,
+  "same_controlled_profiles_and_information_groups_for_MNL_Traveler_Joint": true,
+  "all_runs_same_jar": false,
+  "Native_Manager_same_jar": true,
+  "Joint_effective_final_config_missing": true,
+  "Joint_Traveler_no_toll_period_max_trip_difference": {
+    "19": {
+      "carSeconds": 13393.0,
+      "selectedDepartureSeconds": 7200.0,
+      "arrivalSeconds": 15738.0
+    },
+    "49": {
+      "carSeconds": 13393.0,
+      "selectedDepartureSeconds": 7200.0,
+      "arrivalSeconds": 15738.0
+    }
+  },
+  "common_completed_days": 88,
+  "Joint_gzip_is_unclosed": true,
+  "Joint_is_100day_complete": false,
+  "single_seed_no_inferential_tests": true
+}
