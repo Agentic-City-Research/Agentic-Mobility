@@ -73,54 +73,20 @@ Configuration templates are provided in the [experiment guide](docs/experiments-
 The traveler case traces available information, selected actions, and realized outcomes. 
 The time series and corridor comparisons show how aggregate outcomes vary over time and across the network.
 
-### Traveler agents: decisions and mobility outcomes
+### Five configurations in a shared mobility system
 
-> We examine individual and aggregate mobility outcomes by comparing LLM-controlled route and departure-time choices with native MATSim over Days 0–60. Both runs use seed 9261 and share the same population, network, and capacity settings, without a pricing agent or tolls.
->
-> **A decision in context.** On Day 60, a traveler without access to network traffic information selected route c1 and departed at 07:31, citing recent experience with route reliability. The simulated trip took 14.13 minutes by car, with arrival at 07:48:52 before the 09:00 arrival target.
->
-> <details>
-> <summary>A traveler decision: route choice under limited information</summary>
->
-> This example follows simulated commuter `10042_2` on Day 60 (model: `qwen3.5-9b`; no manager or tolls).
->
-> | Stage | Recorded example |
-> | :--- | :--- |
-> | Available information | Four candidate routes (`c0`–`c3`) with distances, static free-flow time estimates, and estimated costs; nine allowed departure times from **06:01:19 to 08:01:19**, at 15-minute intervals; a **09:00 arrival threshold**; and personal trip records from Days 57–59. Network-wide traffic information was unavailable. |
-> | Selected action | Route **`c1`**, approximately **5.31 km**, departing at **07:31:19**. Its static free-flow car-time estimate was **6.37 min**, compared with **5.62 min** for `c0`. |
-> | Recorded rationale | “Recent experience shows c1 is reliable with no lateness compared to volatile c0.” |
-> | Realized outcome | Actual trip departure: **07:31:19**. Car time: **14.13 min**. Door-to-door time: **17.55 min**. Destination arrival: **07:48:52**, before the 09:00 threshold. The execution audit confirmed that the completed route matched `c1`. |
->
-> **Recent trajectory of the same traveler**
->
-> | Day | Route | Trip departure | Car time (min) | Destination arrival | Arrival status |
-> | :--- | :--- | :--- | ---: | :--- | :--- |
-> | 57 | c0 | 07:31:19 | 11.28 | 07:46:01 | On time |
-> | 58 | c0 | 08:01:19 | 75.18 | 09:19:55 | 19 min 55 s late |
-> | 59 | c1 | 07:31:19 | 14.83 | 07:49:34 | On time |
-> | 60 | c1 | 07:31:19 | 14.13 | 07:48:52 | On time |
->
-> The Day 60 explanation emphasizes reliability, and the selected action can be traced through physical execution to the realized outcome. This individual trajectory illustrates decisions under limited information and changing shared conditions. Routes and departure times both vary across the displayed days.
->
-> Car time includes pre-traffic waiting. Door-to-door time covers the complete target trip. The rationale is the explanation recorded in the model output.
->
-> </details>
->
-> **Aggregate results over Days 0–60**
->
-> | Metric | Native MATSim | LLM travelers | Change vs. native |
-> | :--- | ---: | ---: | ---: |
-> | Mean target-trip car travel time (min) | 22.29 | 17.76 | −20.35% |
-> | Mean target-trip door-to-door travel time (min) | 41.02 | 36.48 | −11.06% |
-> | P95 target-trip car travel time (min) | 70.55 | 57.99 | −17.80% |
-> | Late work arrivals (%) | 15.48 | 6.02 | −9.46 pp |
-> | Total daily car travel time (person-hours) | 11,424.11 | 10,480.04 | −8.26% |
->
-> Values are daily averages over Days 0–60. P95 is the average of daily P95 values, and pp denotes percentage points. Target-trip metrics cover 11,793 trips/day, work lateness covers 11,332 work trips/day, and total car travel time covers 33,644 car legs/day.
->
-> [![Daily outcomes for LLM travelers and native MATSim over Days 0–60](docs/assets/llm-vs-native-61days.png)](docs/assets/llm-vs-native-61days.svg)
->
-> The gray curves show two additional native runs (seeds 268 and 4711); the primary comparison uses seed 9261 in both conditions. Shading marks Days 56–60.
+We compare individual decisions and system outcomes across five configurations of an enriched Sioux Falls scenario, using **simulation seed 268**. All configurations share the same network, population and facilities inputs, sampled population, target trips, candidate routes, and departure-time options. LLM traveler agents use `qwen3.5-9b`; the pricing agent uses `deepseek-flash`.
+
+
+| Configuration       | Target-trip decisions                                                | Pricing                                          |
+| :------------------ | :------------------------------------------------------------------- | :----------------------------------------------- |
+| MATSim agents       | MATSim plan selection, rerouting, and time adjustment                | None                                             |
+| Constrained MNL     | Joint route and departure-time MNL choices from the fixed action set | None                                             |
+| LLM traveler agents | LLM-controlled route and departure-time choices                      | None                                             |
+| Manager             | MATSim decisions                                                     | LLM pricing agent; tolls first applied on Day 20 |
+| Joint               | LLM-controlled route and departure-time choices                      | LLM pricing agent; tolls first applied on Day 50 |
+
+
 >
 > <details>
 > <summary>Traffic replay: Day 0 vs. Day 50</summary>
@@ -131,29 +97,84 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 >
 > </details>
 
-### Pricing agent: interventions and system responses
+**Zoom in on individual decisions.** The recorded traces show a route switch at an unchanged departure time and a return to the earliest allowed departure after a late arrival.
 
-> We compare native MATSim travelers with and without an LLM pricing agent over the first **100 simulation days (Days 0–99)** of the original 500-day runs, using simulation seed 9261. Population, network, capacity, and native traveler strategy settings match across the two scenarios. All-day tolling begins on Day 20.
->
-> During the charged period (**Days 20–99**), total network delay is **9.22% higher**, morning link delay is **9.10% higher**, and total daily car travel time is **3.12% lower** than the native baseline. The reduction in total car time mainly reflects less pre-traffic waiting; it does not indicate lower delay within the road network.
->
-> [![First 100 days: traffic outcomes under LLM pricing relative to the native baseline](docs/assets/first100_traffic_outcomes.png)](docs/assets/first100_traffic_outcomes.svg)
->
-> Positive values indicate improvement. Thin gray lines show daily differences; dark lines show trailing seven-day ratios of totals. Summary percentages cover Days 20–99. Network delay excludes pre-traffic waiting, whereas total car travel time includes it. Morning link delay covers link entries from 07:00 to 09:00.
->
-> The pricing agent introduces tolls on **20 links on Day 20**, holds the same prices on **Day 50**, and adjusts the policy to cover **23 links on Day 80**. Network delay remains above the same-day baseline in each stage, although the gap narrows from **15.40%** during Days 20–49 to **2.70%** during Days 80–99. The final stage contains only 20 observed days, and this change cannot be attributed solely to the Day 80 adjustment.
->
-> <details>
-> <summary>Spatial variation across corridors</summary>
->
-> ![Directed corridor delay changes during Days 20–99](docs/assets/first100_corridor_comparison.png)
->
-> Local improvements coexist with larger increases elsewhere. For example, corridor C60 (20 → 18) experiences **51.67 fewer vehicle-hours of delay per day**, while C51 (17 → 10) experiences **96.11 more** than the baseline.
->
-> Corridors are directed road chains between route-choice junctions, rather than complete traveler routes. Blue indicates less delay; orange indicates more delay.
->
-> </details>
->
+<details>
+<summary>LLM traveler agent: switching routes after a late arrival</summary>
+
+Simulated traveler `1005_1`, Day 65, seed 268; no pricing agent.
+
+| Stage | Recorded example |
+| :--- | :--- |
+| Available information | Four routes, nine departure times, a 09:00 arrival target, and personal trips from Days 62–64; no network traffic information. |
+| Selected action | `c1` at **08:12:47**, the same departure time as the previous day. |
+| Recorded rationale | “I chose route c1 to avoid the inconsistency of c0 while ensuring I meet the 09:00 deadline on time.” |
+| Realized outcome | **7.85 min** car time; destination arrival **08:41:33**. The previous day's `c0` trip took **31.28 min**, arriving **4 min 59 s late**. |
+
+Both choices were executed as recorded. Shared conditions also varied between days.
+
+</details>
+
+<details>
+<summary>Joint: punctuality with a much earlier departure</summary>
+
+Simulated traveler `10010_2`, Day 60, seed 268; Joint configuration.
+
+| Stage | Recorded example |
+| :--- | :--- |
+| Available information | Four routes, nine departure times, a 09:00 arrival target, personal trips from Days 57–59, and current pricing announcements; no network traffic information. |
+| Selected action | `c1` at **05:56:43**, the earliest option and **90 minutes before** the original departure. |
+| Recorded rationale | “Aggressive decision to diversify from unreliable c0 and avoid lateness.” |
+| Realized outcome | **21.97 min** car time; destination arrival **06:33:36**. The previous day's later `c0` trip arrived **10 min 48 s late**. |
+
+Route and departure time both changed. This trip paid zero tolls; the trace does not isolate a pricing effect.
+
+</details>
+
+[Case records and execution checks →](docs/seed268-individual-cases.md)
+
+### Individual and aggregate mobility outcomes
+
+**LLM traveler agents record the lowest all-day car travel time, 18.49% below MATSim agents. Joint records the lowest target-trip car time and work late-arrival rate.** The ordering therefore depends on the level and metric being evaluated.
+
+| Configuration | All-day car time (person-hours/day) | Change vs. MATSim agents | Target-trip car time (min) | Work late-arrival rate |
+| :--- | ---: | ---: | ---: | ---: |
+| MATSim agents | 12,322.75 | — | 28.31 | 19.71% |
+| Constrained MNL | 17,307.06 | +40.45% | 53.23 | 31.28% |
+| LLM traveler agents | **10,044.57** | −18.49% | 17.43 | 5.67% |
+| Manager | 12,530.01 | +1.68% | 28.48 | 19.91% |
+| Joint | 11,568.74 | −6.12% | **16.33** | **3.82%** |
+
+Values are daily means over Days 0–87. Relative changes use unrounded window means; negative time changes indicate lower travel time. Target-trip metrics cover **11,793 trips/day**, work lateness covers **11,332 work trips/day**, and all-day car time covers **33,644 car legs/day** across **16,822 simulated people**. All car legs completed on the included days, with no stuck vehicles. Car time includes pre-traffic waiting; the target trips include multiple activity purposes.
+
+[![Five configurations: daily and trailing seven-day mobility outcomes over Days 0–87](docs/assets/five_condition_trajectories.png)](docs/assets/five_condition_trajectories.svg)
+
+Thin lines show daily values; thick lines show trailing seven-day means, without confidence intervals. Actual toll activation differs between Manager (Day 20) and Joint (Day 50). Day 80 is a scheduled policy review: Manager adjusts its policy, while Joint holds its existing charges.
+
+### Target-trip gains and system-level trade-offs
+
+Compared with LLM traveler agents, Joint records **1.09 minutes lower target-trip car time (6.28%)** and a **1.85-percentage-point lower work late-arrival rate**, alongside **15.17% higher all-day car travel time**. Target trips account for a reduction of **215.01 person-hours/day**, while other car trips account for an increase of **1,739.18 person-hours/day**. Other car trips include non-target journeys made by the controlled travelers themselves.
+
+These differences are already present before Joint tolling: over Days 0–49, Joint's all-day car time is **14.90% higher** than in the LLM traveler agent configuration. The comparison describes a trade-off between target-trip outcomes and the all-day system measure; it does not isolate the causal effect of adding a pricing agent.
+
+<details>
+<summary>Joint versus LLM traveler agents: trajectories and trip-scope decomposition</summary>
+
+[![Joint minus LLM traveler agents: pre-existing differences and target versus other car trips](docs/assets/joint_vs_traveler_decomposition.png)](docs/assets/joint_vs_traveler_decomposition.svg)
+
+Positive differences indicate greater travel time in Joint. Dashed horizontal segments show phase means. The decomposition sums to an additional **1,524.17 person-hours/day** over the common window; it does not identify which mechanism caused the difference.
+
+</details>
+
+LLM traveler agents and Joint select departures an average of **34.93** and **39.55 minutes earlier** than the original plans. These schedule changes accompany the punctuality results.
+
+**Interpretation.** This is one run per configuration at a shared simulation seed. The results describe the observed configurations and do not establish cross-seed robustness or causal synergy between the two agent roles.
+
+**[Seed 268 experiment settings, data, and validation →](docs/seed268-experiments.md)**
+
+The records include the separate 100-day results for the four completed runs, metric definitions, policy history, aggregate CSVs, and execution-audit summaries.
+
+
 > All planned car trips complete in both scenarios throughout the selected period. These are descriptive results from one paired seed and different code builds; they do not establish an isolated causal effect of LLM pricing.
 
 **[Experiment settings, data, and reproduction →](docs/reported-experiments.md)**
@@ -161,7 +182,9 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 See the experiment records for configurations, metric definitions, aggregate data, and available reproduction instructions.
 
 <br>
+
 <a id="quickstart"></a>
+
 
 ## QUICKSTART 🚀
 
