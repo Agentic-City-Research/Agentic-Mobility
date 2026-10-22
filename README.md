@@ -252,7 +252,6 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 | Design and evaluate an experiment | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Configuration templates, baselines, request budgets, and run records |
 | Inspect the reported results | [Reported experiments](docs/reported-experiments.md) | Completed comparisons, model settings, build identifiers, metrics, and aggregate data |
 | Find detailed operating instructions | [Operating guide](docs/usage-guide.md) | Execution options, deployment, outputs, and troubleshooting |
-| Read operating instructions in Chinese | [中文操作指南](docs/usage-guide.zh.md) | 安装、实验运行、部署、输出与故障排查 |
 
 Browse the [documentation index](docs/README.md) for all guides.
 
