@@ -84,7 +84,7 @@ We compare individual decisions and system outcomes across five configurations o
 | Constrained MNL | MNL over fixed route–departure options | None |
 | LLM traveler agents | LLM route–departure choices | None |
 | Manager | MATSim replanning | Enabled; tolls from Day 20 |
-| Joint | LLM route–departure choices | Enabled; tolls from Day 50 |
+| Joint | LLM route–departure choices | Enabled; tolls from Day 20 |
 
 
 >
