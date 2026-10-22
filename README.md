@@ -151,21 +151,6 @@ Values are daily means over Days 0–87. Relative changes use unrounded window m
 
 Thin lines show daily values; thick lines show trailing seven-day means, without confidence intervals. Actual toll activation differs between Manager (Day 20) and Joint (Day 50). Day 80 is a scheduled policy review: Manager adjusts its policy, while Joint holds its existing charges.
 
-### Target-trip gains and system-level trade-offs
-
-Compared with LLM traveler agents, Joint records **1.09 minutes lower target-trip car time (6.28%)** and a **1.85-percentage-point lower work late-arrival rate**, alongside **15.17% higher all-day car travel time**. Target trips account for a reduction of **215.01 person-hours/day**, while other car trips account for an increase of **1,739.18 person-hours/day**. Other car trips include non-target journeys made by the controlled travelers themselves.
-
-These differences are already present before Joint tolling: over Days 0–49, Joint's all-day car time is **14.90% higher** than in the LLM traveler agent configuration. The comparison describes a trade-off between target-trip outcomes and the all-day system measure; it does not isolate the causal effect of adding a pricing agent.
-
-<details>
-<summary>Joint versus LLM traveler agents: trajectories and trip-scope decomposition</summary>
-
-[![Joint minus LLM traveler agents: pre-existing differences and target versus other car trips](docs/assets/joint_vs_traveler_decomposition.png)](docs/assets/joint_vs_traveler_decomposition.svg)
-
-Positive differences indicate greater travel time in Joint. Dashed horizontal segments show phase means. The decomposition sums to an additional **1,524.17 person-hours/day** over the common window; it does not identify which mechanism caused the difference.
-
-</details>
-
 LLM traveler agents and Joint select departures an average of **34.93** and **39.55 minutes earlier** than the original plans. These schedule changes accompany the punctuality results.
 
 **Interpretation.** This is one run per configuration at a shared simulation seed. The results describe the observed configurations and do not establish cross-seed robustness or causal synergy between the two agent roles.
