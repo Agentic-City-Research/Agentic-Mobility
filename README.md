@@ -131,7 +131,7 @@ Route and departure time both changed. This trip paid zero tolls; the trace does
 
 </details>
 
-[Case records and execution checks →](docs/assets/data/seed268-individual-cases.md)
+[Case records and execution checks →](docs/assets/data/seed268/seed268-individual-cases.md)
 
 ### Individual and aggregate mobility outcomes
 
@@ -155,7 +155,7 @@ LLM traveler agents and Joint select departures an average of **34.93** and **39
 
 **Interpretation.** This is one run per configuration at a shared simulation seed. The results describe the observed configurations and do not establish cross-seed robustness or causal synergy between the two agent roles.
 
-**[Seed 268 experiment settings, data, and validation →](docs/assets/data/seed268-experiments.md)**
+**[Seed 268 experiment settings, data, and validation →](docs/assets/data/seed268/seed268-experiments.md)**
 
 
 <br>
