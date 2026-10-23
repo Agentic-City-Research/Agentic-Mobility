@@ -23,7 +23,7 @@ exploring AI agents and interconnected urban systems.
 
 
     
-[RESEARCH QUESTIONS 🎯](#research-questions) · [EXPERIMENT 01 🧪](#experiments) · [QUICKSTART 🚀](#quickstart) · [DOCUMENTATION 📖](#documentation) · [COMMUNITY 🤝](#community--contributing)
+[RESEARCH QUESTIONS 🎯](#research-questions) · [EXPERIMENT 🧪](#experiments) · [QUICKSTART 🚀](#quickstart) · [DOCUMENTATION 📖](#documentation) · [COMMUNITY 🤝](#community--contributing)
 
 </div>
 
