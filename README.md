@@ -98,13 +98,15 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 
 **LLM traveler agents record the lowest all-day car time, 19.90% below MATSim agents. Joint records the shortest target-trip time and lowest work late-arrival rate.**
 
-| Configuration | All-day car time (person-hours/day) | Change vs. MATSim agents | Target car time (min/trip) | Work late-arrival rate |
+| Configuration | All-day car time (min/person) | Change vs. MATSim agents | Target car time (min/trip) | Work late-arrival rate |
 | :--- | ---: | ---: | ---: | ---: |
-| MATSim agents | 12,431.45 | — | 29.32 | 19.97% |
-| Constrained MNL | 17,200.90 | +38.37% | 53.19 | 31.25% |
-| LLM traveler agents | **9,958.11** | −19.90% | 17.40 | 5.61% |
-| Manager | 12,662.64 | +1.86% | 29.64 | 20.42% |
-| Joint | 11,414.35 | −8.18% | **16.25** | **3.73%** |
+| MATSim agents | 44.34 | — | 29.32 | 19.97% |
+| Constrained MNL | 61.35 | +38.37% | 53.19 | 31.25% |
+| LLM traveler agents | **35.52** | −19.90% | 17.40 | 5.61% |
+| Manager | 45.17 | +1.86% | 29.64 | 20.42% |
+| Joint | 40.71 | −8.18% | **16.25** | **3.73%** |
+
+All-day car time is normalized to min/person by dividing the daily person-hours total by the 16,822 simulated travelers and converting to minutes. Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**. All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
 Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**. All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
