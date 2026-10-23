@@ -98,7 +98,7 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 
 **LLM traveler agents record the lowest all-day car time, 19.90% below MATSim agents. Joint records the shortest target-trip time and lowest work late-arrival rate.**
 
-| Configuration | All-day car time (min/person) | Change vs. MATSim agents | Target car time (min/trip) | Work late-arrival rate |
+| Configuration | All-day car time (min/per person) | Change vs. MATSim agents | Target car time (min/per trip) | Work late-arrival rate |
 | :--- | ---: | ---: | ---: | ---: |
 | MATSim agents | 44.34 | — | 29.32 | 19.97% |
 | Constrained MNL | 61.35 | +38.37% | 53.19 | 31.25% |
