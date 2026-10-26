@@ -85,16 +85,25 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | Manager | MATSim replanning | Enabled; tolls from Day 20 |
 | Joint | LLM route–departure choices | Enabled; tolls from Day 50 |
 
->>### Simulation Videos
-> <details>
-> <summary>Traffic replay: Day 0 vs. Day 50</summary>
->
-The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, and **LLM Traveler + Manager**, at simulation days **0, 50, and 99**. Each animation follows the same **500 sampled travelers** from a simulated population of **16,822**, illustrating differences in departure timing, route use, and traffic conditions. All accompanying quantitative results use the complete population relevant to each metric, rather than the visualization sample.
-![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/day1.gif)
-![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/day50.gif)
+### Simulation Videos
+
+The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, and **LLM Traveler + Manager**, at simulation days **0, 50, and 100**. Each animation follows the same **500 sampled travelers** from a simulated population of **16,822**, illustrating differences in departure timing, route use, and traffic conditions. All accompanying quantitative results use the complete population relevant to each metric, rather than the visualization sample.
+
+**Final Day — Simulation Day 100**
+
 ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 100](docs/assets/day100.gif)
-These videos provide a visual illustration of the recorded simulations. They complement the quantitative analysis and should not be interpreted as standalone evidence of real-world behavioral validity or the causal effect of the Manager.
+>View the initial and intermediate days
+>
+> <details>
+  
+>  ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/day1.gif)
+
+>  ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/day50.gif)
+  
+>These videos provide a visual illustration of the recorded simulations. They complement the quantitative analysis and should not be interpreted as standalone evidence of real-world behavioral validity or the causal effect of the Manager.
 > </details>
+
+
 ### Individual and system outcomes
 
 **LLM traveler agents record the lowest all-day car time, 19.90% below MATSim agents. Joint records the shortest target-trip time and lowest work late-arrival rate.**
