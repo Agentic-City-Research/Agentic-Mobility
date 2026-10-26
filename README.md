@@ -75,7 +75,7 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 
 ### Five configurations, 100 completed days
 
-We compare five configurations of the enriched Sioux Falls scenario over **Days 0–99**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. Day numbers are zero-based.
+We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. Day numbers are zero-based.
 
 | Configuration | Traveler decisions | Pricing agent |
 | :--- | :--- | :--- |
@@ -87,24 +87,38 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 
 ### Simulation Videos
 
-The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, and **LLM Traveler + Manager**, at simulation days **0, 50, and 100**. Each animation follows the same **500 sampled travelers** from a simulated population of **16,822**, illustrating differences in departure timing, route use, and traffic conditions. All accompanying quantitative results use the complete population relevant to each metric, rather than the visualization sample.
+Compare **MATSim**, **LLM Traveler**, and **LLM Traveler + Manager** at three simulation days. Each animation follows the same **500** sampled travelers from the full population of 16,822.
 
 **Final Day — Simulation Day 100**
 
-![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 100](docs/assets/Day100.gif)
->View the initial and intermediate days
->
-> <details>
-> Initial Day — Simulation Day 0
-> 
-> ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/Day1.gif)
->
-> Intermediate Day — Simulation Day 50
->
->  ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/Day50.gif)
->
->These videos provide a visual illustration of the recorded simulations. They complement the quantitative analysis and should not be interpreted as standalone evidence of real-world behavioral validity or the causal effect of the Manager.
-> </details>
+<p align="center">
+  <img src="docs/assets/Day100.gif"
+       alt="Intermediate snapshot: comparison of three configurations"
+       width="100%">
+</p>
+
+Visualization: 500 sampled travelers. Quantitative results: the complete population relevant to each metric.
+
+<details>
+<summary>View the initial and intermediate snapshots</summary>
+
+#### Initial Snapshot — Log Day 0
+
+<p align="center">
+  <img src="docs/assets/Day1.gif"
+       alt="Initial snapshot: comparison of three configurations"
+       width="100%">
+</p>
+
+#### Intermediate Snapshot — Log Day 50
+
+<p align="center">
+  <img src="docs/assets/Day50.gif"
+       alt="Intermediate snapshot: comparison of three configurations"
+       width="100%">
+</p>
+
+</details>
 
 
 ### Individual and system outcomes
@@ -119,11 +133,12 @@ The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, 
 | Manager | 45.17 | +1.86% | 29.64 | 20.42% |
 | Joint | 40.71 | −8.18% | **16.25** | **3.73%** |
 
-All-day car time is normalized to min/person by dividing the daily person-hours total by the 16,822 simulated travelers and converting to minutes. Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**. All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
+All-day car time is normalized to min/person by dividing the daily person-hours total by the 16,822 simulated travelers and converting to minutes. 
 
-Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**. All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
+Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**.
+All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
-[![Five configurations: mobility outcomes over Days 0–99](docs/assets/seed268/five_condition_trajectories.png)](docs/assets/seed268/five_condition_trajectories.svg)
+[![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/five_condition_trajectories.png)](docs/assets/seed268/five_condition_trajectories.svg)
 
 Thin lines show daily values; thick lines show trailing seven-day means. Markers identify toll activation (Manager: Day 20; Joint: Day 50), the Day 80 policy review, and the configured MATSim route/time innovation cutoff on Day 90; existing-plan selection continues.
 
@@ -178,11 +193,11 @@ In Joint, **5,897 travelers receive current toll announcements and 5,896 do not*
 
 | Measure | Informed | Uninformed |
 | :--- | ---: | ---: |
-| Use of subsequently tolled links, Days 0–49 | 6.67% | 6.54% |
-| Use of tolled links, Days 50–99 | 2.49% | 6.94% |
-| Mean target payment, Days 50–99 (scenario units/trip) | 0.075 | 0.208 |
-| Target car time, Days 50–99 (min/trip) | 17.02 | 15.17 |
-| Work late-arrival rate, Days 50–99 | 3.81% | 2.50% |
+| Use of subsequently tolled links, Days 1–50 | 6.67% | 6.54% |
+| Use of tolled links, Days 50–100 | 2.49% | 6.94% |
+| Mean target payment, Days 50–100 (scenario units/trip) | 0.075 | 0.208 |
+| Target car time, Days 50–100 (min/trip) | 17.02 | 15.17 |
+| Work late-arrival rate, Days 50–100 | 3.81% | 2.50% |
 
 [![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/assets/seed268/information_route_response.svg)
 
