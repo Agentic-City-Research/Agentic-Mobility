@@ -68,14 +68,14 @@ Configuration templates are provided in the [experiment guide](docs/experiments-
 
 <a id="experiments"></a>
 
-## EXPERIMENT 01 🧪
+## EXPERIMENT 🧪
 
 The traveler case traces available information, selected actions, and realized outcomes. 
 The time series and corridor comparisons show how aggregate outcomes vary over time and across the network.
 
 ### Five configurations, 100 completed days
 
-We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. Day numbers are zero-based.
+We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. 
 
 | Configuration | Traveler decisions | Pricing agent |
 | :--- | :--- | :--- |
@@ -93,7 +93,7 @@ Compare **MATSim**, **LLM Traveler**, and **LLM Traveler + Manager** at three si
 
 <p align="center">
   <img src="docs/assets/Day100.gif"
-       alt="Intermediate snapshot: comparison of three configurations"
+       alt="Final snapshot: comparison of three configurations"
        width="100%">
 </p>
 
@@ -216,9 +216,18 @@ Links are identified retrospectively before charging and in the no-toll comparis
 
 Build the project, run a small native baseline, and check that it completes. Then, optionally connect a model service to run LLM-controlled travelers.
 
-**Prerequisites:** JDK 25 (including `javac`), Git, and network access for the first build. The bundled Maven Wrapper downloads Maven and dependencies. The native baseline requires no model API.
+**Prerequisites:** JDK 25 (including `javac`), Git, and network access for the first build. The Maven Wrapper downloads Maven and dependencies. The native baseline requires no model API.
+
+Confirm that both commands report version 25:
+
+```text
+java -version
+javac -version
+```
 
 ### 1. Get the source and build
+
+**Bash (Linux/macOS)**
 
 ```bash
 git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
@@ -226,9 +235,18 @@ cd Agentic-Mobility
 sh ./mvnw -B clean package
 ```
 
-On Windows PowerShell, build with `.\mvnw.cmd -B clean package`.
+<details>
+<summary>Windows PowerShell</summary>
 
-The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root. Run the following commands from that directory.
+```powershell
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+cd Agentic-Mobility
+.\mvnw.cmd -B clean package
+```
+
+</details>
+
+The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root. Run the simulation commands below from that directory.
 
 ### 2. Run a native baseline
 
@@ -272,7 +290,7 @@ Open `<output-directory>/morning/status.json` and check that it contains:
 }
 ```
 
-These are the completion fields to check; the file contains additional run information.
+The status file also contains additional run information.
 
 This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
 
@@ -284,8 +302,6 @@ This 100-person example checks installation and execution. The `--sample-persons
 MATSim runs on CPU; the model service can be hosted on another machine. Once configured, the platform calls the service automatically during enabled LLM stages. The same API setup is required for an LLM pricing agent.
 
 For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
-
-<br>
 
 <a id="documentation"></a>
 
@@ -304,8 +320,6 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 
 Browse the [documentation index](docs/README.md) for all guides.
 
-<br>
-
 <a id="community--contributing"></a>
 
 ## COMMUNITY & CONTRIBUTING 🤝
@@ -315,8 +329,6 @@ Contributions are welcome, including documentation, reproducible examples, analy
 [Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [Contribution guide](CONTRIBUTING.md) · [Contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
 
 ⭐ If you find Agentic Mobility useful, consider starring the repository.
-
-<br>
 
 For research use, reference [Agentic-City-Research/Agentic-Mobility](https://github.com/Agentic-City-Research/Agentic-Mobility) and report the exact commit, scenario, model, and experimental settings. Manuscript information will be added when publicly available.
 
