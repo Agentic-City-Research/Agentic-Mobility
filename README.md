@@ -85,14 +85,15 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | Manager | MATSim replanning | Enabled; tolls from Day 20 |
 | Joint | LLM route–departure choices | Enabled; tolls from Day 50 |
 
->
+>>### Simulation Videos
 > <details>
 > <summary>Traffic replay: Day 0 vs. Day 50</summary>
 >
-> This replay compares two days within the LLM run. It illustrates how traffic patterns change during that run; it is not a comparison against the native baseline.
->
-> ![Traffic replay within the LLM run: Day 0 versus Day 50](docs/assets/compare.1-50.gif)
->
+The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, and **LLM Traveler + Manager**, at simulation days **0, 50, and 99**. Each animation follows the same **500 sampled travelers** from a simulated population of **16,822**, illustrating differences in departure timing, route use, and traffic conditions. All accompanying quantitative results use the complete population relevant to each metric, rather than the visualization sample.
+![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/day1.gif)
+![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/day50.gif)
+![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 100](docs/assets/day100.gif)
+These videos provide a visual illustration of the recorded simulations. They complement the quantitative analysis and should not be interpreted as standalone evidence of real-world behavioral validity or the causal effect of the Manager.
 > </details>
 ### Individual and system outcomes
 
