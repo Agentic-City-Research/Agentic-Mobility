@@ -1,0 +1,14 @@
+\section{Scope and Research Directions}
+\label{sec:scope}
+
+AgenticMobility provides interfaces for studying how roles, information access, and retained experience shape repeated mobility interactions. The execution checks establish an operational basis for such studies, while the illustrative trajectories identify questions for independent replication, behavioral validation, and extensions of the framework.
+
+\paragraph{Independent replication and controlled comparisons.}
+The configuration and build differences in Section~\ref{sec:validation} motivate repeated runs under a common implementation with documented simulation and model-generation settings. Independent runs are needed to distinguish between-run
+variability from day-to-day changes within a single run. To examine a particular mechanism, future experiments can branch from a common recorded state and vary announcement access, memory availability, or a role's actions. Implementing and checking state restoration would be part of that design. Outcomes should include effects on agents outside the directly modified group, since they share the execution environment.
+
+\paragraph{Behavioral calibration and semantic validation.}
+Route persistence and earlier departure in Section~\ref{sec:illustrative-use} motivate tests of sensitivity to candidate actions, schedule assumptions, and retained experience. Observed choices and mobility records can guide calibration, with evaluation on held-out people, periods, or scenarios. Individual choices and aggregate flows require separate checks. The explanation inconsistency in Section~\ref{sec:validation} also motivates systematic inspection of summaries and reasons against their supplied inputs and recorded actions. Such inspection would complement execution audits by assessing the content retained across rounds.
+
+\paragraph{Roles, information, and execution backends.}
+Additional roles, such as service providers or resource-allocation agents, require explicit action spaces, observation permissions, and consequences for other agents. Alternative memory and information designs can be studied through the same recording interfaces. Supporting another execution backend requires an adapter and validation of action application, timing, measurement boundaries, and state continuity before comparing dynamics. Extensions to other urban functions would additionally require shared resource and state definitions across systems. Versioned implementations and accessible run-specific artifacts can support this progression from the current mobility realization.

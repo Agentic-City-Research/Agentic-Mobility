@@ -1,0 +1,38 @@
+# LaTeX build output
+/build/
+/out/
+/main.pdf
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.bcf
+*.run.xml
+*.dvi
+*.xdv
+
+# Local archives and project bundles
+/Archive/
+/sections/archive/
+/*.zip
+
+# Local editor and operating-system files
+/.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment files
+.env
+.env.*
+
+# PDF figures under pic/ are source assets and remain tracked.

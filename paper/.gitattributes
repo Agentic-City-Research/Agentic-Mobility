@@ -1,0 +1,2 @@
+# Preserve PDF figure bytes and keep binary data out of text diffs.
+*.pdf binary

@@ -1,0 +1,42 @@
+\section{Implementation and Reproducibility}
+\label{sec:reproducibility}
+
+The current implementation realizes the framework with MATSim as the execution backend \cite{horni2016matsim}. LLM traveler agents choose routes and departure times for fixed target trips; an LLM manager periodically sets link charges. Background trips retain the backend's behavioral mechanisms and full-day activity chains. The adapter applies validated choices and policies and extracts individual and aggregate feedback. The demonstration evaluates execution consistency in this
+implementation; other execution backends have not been
+evaluated.Appendix~\ref{app:concrete-protocol} specifies the implemented action, information, and daily-update protocols.
+
+\subsection{Code, Dependencies, and Scenario}
+
+The project entry point is \url{https://github.com/Agentic-City-Research/Agentic-Mobility}. The supplied distribution documentation specifies JDK~25, the Maven Wrapper, and MATSim~2026.0. The experiment launcher is \texttt{org.matsim.agentic.MorningExperiment}; despite its historical name, it runs full-day activity chains. Code is distributed under GPL-2.0, with separate notices for third-party components. The README links installation, method, experiment, and scenario guides.
+
+The synthetic scenario derives from the enriched Sioux Falls study \cite{chakirov2014sioux} and Ben-Dor's version-3 car-traffic dataset \cite{ben-dorPopulationDownscalingMultiagent2021}, available under CC BY~4.0. The distribution includes the network, facilities, and population inputs referenced by \path{scenarios/SiouxFalls-public/config.xml}. Its original-demand population is restored by removing verified duplicates from the doubled-population source. The scenario guide and \path{THIRD_PARTY.md} document these transformations and input hashes; distributed-file hashes do not constitute a fresh byte-for-byte comparison with upstream downloads. These are synthetic research inputs, not observed resident trajectories.
+
+
+\subsection{Execution Entry Points}
+
+The documented installation check uses 100 simulated people, two days, and no LLM calls. From a Bash shell with Git and JDK~25 available:
+\begin{quote}\footnotesize
+\begin{verbatim}
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+cd Agentic-Mobility
+sh ./mvnw -B clean package
+java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar \
+  org.matsim.agentic.MorningExperiment \
+  --config scenarios/SiouxFalls-public/config.xml \
+  --mode hybrid --policy mnl --llm-agents 0 \
+  --demand 100 --sample-persons 100 --days 2 \
+  --population-seed 4711 --seed 4711 --output output/quickstart
+\end{verbatim}
+\end{quote}
+Completion is indicated by \texttt{complete=true} and \texttt{daysCompleted=2} in \path{morning/status.json} under the output directory reported by the application. Existing directories cause a numbered alternative to be selected. The Windows build command is \verb|.\mvnw.cmd -B clean package|; the README supplies PowerShell launch syntax. This small diagnostic checks installation and environmental execution; its sampling option does not scale road capacity.
+
+Enabling LLM roles additionally requires a Chat Completions-compatible service, configured through \texttt{AGENTIC\_BASE\_URL}, \texttt{AGENTIC\_MODEL}, and \texttt{AGENTIC\_API\_KEY}, together with the role settings described in the experiment guide. Appendix~\ref{app:decision-models} records the archived model and prompt settings. A role-enabled execution check should inspect accepted actions, returned experiences, and memory updates across successive rounds; these are distinct from the installation check above.
+
+\subsection{Relation Between the Distribution and Reported Runs}
+
+The documentation package describes the completed 100-day, seed-268 runs. The package contains aggregate time series, run summaries,
+and audit records corresponding to the appendix. The individual-case records support the execution example in Section~\ref{sec:validation}. These materials support inspection of recorded outputs.
+
+Exact reruns additionally require the run-specific executable, input and candidate files, original prompts, final configuration, and model-service settings. 
+The released records support inspection of the reported
+outputs, but a traffic seed alone does not fix remote model responses. A pinned release-to-run mapping is therefore needed before claiming exact computational reproduction.

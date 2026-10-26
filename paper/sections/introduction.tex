@@ -1,0 +1,44 @@
+
+\section{Introduction}
+\label{sec:introduction}
+Virtual cities provide a setting for studying how agents
+with different roles influence others through shared
+environments. Generative agents and large-scale agent
+societies use persistent states and experiences to support
+context-dependent behavior \cite{park2023generative,piao2025agentsociety}.
+A central question is how agents' actions change the
+conditions encountered by others and how the resulting
+experiences inform subsequent choices.
+
+Mobility provides a concrete setting for this research. Agents must reach activities at particular places and times while sharing limited spatial resources. Their actions affect the conditions encountered by others, even without direct communication. Experiences from these encounters can inform later choices, connecting individual decisions and system conditions across successive days \cite{cantarella1995dynamic,ye2015learning}. Different roles introduce another dimension of interaction: mobility agents make personal choices, while other agents can adjust shared rules or costs in response to aggregate observations.
+
+
+Existing work provides complementary foundations. LLMTraveler studies day-to-day route choices, including comparisons with laboratory observations and multi-origin--destination congestion settings \cite{wang2025agentic}. Transportation-oriented agent frameworks organize perception, memory, and action \cite{liu2024transport}; GATSim connects generative residents with adaptive travel processes \cite{liu2026gatsim}, and other implementations connect LLM-generated charging plans to mobility simulation \cite{patwary2026bridging}. 
+Studying repeated interactions requires explicit links between
+what each role observes, which actions are executed, and how
+the resulting outcomes inform subsequent decisions. These
+links are needed to trace changes in individual choices
+and shared conditions across successive rounds.
+
+
+% Building on these efforts, we focus on the platform interfaces that connect different agent roles, shared execution, and feedback across successive rounds. Such interfaces must specify what each role observes and how its actions affect the environment. Linked records  also distinguish proposed actions, realized execution, and subsequent observations so that researchers can investigate alternative explanations for changes in behavior and system outcomes.
+
+
+% Building on these approaches, we study travelers and managers within a shared day-to-day process. The roles differ in their information, actions, and update schedules. Travelers respond to personal circumstances and experiences, while managers use aggregate observations to formulate interventions. Connecting the two requires an explicit account of what each role observes, how its decisions are executed, and which consequences inform subsequent choices. Evaluating the resulting process also requires distinguishing outcomes for controlled trips from outcomes across the full traffic system.
+
+
+We introduce \emph{AgenticMobility}, an open-source platform for studying mobility interactions. The framework connects role-specific decisions and persistent states to a shared execution layer through defined action and feedback interfaces. 
+The platform makes three contributions:
+(i) it specifies agent roles, information boundaries,
+and interaction timing;
+(ii) it implements a recurring decision--execution--feedback
+process with action validation and linked records; and
+(iii) it provides an open-source implementation with
+documented entry points for running and extending the system.
+Code is available at \href{https://github.com/Agentic-City-Research/Agentic-Mobility}{Agentic-City-Research/Agentic-Mobility}, with implementation and reproduction details in Section~\ref{sec:reproducibility}.
+
+
+% First, it specifies an executable multi-role interaction protocol with role-specific information, actions, persistent memories, and feedback timing. Second, it illustrates a five-configuration comparison in Sioux Falls, including MATSim agents and a constrained MNL baseline with candidate sets matched to those of LLM travelers. Third, it documents differences across trip scopes and information conditions: LLM Traveler has the lowest total car time in the tested configurations, while the combined traveler--manager configuration improves target outcomes further at a higher system time cost. Informed travelers show greater avoidance of tolled routes, but payment and time outcomes do not produce a uniform ranking. These findings characterize the initial platform under the specified conditions; causal mechanism identification and behavioral calibration remain separate tasks.
+% This initial paper makes three system contributions. First, it specifies role-dependent observations, action interfaces, persistent states, and feedback timing. Second, it implements a repeated decision--execution--feedback process with action validation and linked records, enabling researchers to inspect individual trajectories alongside aggregate outcomes. Third, it provides an open-source implementation and documented entry points for running and extending the platform. Code is available at \href{https://github.com/Agentic-City-Research/Agentic-Mobility}{Agentic-City-Research/Agentic-Mobility}, with implementation and reproduction details in Section~\ref{sec:reproducibility}.
+
+The initial demonstration comprises five configurations, each run for 100 simulated days at a common simulation seed. Execution audits and a recorded individual trace assess whether actions and feedback are connected as specified, while archived outputs illustrate the platform's research uses. These demonstrations assess operational consistency; behavioral validity, causal explanations, and robustness require further controlled studies. Section~\ref{sec:scope} sets out the designs and evidence needed to pursue those questions.
