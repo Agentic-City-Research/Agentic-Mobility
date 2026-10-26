@@ -91,17 +91,17 @@ The videos compare three configurations: **MATSim baseline**, **LLM Traveler**, 
 
 **Final Day — Simulation Day 100**
 
-![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 100](docs/assets/day100.gif)
+![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 100](docs/assets/Day100.gif)
 >View the initial and intermediate days
 >
 > <details>
 > Initial Day — Simulation Day 0
 > 
-> ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/day1.gif)
+> ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 1](docs/assets/Day1.gif)
 >
 > Intermediate Day — Simulation Day 50
 >
->  ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/day50.gif)
+>  ![**Traffic Simulation Comparison: MATSim vs. LLM Traveler vs. LLM Traveler + Manager**: Day 50](docs/assets/Day50.gif)
 >
 >These videos provide a visual illustration of the recorded simulations. They complement the quantitative analysis and should not be interpreted as standalone evidence of real-world behavioral validity or the causal effect of the Manager.
 > </details>
