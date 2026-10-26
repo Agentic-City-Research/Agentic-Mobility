@@ -138,7 +138,7 @@ All-day car time is normalized to min/person by dividing the daily person-hours 
 Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**.
 All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
-[![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/five_condition_trajectories.png)](docs/assets/seed268/five_condition_trajectories.svg)
+[![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/outcomes.png)](docs/assets/seed268/outcomes.svg)
 
 Thin lines show daily values; thick lines show trailing seven-day means. Markers identify toll activation (Manager: Day 20; Joint: Day 50), the Day 80 policy review, and the configured MATSim route/time innovation cutoff on Day 90; existing-plan selection continues.
 
