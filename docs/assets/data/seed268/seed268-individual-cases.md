@@ -1,8 +1,10 @@
 # Seed 268: individual decision traces
 
-[Project experiments](../README.md#experiments) · [Five-configuration records](seed268-experiments.md)
+[Project experiments](../../../../README.md#experiments) · [Five-configuration records](seed268-experiments.md) · [Reported experiments](../../../reported-experiments.md)
 
-These are purposeful examples from nine multi-route work trips with sampled decision contexts, selected to illustrate route choice, schedule changes, and an explanation inconsistency. They are not a random sample and do not estimate the frequency of these behaviors. All cases use simulation seed 268 and completed days within the Day0–87 comparison window. The same `qwen3.5-9b` model ID is recorded for all three featured decisions.
+These are purposeful examples from nine multi-route work trips with sampled decision contexts, selected to illustrate route choice, schedule changes, and an explanation inconsistency. They are not a random sample and do not estimate the frequency of these behaviors. All cases use simulation seed 268. The published excerpts contain 18 date/trip records, while the current manuscript's five-configuration comparison covers **Days0–99**. The same `qwen3.5-9b` model ID is recorded for the three featured outputs; this identifies those records, not the service settings of every run.
+
+The [manuscript's execution-validation section](../../../../paper/AgenticMobility_arXiv/sections/experiment.tex) uses case 2 (`10010_2`, Day60) for the interaction trace and case 3 (`10042_2`, Day61) for the explanation inconsistency. Case 1 is an additional archived example. Completing the later run does not change these recorded case facts; the 18 published date/trip records are a selected subset, not the full 100-day audit.
 
 ## 1. LLM traveler agent 1005_1: route switch at an unchanged departure time
 
@@ -67,31 +69,15 @@ This is a checked discrepancy in one rationale. It demonstrates that legal struc
 
 For the 18 published date/trip records, the model output, applied decision and actual departure agree; selected links match executed links; all trips complete; car time, door time and lateness reconcile with timestamps. Overlapping personal history is cross-checked against the corresponding trip record. The three featured outputs each have one recorded model call, no output repair, and finish reason `stop`.
 
-- [Evidence excerpts and source hashes](data/seed268_five_conditions_20261022/individual-case-evidence.json)
-- [Continuous traces as CSV](data/seed268_five_conditions_20261022/individual-case-traces.csv)
-- [Validation summary](data/seed268_five_conditions_20261022/individual-case-validation.json)
-- [Extraction script](../scripts/extract_seed268_readme_cases.py)
+- [Evidence excerpts and source hashes](individual-case-evidence.json)
+- [Continuous traces as CSV](individual-case-traces.csv)
+- [Validation summary](individual-case-validation.json)
 
-The evidence publishes selected context facts, candidates, legal departures, model results, decisions, trips and execution checks. Synthetic profiles, self-written summaries and private service endpoints are omitted; these are not complete model prompts. Source file SHA-256 values and record line numbers support checking the excerpts against the original logs. The script reads the logs without modifying them and accepts only complete newline-terminated records from unfinished gzip streams.
+The evidence publishes selected context facts, candidates, legal departures, model results, decisions, trips and execution checks. Synthetic profiles, self-written summaries and private service endpoints are omitted; these are not complete model prompts. Source file SHA-256 values and record line numbers support checking the excerpts against the original logs. The recorded extraction used complete newline-terminated records; this handling does not describe the manuscript's final completion state.
 
-With the original run directories available, run from the repository root:
-
-```bash
-python scripts/extract_seed268_readme_cases.py --data-root /path/to/arxiv-v1-data --output output/readme-cases
-```
-
-The script uses the Python standard library and makes no model calls. The raw run archives are not bundled with this README update.
+The original extraction script and raw run archives are not bundled with these excerpts. Inspect the published JSON/CSV directly; checking source hashes and line references against full logs additionally requires the corresponding original archives.
 
 ## Distributional context
 
-<details>
-<summary>Departure timing and variation across travelers</summary>
-
-LLM traveler agents and Joint select departures an average of **34.93** and **39.55 minutes earlier** than the original plans, respectively. The earliest allowed departure is selected in **39.91%** and **44.85%** of their target-trip decisions. Their punctuality results should therefore be read together with these schedule changes.
-
-Across the same target travelers, Joint saves **0.31 minutes at the median** relative to LLM traveler agents; **59.86%** have lower mean car time and **40.07%** have higher mean car time. These are within-run individual differences, not independent simulation replications or a complete measure of welfare.
-
-[![Within-run distributions of individual target-trip outcomes](assets/seed268_five_conditions_20261022/individual_outcome_distributions.png)](assets/seed268_five_conditions_20261022/individual_outcome_distributions.svg)
-
-</details>
+Across the manuscript's **100-day** window, LLM Traveler and Joint select departures **34.96** and **39.65 minutes earlier** than their original plans on average. Their overall route-switching rates are **3.08%** and **2.19%**, and departure-adjustment rates are **29.45%** and **28.04%**, over 99 adjacent-day transitions. These population summaries contextualize the cases without establishing habits, isolated policy effects, or welfare gains.
 

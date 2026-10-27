@@ -21,7 +21,38 @@ def resolve(folder, name):
     return compressed if compressed.exists() else folder / (name + ".jsonl")
 
 
+def validate_input(folder):
+    """Require completion and enough provenance to distinguish missing logs from zero calls."""
+    for name in ("status.json", "manifest.json"):
+        if not (folder / name).is_file():
+            raise ValueError(f"Missing {name}; cannot establish completion or enabled roles")
+    status = json.loads((folder / "status.json").read_text(encoding="utf-8-sig"))
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8-sig"))
+    if status.get("complete") is not True:
+        raise ValueError("Run is not complete; status.json must contain complete=true")
+    if not isinstance(manifest.get("llmPersons"), int) or manifest["llmPersons"] < 0:
+        raise ValueError("manifest.json does not identify the number of LLM travelers")
+    if manifest["llmPersons"] and (not isinstance(manifest.get("controlledTrips"), int) or manifest["controlledTrips"] < 1):
+        raise ValueError("manifest.json does not identify the controlled LLM target trips")
+    first, last = manifest.get("firstIteration"), manifest.get("lastIteration")
+    if not isinstance(first, int) or not isinstance(last, int) or last < first or status.get("daysCompleted") != last - first + 1:
+        raise ValueError("Completed days do not match the manifest's iteration window")
+    required = ["choice-transitions"]
+    if manifest["llmPersons"]:
+        required += ["llm-results", "attempts", "memory-updates", "memory-attempts"]
+        review = manifest.get("travelerSemanticReview")
+        if not isinstance(review, dict) or not isinstance(review.get("enabled"), bool):
+            raise ValueError("Manifest does not establish whether traveler semantic review was enabled")
+        if review["enabled"]:
+            required.append("semantic-reviews")
+    missing = [name for name in required if not resolve(folder, name).is_file()]
+    if missing:
+        raise ValueError("Missing required record streams: " + ", ".join(missing))
+    return manifest
+
+
 def analyze(folder):
+    manifest = validate_input(folder)
     groups = defaultdict(Counter)
     positions = Counter()
     by_day = defaultdict(Counter)
@@ -42,8 +73,18 @@ def analyze(folder):
         current = {x["routeId"]: x for x in row["currentForecasts"]}
         past = {x["routeId"]: x for x in (row["previousForecasts"] or [])}
         shared = current.keys() & past.keys()
-        if any(abs(current[k]["estimatedMonetaryCost"] - past[k]["estimatedMonetaryCost"]) > 1e-9 for k in shared):
+        availability_change = any((current[k]["estimatedMonetaryCost"] is None) !=
+                                  (past[k]["estimatedMonetaryCost"] is None) for k in shared)
+        value_change = any(current[k]["estimatedMonetaryCost"] is not None and
+                           past[k]["estimatedMonetaryCost"] is not None and
+                           abs(current[k]["estimatedMonetaryCost"] - past[k]["estimatedMonetaryCost"]) > 1e-9
+                           for k in shared)
+        if availability_change or value_change:
             labels.append("after_cost_information_change")
+        if availability_change:
+            labels.append("after_cost_information_availability_change")
+        if value_change:
+            labels.append("after_known_cost_value_change")
         if any(abs(current[k]["expectedCarSeconds"] - past[k]["expectedCarSeconds"]) > 1.0 for k in shared):
             labels.append("after_driving_time_prediction_change_over_1s")
         for label in labels:
@@ -105,8 +146,19 @@ def analyze(folder):
         else:
             review_prompt += usage["promptTokens"]
             review_completion += usage["completionTokens"]
+    if manifest["llmPersons"]:
+        expected = manifest["controlledTrips"] * (manifest["lastIteration"] - manifest["firstIteration"] + 1)
+        if transitions != expected or successful != expected or memory_updates != expected:
+            raise ValueError(f"Incomplete traveler records: expected {expected} transitions, decisions and committed memories; "
+                             f"found {transitions}, {successful} and {memory_updates}")
+        if calls < successful or memory_calls < memory_updates:
+            raise ValueError("Attempt streams contain fewer calls than finalized traveler records")
+        if manifest["travelerSemanticReview"]["enabled"] and sum(review_statuses.values()) != 2 * expected:
+            raise ValueError("Incomplete semantic-review records for finalized choices and memories")
     return {
-        "interpretation": "Descriptive association only; groups overlap, no causal or human-habit inference. Display-position totals must also be interpreted against available candidate counts and order conditions.",
+        "interpretation": "Descriptive association only; groups overlap, no causal or human-habit inference. Cost availability changes (unknown vs known) are distinct from changes between two known values; unknown is never treated as zero. Display-position totals must also be interpreted against available candidate counts and order conditions.",
+        "input_scope": {"complete": True, "first_iteration": manifest["firstIteration"],
+                        "last_iteration": manifest["lastIteration"], "llm_persons": manifest["llmPersons"]},
         "transitions": transitions,
         "conditional_switching": {
             k: dict(v, switch_fraction=v["switches"] / v["decisions"])
@@ -145,7 +197,8 @@ def analyze(folder):
             "reported_completion_tokens": review_completion,
         },
         "total_llm_client_calls": calls + memory_calls + review_calls,
-        "total_reported_tokens": prompt_tokens + completion_tokens + memory_prompt_tokens + memory_completion_tokens + review_prompt + review_completion,
+        "total_reported_tokens": (prompt_tokens + completion_tokens + memory_prompt_tokens + memory_completion_tokens + review_prompt + review_completion
+                                  if missing_usage + memory_missing + review_missing == 0 else None),
         "call_scope": "Traveler choices, memories and optional semantic review; manager calls are recorded separately in api-usage.json.",
     }
 
@@ -154,6 +207,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--morning", required=True, type=Path, help="Completed experiment's morning directory")
     args = parser.parse_args()
-    if not resolve(args.morning, "choice-transitions").exists():
-        parser.error("choice-transitions.jsonl[.gz] not found; use a facts-v1 or memory-v2 experiment")
-    print(json.dumps(analyze(args.morning), ensure_ascii=False, indent=2))
+    try:
+        result = analyze(args.morning)
+    except (ValueError, OSError, json.JSONDecodeError) as error:
+        parser.error(str(error))
+    print(json.dumps(result, ensure_ascii=False, indent=2))

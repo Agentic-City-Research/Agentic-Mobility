@@ -1,0 +1,265 @@
+[
+  {
+    "condition": "Manager",
+    "day": 20,
+    "simulation_day": 21,
+    "action": "test",
+    "pricing_changed": true,
+    "rules": [
+      {
+        "link_id": "32_5",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "43_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "25_2",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "29_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "51_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "48_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "32_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "43_3",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "25_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "60_8",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      }
+    ],
+    "policy_fingerprint": "597309574c488bb15264086c33f9be5f8c2160e6526160d39e41311724a6701c"
+  },
+  {
+    "condition": "Manager",
+    "day": 50,
+    "simulation_day": 51,
+    "action": "hold",
+    "pricing_changed": false,
+    "rules": [
+      {
+        "link_id": "32_5",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "43_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "25_2",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "29_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "51_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "48_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.0
+      },
+      {
+        "link_id": "32_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "43_3",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "25_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "60_8",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      }
+    ],
+    "policy_fingerprint": "597309574c488bb15264086c33f9be5f8c2160e6526160d39e41311724a6701c"
+  },
+  {
+    "condition": "Manager",
+    "day": 80,
+    "simulation_day": 81,
+    "action": "adjust",
+    "pricing_changed": true,
+    "rules": [
+      {
+        "link_id": "32_5",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 3.0
+      },
+      {
+        "link_id": "43_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 3.0
+      },
+      {
+        "link_id": "29_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 3.0
+      },
+      {
+        "link_id": "51_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "48_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "25_2",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 2.5
+      },
+      {
+        "link_id": "32_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "43_3",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "25_1",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.0
+      },
+      {
+        "link_id": "60_8",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      }
+    ],
+    "policy_fingerprint": "8793038e8787ea268f97354d2ccad3cfc665b115de3a16a1687cd66dabd74656"
+  },
+  {
+    "condition": "Joint",
+    "day": 20,
+    "simulation_day": 21,
+    "action": "hold",
+    "pricing_changed": false,
+    "rules": [],
+    "policy_fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  {
+    "condition": "Joint",
+    "day": 50,
+    "simulation_day": 51,
+    "action": "test",
+    "pricing_changed": true,
+    "rules": [
+      {
+        "link_id": "43_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      },
+      {
+        "link_id": "43_3",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      }
+    ],
+    "policy_fingerprint": "ff6e3a4d215ae10a19ff326f804d76741d97fc1e261e1e645d099ba09432660d"
+  },
+  {
+    "condition": "Joint",
+    "day": 80,
+    "simulation_day": 81,
+    "action": "hold",
+    "pricing_changed": false,
+    "rules": [
+      {
+        "link_id": "43_4",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      },
+      {
+        "link_id": "43_3",
+        "start": 0.0,
+        "end": 108000.0,
+        "amount": 1.5
+      }
+    ],
+    "policy_fingerprint": "ff6e3a4d215ae10a19ff326f804d76741d97fc1e261e1e645d099ba09432660d"
+  }
+]

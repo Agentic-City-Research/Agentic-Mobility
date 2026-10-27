@@ -20,6 +20,14 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check documentation links and analysis scripts
+        shell: bash
+        run: |
+          python scripts/check_local_links.py
+          python -m unittest discover -s tests
       - name: Test and package
         shell: bash
         run: bash ./mvnw --batch-mode clean package

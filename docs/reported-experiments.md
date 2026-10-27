@@ -2,95 +2,71 @@
 
 [Project overview](../README.md#experiments) · [Documentation](README.md) · [Configuration templates](experiments-and-evaluation.md)
 
-This record describes the exploratory results displayed on the homepage, as checked on 2026-10-18. The traveler and manager experiments evaluate different role configurations against their own native MATSim baselines.
+This page documents the five-configuration, 100-day demonstration in the current [arXiv manuscript](../paper/AgenticMobility_arXiv/main.tex). The [execution-validation section](../paper/AgenticMobility_arXiv/sections/experiment.tex) and [active appendix](../paper/AgenticMobility_arXiv/appendices/app_1.tex) are the source for the settings, outcomes, and audit results below. Earlier seed-9261 comparisons are retained under [the historical archive](history/2026-10-18/README.md).
 
-## Comparison settings
+## Current manuscript: comparison settings
 
-| Setting | LLM travelers | LLM manager |
+All five configurations completed 100 simulated days with simulation seed **268**, using the common window **Days0–99**. Day labels on this page are zero-based; these correspond to simulation days 1–100. There is one run per configuration, and successive days are dependent observations.
+
+| Configuration | Target-trip decisions | LLM manager |
 | :--- | :--- | :--- |
-| Intervention | Joint route and departure-time choices for selected target trips | Congestion pricing for native travelers |
-| Baseline | Native MATSim; no manager or tolls | Native MATSim; no manager or tolls |
-| Observation window | Days 0–60: 61 completed days in both conditions | Days 0–499: 500 completed days in both conditions |
-| Headline summary window | Days 0–60 | Charged period: Days 20–499 |
-| Main simulation seed | 9261 in both conditions | 9261 in both conditions |
-| Additional runs | Native seeds 268 and 4711, for descriptive context | None included in the displayed comparison |
-| Population seed | 6021 | 6021 |
-| Simulated population | 16,822 people | 16,822 people |
-| Flow capacity factor | 0.2 | 0.2 |
-| Storage capacity factor | 0.29906975624424414 | Approximately 0.29907 |
-| MATSim version recorded in manifests | 2026.0 | 2026.0 |
-| Recorded model ID | `qwen3.5-9b` | `deepseek-flash` |
-| Pricing | Disabled in both conditions | All-day tolling starts on Day 20; policy reviews every 30 days |
-| QSim stuckTime | See each archived configuration | 50 seconds in both conditions |
+| MATSim | Native MATSim plan selection and replanning | Disabled |
+| MNL | Constrained joint route–departure choice within fixed candidate sets | Disabled |
+| LLM Traveler | LLM route–departure choice within fixed candidate sets | Disabled |
+| MATSim + Manager | Native MATSim plan selection and replanning | Enabled |
+| LLM Traveler + Manager | LLM route–departure choice within fixed candidate sets | Enabled |
 
-Within each comparison, raw population, network and facilities inputs, sampled person identities, capacity factors and recorded native strategy settings were checked. Native strategy weights are ChangeExpBeta 0.7, ReRoute 0.1 and TimeAllocationMutator 0.1. Actual configuration records take precedence over descriptive folder names.
+The scenario samples 20% of the restored 84,110-person input, yielding **16,822 simulated people**. Population sampling, synthetic profiles, information assignments, and controlled-roster selection use seed **6021**. Flow and storage capacity factors are **0.2** and **0.2^0.75 ≈ 0.2991**. The fixed cohort contains **11,793 target trips** across **2,877 OD pairs**, including **11,332 work targets** with arrival deadlines. Background trips retain MATSim mechanisms and full-day activity chains.
 
-The model names above are the identifiers recorded by the runs. Detailed recorded request parameters and artifact hashes are included in the [metadata file](data/reported-experiment-metadata.json). An omitted sampling parameter is not assumed to be zero or to match between services.
+Pricing review opportunities occur on **Days20, 50, and 80**. Positive charging begins on **Day20** in MATSim + Manager and **Day50** in LLM Traveler + Manager. An opportunity can retain an empty or unchanged policy; it does not necessarily introduce new charges. The [detailed seed-268 record](assets/data/seed268/seed268-experiments.md) documents the policy timing and label mapping.
 
-## Runtime artifact identifiers
+## Current manuscript: outcomes and measurement
 
-| Runtime | Output schema | JAR SHA-256 |
-| :--- | ---: | :--- |
-| LLM traveler run | 23 | `d840f208dc618cb4238df09b36b2b4bd386d663880b0dee1f293aeaf367b11c3` |
-| Native baselines | 18 | `6eb3c58b1f16bdbad31313d1ec12e8421e29d8fa0eb609c533f7518343aea958` |
-| LLM manager run | 23 | `c44eabe2f082be26a26802281357ba9e6d54fdb55f1daf2a47913d9860f75102` |
+The table reproduces the manuscript's rounded daily means over Days0–99. All configurations completed 11,793 target trips and 33,644 car legs per day, with no stuck agents.
 
-The archived manifests identify these runtime binaries by hash but do not record a source Git commit. The current repository commit must therefore not be treated as the exact source revision of every displayed run. Input configuration hashes also differ within both comparisons. Matching selected manifest fields does not establish full code equivalence; the impact of build differences has not been isolated.
+| Configuration | Total car time (person-hours/day) | Target-trip car time (min/trip) | Work late-arrival rate |
+| :--- | ---: | ---: | ---: |
+| MATSim | 12,431 | 29.3 | 20.0% |
+| MNL | 17,201 | 53.2 | 31.3% |
+| LLM Traveler | 9,958 | 17.4 | 5.6% |
+| MATSim + Manager | 12,663 | 29.6 | 20.4% |
+| LLM Traveler + Manager | 11,414 | 16.3 | 3.7% |
 
-## Traveler outcomes
+The table retains the manuscript's display values. The raw Joint target-trip mean is 16.2499879024 minutes; direct one-decimal rounding gives 16.2. See the [precision note](data/seed268/README.md#measurement-and-precision) for this display discrepancy and the source-derived CSV values.
 
-The target cohort contains 11,793 trips/day, including 11,332 work trips/day. Full-day car travel time covers all 33,644 car legs/day. All these trips and car legs completed on each of the selected days in the four displayed runs. Incomplete LLM Day 61 and baseline Days 61–499 are excluded from this comparison.
+- **Total daily car time** includes all car legs and waiting before network entry. The corresponding mean daily car time per person is `60 × total person-hours / 16,822`, in minutes/person.
+- **Target-trip car time** covers the fixed 11,793 controlled target trips. It differs from door-to-door time, which also includes access and egress.
+- **Work lateness** uses the fixed denominator of 11,332 work targets. Differences in lateness rates are percentage points.
+- **Window summaries** average daily values over Days0–99. Relative changes use ratios of unrounded window means; they should not be recomputed from the rounded table above. Plotted smoothing is a trailing seven-day mean.
+- **Completed-link delay**, the manager's objective, excludes waiting before network entry and has different event boundaries from complete trip time.
 
-- **Target-trip car travel time:** elapsed time from car departure to car arrival for the target trip, including queueing and applicable pre-traffic waiting.
-- **Door-to-door travel time:** elapsed time for the target origin-to-destination trip, including access and egress components.
-- **P95:** compute the 95th percentile separately for each day, then average those 61 daily values. It is not a percentile of pooled multi-day trips.
-- **Work lateness:** percentage of the fixed 11,332 daily work trips arriving after their recorded deadline. Changes in this percentage are reported in percentage points.
-- **Total daily car travel time:** sum elapsed car-leg times across the full population, expressed in person-hours/day.
+LLM Traveler has the lowest mean daily car time per person, **19.90% below MATSim**. LLM Traveler + Manager has the shortest target-trip time: relative to LLM Traveler, its target-trip time is **6.63% lower**, while mean daily car time per person is **14.62% higher**. MATSim + Manager records higher total car time than MATSim in this seed-268 comparison. The historical 3.52% car-time improvement in the [archive](history/2026-10-18/README.md#manager-outcomes) belongs to a different seed and window.
 
-Homepage values are arithmetic means of daily metrics over Days 0–60. Relative change is `100 × (LLM mean − native mean) / native mean`, calculated before rounding. For lateness, subtract the two mean percentages directly.
+Differences between Traveler and Joint already exist before positive charging, so the contrast cannot be attributed to the manager alone. Traveler and Joint select departures **34.96** and **39.65 minutes earlier** than their original plans on average. These time outcomes do not establish welfare improvements, learned habits, or causal coordination. Some executable builds differ, and MNL uses uncalibrated homogeneous coefficients; rankings describe the recorded configurations rather than general comparative effectiveness.
 
-The LLM decision space uses 1–4 frozen route candidates and a 15-minute departure grid from 90 minutes before to 30 minutes after the original departure, subject to activity/day boundaries. Native MATSim is not constrained to the same candidate pool or departure grid. LLM decisions are active on Day 0, so Day 0 is not an untreated reference day.
+## Current manuscript: execution validation
 
-Travel-time and punctuality differences accompany changed departure times. They do not quantify the full schedule cost of earlier departures or arrivals, nor do population means imply that every traveler benefits. The comparison describes the complete configured decision policies; individual design components have not been isolated.
+The manuscript reports the following audit scopes. Full-record action and memory checks concern **LLM Traveler + Manager**; the information-access check concerns the inspected samples only.
 
-In the figure, blue dashed lines are native seed 9261, orange solid lines are LLM travelers seed 9261, and thin gray lines are native seeds 268 and 4711. Gray lines are descriptive runs, not confidence bounds. Shading marks Days 56–60. The traffic replay compares Day 0 and Day 50 within the LLM run.
+| Check | Coverage | Recorded result |
+| :--- | :--- | :--- |
+| Action constraints and execution | 1,179,300 finalized target decisions: 11,793 × 100 days | Legal route/time choices linked to applied plans and completed routes |
+| Personal state continuity | 100-day personal-memory chains | Continuous chains; finalized summaries within the 500-character limit |
+| Pricing decisions and state | 3 policy decisions; 100 daily memory updates | Valid policies; all daily memory updates completed |
+| Information access | 4,000 sampled input contexts: 2,000 Traveler and 2,000 Joint | No current announcements disclosed to uninformed travelers; network-traffic visibility is disabled in the sampled contexts |
 
-## Manager outcomes
+Output repair affected **2,433 travel-decision records (0.206%)** and **2,943 personal-memory records (0.250%)**. One manager-memory JSON response required repair. These are accepted outputs after validation and retry, not a claim that every initial response was valid. Semantic review was disabled; execution consistency does not establish the accuracy of all generated reasons or summaries. See the [detailed audit and workload](assets/data/seed268/seed268-experiments.md#execution-validation-and-model-call-scope).
 
-The manager acts on native travelers; no traveler trips are controlled by an LLM in this experiment. Days 0–19 have no tolls. A scheduled policy review can change prices or hold the existing policy; a review date alone does not identify a policy effect.
+## Current manuscript: distributed-record scope
 
-- **Network delay:** delay summed over completed full-link traversals. It excludes pre-traffic waiting and partial-link movement.
-- **Morning link delay:** completed full-link delay grouped by link-entry times in `[07:00, 09:00)`. It does not measure only delay occurring within those clock hours.
-- **Total daily car travel time:** car departure-to-arrival time, including pre-traffic waiting.
+The [data inventory](data/README.md) links [complete 100-day aggregate exports](data/seed268/README.md), a [machine-readable manuscript summary](data/manuscript-demonstration.json), selected case evidence, and historical seed-9261 comparisons. The summary preserves the paper's display precision; the separate aggregate CSVs retain source-derived numeric precision. The [figure inventory](assets/README.md) identifies the framework and 100-day displays.
 
-Positive gain means improvement: `100 × (baseline − manager) / baseline`. Headline gains use the ratio of totals across Days 20–499, rather than the mean of daily percentages. This gives approximately +0.29% for total network delay, −0.26% for morning link delay and +3.52% for total car travel time.
+The [available seed-268 records](assets/data/seed268/seed268-experiments.md#available-records-and-reproduction-scope) include 500 configuration/day aggregate rows, five run summaries, policy decisions, source metadata, and a recomputed full-window Joint execution audit. The exports reconcile with the manuscript's outcomes, behavior rates, repair counts, and inference workload. Full personal records and raw audit streams remain in the author's external `arxiv-v1-data` archive.
 
-Thin gray curves show daily paired gains. Dark curves use a trailing seven-day ratio of totals, including the current day. Blue/orange filling identifies the sign of the difference, not uncertainty.
+The [export-package guide](data/seed268/README.md) documents measurement fields, audit scope, the source archive location, and the command to regenerate these exports from the original records.
 
-The corridor map groups the 334 directed car links into 76 topological corridors: maximal directed chains through intermediate nodes with one car in-link and one car out-link. Colors show `baseline mean daily delay − manager mean daily delay` over Days 20–499, in vehicle-hours/day. A diamond marks a corridor with at least one tolled link on at least one day in that period. Corridor changes can reflect routing and traffic-volume changes as well as delay per traversal; they do not isolate the effect of an individual toll.
+Exact reruns additionally require the corresponding executable or code revision, complete inputs and candidate files, original prompts, final configuration, and model-service settings. The current repository revision and a traffic seed alone do not identify the historical executable or fix remote model responses. See [Implementation and reproducibility](../paper/AgenticMobility_arXiv/sections/implement.tex).
 
-## Aggregate data and figure reproduction
+## Historical experiments
 
-| File | Contents |
-| :--- | :--- |
-| [Traveler daily comparison](data/llm-traveler-daily-comparison.csv) | Days 0–60 for one LLM run and three native runs; all five traveler-table metrics |
-| [Manager daily comparison](data/manager-daily-comparison.csv) | Days 0–499 for the paired manager/native runs |
-| [Manager corridor comparison](data/manager-corridor-comparison.csv) | Mean daily delays and toll exposure for the 76 corridors over Days 20–499 |
-| [Manager policy schedule](data/manager-policy-schedule.csv) | Policy review days, actions and recorded price changes |
-| [Experiment metadata](data/reported-experiment-metadata.json) | Recorded model parameters, runtime/input hashes and aggregate-file hashes |
-
-The CSVs contain aggregate statistics, without individual traveler records or model conversations. Percentages should be recomputed from unrounded CSV values. For the manager summary, select `20 <= day <= 499` and compute `100 × (sum(baseline) − sum(manager)) / sum(baseline)` for the relevant pair of columns.
-
-To redraw the traveler figure from the committed CSV, install Matplotlib in your Python environment and run from the repository root:
-
-```bash
-python scripts/plot_readme_traveler_results.py
-```
-
-The script exports PNG and editable SVG into `docs/assets/`. It uses the recorded daily values and performs no traffic simulation or model calls. These materials support recalculating summaries and redrawing the traveler figure. Rerunning the original traffic experiments additionally requires the archived runtime, full inputs, run configuration and model service; those runtime binaries and raw logs are not included here.
-
-## Interpretation and next comparisons
-
-Each setting currently includes one LLM seed. Extra native seeds provide descriptive context but do not replace LLM repetitions. Consecutive simulation days are dependent observations, so they are not treated as independent experimental replicates.
-
-The traveler and manager experiments use different interventions, durations and metric scopes. Their percentage changes do not establish a direct ranking between the interventions. The current results also do not evaluate joint LLM traveler–manager behavior or isolate information-access effects. Further comparisons require repeated seeds and controlled, documented configurations for the question being tested.
+The [18 October 2026 archive](history/2026-10-18/README.md) contains the earlier seed-9261 Traveler and Manager comparisons, their aggregate CSVs, and metadata. Those runs use different durations and are separate from the current manuscript demonstration.

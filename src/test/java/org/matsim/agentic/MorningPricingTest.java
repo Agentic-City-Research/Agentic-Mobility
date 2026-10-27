@@ -326,7 +326,13 @@ class MorningPricingTest {
         var network=scenario.getNetwork();
         new NetworkWriter(network).write(net.toString()); new PopulationWriter(scenario.getPopulation()).write(pop.toString());
         new org.matsim.facilities.FacilitiesWriter(scenario.getActivityFacilities()).write(facilities.toString());
-        new ConfigWriter(config).write(cfg.toString()); return cfg;
+        new ConfigWriter(config).write(cfg.toString());
+        try {
+            for (Path file : List.of(net, pop, facilities, cfg)) MorningJointTestSupport.useBundledDtd(file);
+        } catch (java.io.IOException error) {
+            throw new java.io.UncheckedIOException(error);
+        }
+        return cfg;
     }
     static Network network() {
         var n = NetworkUtils.createNetwork(); var f = n.getFactory();

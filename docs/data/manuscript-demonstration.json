@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "manuscript_transcription",
+  "updated_date": "2026-10-27",
+  "source_files_repository_relative": [
+    "paper/AgenticMobility_arXiv/sections/experiment.tex",
+    "paper/AgenticMobility_arXiv/appendices/app_1.tex"
+  ],
+  "precision": {
+    "outcome_table": "Manuscript display values, not full-precision aggregates.",
+    "total_car_person_hours_per_day_decimal_places": 0,
+    "target_car_minutes_per_trip_decimal_places": 1,
+    "work_late_percent_decimal_places": 1,
+    "relative_changes": "Reported manuscript percentages; not recomputed from rounded outcome entries.",
+    "api_calls_and_tokens": "Recorded integer totals from the manuscript; tokens are service-reported.",
+    "joint_target_time_source_note": "The source-derived mean is 16.249987902427996 min/trip; direct one-decimal rounding yields 16.2, while the manuscript displays 16.3. Original table-rounding pipeline not identified. Companion CSVs preserve source precision; this transcription retains 16.3."
+  },
+  "experiment": {
+    "simulation_seed": 268,
+    "population_and_assignment_seed": 6021,
+    "first_log_day": 0,
+    "last_log_day": 99,
+    "completed_days_per_configuration": 100,
+    "independent_runs_per_configuration": 1,
+    "successive_days_are_independent_replications": false,
+    "population_input_people": 84110,
+    "demand": 100,
+    "sample_rate": 0.2,
+    "simulated_people": 16822,
+    "flow_capacity_factor": 0.2,
+    "storage_capacity_factor_formula": "0.2^0.75",
+    "target_trips_per_day": 11793,
+    "target_people": 11793,
+    "target_od_pairs": 2877,
+    "work_target_denominator": 11332,
+    "completed_car_legs_per_day": 33644,
+    "stuck_agents": 0,
+    "single_route_targets": 2780,
+    "multiple_route_targets": 9013,
+    "informed_joint_travelers": 5897,
+    "uninformed_joint_travelers": 5896,
+    "policy_opportunity_log_days": [
+      20,
+      50,
+      80
+    ],
+    "positive_charging_first_log_day": {
+      "Manager": 20,
+      "Joint": 50
+    },
+    "joint_charged_links_from_day50": [
+      {
+        "link_id": "43_3",
+        "amount_per_entry": 1.5
+      },
+      {
+        "link_id": "43_4",
+        "amount_per_entry": 1.5
+      }
+    ],
+    "joint_day80_prices_unchanged": true,
+    "toll_interval_seconds": [
+      0,
+      108000
+    ],
+    "toll_interval_convention": "left-inclusive, right-exclusive",
+    "native_innovation_cutoff_log_day": 90,
+    "existing_plan_selection_continues_after_cutoff": true,
+    "traveler_semantic_review_enabled": false
+  },
+  "configurations": [
+    {
+      "id": "Native",
+      "label": "MATSim",
+      "outcomes": {
+        "total_car_person_hours_per_day": 12431,
+        "target_car_minutes_per_trip": 29.3,
+        "work_late_percent": 20
+      },
+      "choice_change_percent": {
+        "overall_route": 5.26,
+        "multiple_route": null,
+        "departure": 20.05
+      },
+      "api_calls": 0,
+      "tokens": 0
+    },
+    {
+      "id": "MNL",
+      "label": "MNL",
+      "outcomes": {
+        "total_car_person_hours_per_day": 17201,
+        "target_car_minutes_per_trip": 53.2,
+        "work_late_percent": 31.3
+      },
+      "choice_change_percent": {
+        "overall_route": 48.55,
+        "multiple_route": 63.52,
+        "departure": 85.24
+      },
+      "api_calls": 0,
+      "tokens": 0
+    },
+    {
+      "id": "Traveler",
+      "label": "LLM Traveler",
+      "outcomes": {
+        "total_car_person_hours_per_day": 9958,
+        "target_car_minutes_per_trip": 17.4,
+        "work_late_percent": 5.6
+      },
+      "choice_change_percent": {
+        "overall_route": 3.08,
+        "multiple_route": 4.03,
+        "departure": 29.45
+      },
+      "mean_selected_departure_minutes_earlier_than_original": 34.96,
+      "api_calls": 2362964,
+      "tokens": 5713538990
+    },
+    {
+      "id": "Manager",
+      "label": "MATSim + Manager",
+      "outcomes": {
+        "total_car_person_hours_per_day": 12663,
+        "target_car_minutes_per_trip": 29.6,
+        "work_late_percent": 20.4
+      },
+      "choice_change_percent": {
+        "overall_route": 5.43,
+        "multiple_route": null,
+        "departure": 20.28
+      },
+      "api_calls": 109,
+      "tokens": 872774
+    },
+    {
+      "id": "Joint",
+      "label": "LLM Traveler + Manager",
+      "outcomes": {
+        "total_car_person_hours_per_day": 11414,
+        "target_car_minutes_per_trip": 16.3,
+        "work_late_percent": 3.7
+      },
+      "choice_change_percent": {
+        "overall_route": 2.19,
+        "multiple_route": 2.86,
+        "departure": 28.04
+      },
+      "mean_selected_departure_minutes_earlier_than_original": 39.65,
+      "api_calls": 2364090,
+      "tokens": 5451720152
+    }
+  ],
+  "measurement": {
+    "outcome_window": "Daily means over log Days0–99.",
+    "mean_daily_car_minutes_per_person_formula": "60 * total_car_person_hours_per_day / 16822",
+    "total_car_time_includes_waiting_before_network_entry": true,
+    "route_identity": "Complete ordered link sequence, not candidate label.",
+    "choice_change_adjacent_day_transitions": 99,
+    "overall_choice_change_denominator": 11793,
+    "candidate_based_multiple_route_denominator": 9013,
+    "multiple_route_null_meaning": "Candidate-space comparison not applicable to native MATSim choices.",
+    "lateness_rate_differences_unit": "percentage points",
+    "monetary_welfare_value_assigned_to_schedule_changes": false
+  },
+  "reported_relative_changes_percent": {
+    "traveler_mean_daily_car_time_per_person_vs_native": -19.9,
+    "joint_target_car_time_vs_traveler": -6.63,
+    "joint_mean_daily_car_time_per_person_vs_traveler": 14.62
+  },
+  "joint_execution_audit": {
+    "full_record_configuration": "Joint",
+    "finalized_target_decisions": 1179300,
+    "finalized_personal_memory_records": 1179300,
+    "personal_memory_chain_days": 100,
+    "personal_summary_character_limit": 500,
+    "accepted_actions_linked_to_applied_plans_and_completed_routes": true,
+    "policy_decisions": 3,
+    "completed_daily_manager_memory_updates": 100,
+    "repaired_travel_decision_records": 2433,
+    "repaired_travel_decision_percent": 0.206,
+    "repaired_personal_memory_records": 2943,
+    "repaired_personal_memory_percent": 0.25,
+    "manager_memory_json_responses_requiring_repair": 1,
+    "sampled_information_input_contexts": 4000,
+    "no_current_announcements_to_uninformed_in_inspected_contexts": true,
+    "no_network_wide_traffic_information_in_inspected_contexts": true,
+    "information_access_check_scope": "4,000 sampled contexts: 2,000 Traveler and 2,000 Joint; full-record action/memory checks concern Joint.",
+    "action_check_scope": "Finalized outputs after validation and repair.",
+    "semantic_accuracy_status": "Not systematically established."
+  },
+  "joint_call_breakdown": {
+    "traveler_decision": 1181736,
+    "personal_memory": 1182250,
+    "manager_policy": 3,
+    "manager_memory": 101,
+    "note": "Includes retry/repair overhead; 101 manager-memory calls produce 100 completed daily updates."
+  },
+  "distribution": {
+    "artifact_kind": "manuscript_transcription_with_archive_derived_companion_exports",
+    "complete_100day_daily_trajectories_included": true,
+    "full_precision_100day_outcome_aggregates_included": true,
+    "complete_run_raw_execution_audit_included": false,
+    "selected_case_excerpt_records": 18,
+    "selected_case_directory_repository_relative": "docs/assets/data/seed268",
+    "note": "This file transcribes manuscript values. Companion exports supply 500 source-derived daily aggregate rows, five run summaries, audit summaries, policies and provenance. Full raw personal logs and model responses remain in the external source archive; selected case excerpts remain separate.",
+    "source_derived_execution_audit_summary_included": true,
+    "companion_export_directory_repository_relative": "docs/data/seed268",
+    "external_source_archive_name": "arxiv-v1-data"
+  },
+  "limitations": [
+    "This file transcribes manuscript summaries. Companion exports derive from original logs; neither file set is an exact simulation-rerun bundle.",
+    "Some executable builds differ and MNL coefficients are uncalibrated.",
+    "Pre-charging differences prevent attributing the Joint–Traveler contrast to the manager alone.",
+    "No missing daily or individual records have been synthesized from rounded manuscript entries."
+  ]
+}

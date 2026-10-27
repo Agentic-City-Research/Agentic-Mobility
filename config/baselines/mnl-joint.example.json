@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "description": "Illustrative homogeneous joint-choice baseline. Engineering assumptions only, not calibrated Sioux Falls behavior or a recommended final specification. Freeze or estimate coefficients independently before evaluation.",
+  "calibrated": false,
+  "parameters": {
+    "timeWeight": {
+      "value": 0.3,
+      "unit": "utility/minute",
+      "source": "Engineering assumption reusing the legacy route-only MNL time sensitivity as a starting point; not an empirical estimate."
+    },
+    "moneyWeight": {
+      "value": 0.3,
+      "unit": "utility/scenario-money-unit",
+      "source": "Engineering assumption for sensitivity testing; scenario money is not asserted to be USD or RMB. Not inferred from income categories."
+    },
+    "lateWeight": {
+      "value": 0.9,
+      "unit": "utility/minute",
+      "source": "Engineering assumption: additional lateness sensitivity is three times the travel-time sensitivity. Not calibrated, not copied from MATSim full-plan scoring."
+    },
+    "departureShiftWeight": {
+      "value": 0.05,
+      "unit": "utility/minute",
+      "source": "Engineering assumption: symmetric disutility of departing earlier or later than the original plan. No hard punctuality filter or inferred preparation period."
+    },
+    "experienceWeight": {
+      "value": 0.5,
+      "unit": "fraction",
+      "source": "Engineering assumption: equal blend of static free-flow time and mean completed own same-route/same-bin travel time in the configured recent factual window."
+    },
+    "experienceBinSeconds": {
+      "value": 900,
+      "unit": "seconds",
+      "source": "Engineering assumption matching the default 15-minute departure grid; absolute time-of-day bins applied to selected, not delayed actual, departure times."
+    },
+    "unknownTollMode": {
+      "value": "reject",
+      "unit": "category",
+      "source": "Conservative protocol: pricing with uninformed controlled travelers is rejected before simulation until an explicit belief rule is selected. Change to personal-with-prior only as a declared experimental assumption."
+    },
+    "unknownTollPriorPerLink": {
+      "value": 0.1,
+      "unit": "scenario-money-unit/link",
+      "source": "Illustrative engineering prior, inactive in reject mode. In personal-with-prior mode, used only without completed recent same-route/same-bin personal payment observations. Never a fact about the current policy."
+    }
+  }
+}
