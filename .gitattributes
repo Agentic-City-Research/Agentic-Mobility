@@ -1,0 +1,5 @@
+# Keep archived parameter and derived-data hashes stable across Git checkouts.
+config/baselines/mnl-joint.example.json text eol=lf
+docs/data/seed268/*.csv text eol=lf
+docs/data/seed268/*.json text eol=lf
+scripts/export_arxiv_documentation_data.py text eol=lf

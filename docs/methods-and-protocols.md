@@ -6,6 +6,8 @@ AgenticMobility studies day-to-day interaction through a shared transport enviro
 
 This guide describes `MorningExperiment`, Traveler v9, and the default `basic` manager. The current implementation covers transport interaction; broader AgenticCity integration remains a research direction.
 
+The [manuscript](../paper/AgenticMobility_arXiv/main.tex) separates the general role/action/feedback framework from this MATSim realization. Fixed car target trips, daily rounds, route–departure choices, and link charges are implementation choices. Only the MATSim backend has been evaluated. [Reported experiments](reported-experiments.md) documents the five seed-268 configurations over 100 days; additional options in this guide are not necessarily enabled in those runs.
+
 ## System boundary
 
 ```mermaid
@@ -30,6 +32,9 @@ Adaptation changes experiences, summaries, decisions, and policies. Model weight
 | Uninformed LLM traveler | The same personal conditions, options, static route information, recent facts, and summary; current tariffs remain unknown. | The same route/time action space. | Own executed outcomes and payments, which can inform later memory. |
 | LLM manager | Public car-network information, past aggregate traffic, effective policy and policy history, and its own memory. | Submit a complete legal link-entry toll policy on scheduled days. | Public traffic and policy-execution feedback. |
 | Native traveler | Information used by the configured native routing, scoring, and replanning mechanisms. | Native activity, route, and plan behavior under the selected experiment mode. | The corresponding native execution and scoring feedback. |
+| Constrained MNL baseline | Candidate-based inputs under the configured offline policy. | Select a joint route/departure action from the fixed sets. | Recorded trip outcomes under the offline policy; no LLM choice or reflection calls. |
+
+The joint baseline uses `--policy mnl-joint` and an explicit parameter file; see [joint MNL](joint-mnl-baseline.md). The legacy `--policy mnl` is route-only and retains the original planned departure. Neither policy calls a traveler model.
 
 Traveler prompts exclude live or historical network-wide congestion, other travelers' experiences, and unchosen routes' realized travel times. Both information groups receive static route information; they use personal executions to learn about congestion.
 
@@ -41,6 +46,8 @@ Groups are assigned at the **person level** with a stable seed. The default info
 
 All trips of one assigned person share the information-visibility group, but the target-trip LLM prompt and native routing for other trips remain distinct mechanisms. Shared roads couple the groups' traffic outcomes.
 
+The manuscript's Joint condition assigns 5,897 travelers to current announcements and 5,896 to no current announcements, using seed 6021. Uninformed current costs are `null`, not zero. Even while Joint's active policy is empty, the two input conditions remain distinct; in the Traveler-only condition, charging is explicitly disabled.
+
 An uninformed traveler may remember earlier payments, but those payments do not establish today's tariff. The v9 joint prompt uses bounded personal memory rather than a permanent exact table of every historical price. A run with charging disabled explicitly identifies that condition; known zero congestion charging is different from an unknown current tariff.
 
 ## Fixed population, cohort, and identity
@@ -50,6 +57,8 @@ Preparation fixes the sampled population, eligible target trips, controlled peop
 By default, target eligibility uses the **original planned start of the destination activity in `[0,09:00)`**, rather than a trip's later realized departure or arrival. This is the `planned-arrival` selection rule; missing or invalid original planned starts are not estimated to create eligibility. Moving a trip's departure later does not remove it from the fixed target set.
 
 `--llm-agents` selects **people** from the eligible cohort. A person can have more than one eligible target trip. The primary target-trip identity is `personId/tripIndex`, also stored as `tripId`. Traveler memory is maintained per target trip; it is not an automatically unified memory of every activity undertaken by a person.
+
+The reported demonstration has 11,793 target trips by 11,793 people within 16,822 simulated people, including 11,332 work targets with deadlines. This one-target-per-person count describes that scenario, not a restriction on the general interface. MNL and LLM target choices use the fixed action sets; native MATSim target choices do not. MNL's homogeneous coefficients are uncalibrated.
 
 The main `hybrid` mode retains native plan selection and replanning. Target routes and departure choices are overlaid after native replanning; controlled people's other trips and non-controlled people's trips retain native behavior. Native background adaptation therefore remains part of the shared environment.
 
@@ -138,6 +147,8 @@ Local validation rejects truncated responses, blank output, malformed or trailin
 
 The optional `--traveler-semantic-review` is off by default. It permits one additional model check of each structurally legal choice or summary. Review uses the traveler's permitted facts and may revise explanatory text or memory; the selected route and departure remain locked. Failed review retains the original structurally legal output and records the failure. See [Traveler v9](traveler-v9.md) for review states and exact validation details.
 
+Semantic review was **disabled in the reported runs**. The manuscript's execution audit checks finalized actions after validation/repair and memory continuity; it does not establish the semantic accuracy of all memories or the faithfulness of generated reasons. Information-access inspection covers 4,000 sampled contexts, separately from the full-record action checks.
+
 ## Congestion-pricing manager
 
 The manager is instructed to reduce full-day network delay using public observations and its own policy experience. The task objective and the availability of an action do not establish that a policy improves traffic.
@@ -150,6 +161,8 @@ The manager is instructed to reduce full-day network delay using public observat
 | Manager reflection | After every completed day, including days 1–20 | A replacement memory only. |
 
 There are 20 initial toll-free days. `--manager-update-interval 30` controls subsequent policy opportunities. On day 21, the manager can use results only through day 20; that policy's first outcomes become available after day 21 executes. Reflection cannot directly change tolls.
+
+These are one-based simulation days. In the manuscript's zero-based logs, opportunities are Days20, 50, and 80. Manager starts positive charging on Day20; Joint retains zero charges at Day20, charges links `43_3` and `43_4` at 1.5 scenario units per entry from Day50, and retains those charges at Day80.
 
 Policy context includes the complete car-network topology, relevant capacity facts, past public traffic summaries, policy history, and manager memory. Public road details prioritize major delay/failure locations and currently or recently priced links; omission does not imply an unlisted road is uncongested. Daily reflection uses new observations and selected summaries without repeating the complete topology.
 

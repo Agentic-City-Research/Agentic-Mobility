@@ -1,109 +1,123 @@
 # Seed 268: five-configuration comparison
 
-[Project experiments](../README.md#experiments) · [Methods and protocols](methods-and-protocols.md)
+[Project experiments](../../../../README.md#experiments) · [Reported experiments](../../../reported-experiments.md) · [Methods and protocols](../../../methods-and-protocols.md)
 
-This record accompanies the analysis snapshot dated **22 October 2026**. It describes the supplied seed268 analysis, not a newly executed simulation. All day labels are zero-based.
+This record follows the current [arXiv manuscript](../../../../paper/AgenticMobility_arXiv/main.tex), specifically its [execution-validation section](../../../../paper/AgenticMobility_arXiv/sections/experiment.tex) and [active appendix](../../../../paper/AgenticMobility_arXiv/appendices/app_1.tex). It describes the reported seed-268 demonstration, not a newly executed simulation. All day labels below are zero-based.
 
 ## Completion and comparison window
 
-MATSim agents, Constrained MNL, LLM traveler agents, and Manager have completed Days 0–99. Joint has complete metrics and verified trip records for Days 0–87, but no final status file or effective output XML. Its progress snapshot is on Day 88 in the LLM-decision phase. Therefore every five-condition comparison uses Days 0–87. No partial Day 88 output, extrapolated value, or zero-filled future day enters these results.
+All five configurations—MATSim, MNL, LLM Traveler, MATSim + Manager, and LLM Traveler + Manager—completed **100 simulated days**, **Days0–99**, with simulation seed **268**. The common comparison window is Days0–99 for every configuration. There is one run per configuration; consecutive days share persistent states and are not independent replications.
 
-Some Joint gzip streams were not finalized. The source analysis accepted only newline-terminated, parseable records from the available stream and reconciled complete days against trip-level data. This is an archived completed prefix, not a claim that the full 100-day Joint run finished.
+The results and audit counts below follow the manuscript. The [100-day export package](../../../data/seed268/README.md) recomputes aggregate outcomes, behavior rates, and Joint execution checks from the completed runs. Distributed records include 500 daily aggregate rows, five run summaries, audit/provenance JSON, the manuscript-summary JSON, and selected individual-case excerpts. See [Available records and reproduction scope](#available-records-and-reproduction-scope).
 
 ## Matched inputs and configuration differences
 
-The analysis verifies identical network, population, and facilities content hashes; sampled population identities; target-trip cohort, original schedules, endpoints and departure options; and candidate-route contents. Constrained MNL, LLM traveler agents and Joint also share controlled membership, synthetic profiles and information assignments. There are 16,822 simulated people, 11,793 target trips/day and 11,332 work trips/day with an arrival deadline. All 33,644 daily car legs completed on included days; stuck counts are zero.
+The manuscript reports input checks covering network, population, facilities, capacities, target identities, and background settings. The scenario retains 20% of the restored 84,110-person input: **16,822 simulated people**, with flow capacity factor **0.2** and storage capacity factor **0.2^0.75 ≈ 0.2991**. Population sampling, synthetic profiles, information groups, and controlled-roster selection use seed **6021**, separately from simulation seed 268.
 
-The equality checks do not establish equal implementations. The MATSim agents and Manager configurations share a JAR. MNL, LLM traveler agents and Joint use different builds. Joint lacks its final effective XML. The simulation seed does not fix model-service sampling or deployment behavior. Constrained MNL is a fixed-action-set baseline with uncalibrated homogeneous example parameters; synthetic profiles are not mapped to heterogeneous coefficients. Its performance is not a general benchmark of calibrated MNL methods.
+The fixed target cohort contains **11,793 trips by 11,793 people**, spanning **2,877 OD pairs**. Work-arrival evaluation uses **11,332 work targets** with deadlines. All five configurations completed 11,793 target trips and **33,644 car legs per day**, with no stuck agents. Full-day background activity and non-target trips retain MATSim mechanisms.
 
-LLM traveler agents use the recorded model ID `qwen3.5-9b`; the pricing role uses `deepseek-flash`.
+MNL, LLM Traveler, and Joint use fixed route and departure-time sets. Routes have up to four candidates per OD; departure options span 90 minutes before to 30 minutes after the original plan at 15-minute intervals, clipped at activity and simulation boundaries. MATSim target decisions are not restricted to these candidate sets. Matching inputs does not remove differences in executable builds, preference representations, or remote model responses. MNL uses uncalibrated homogeneous coefficients, so its performance is not a general benchmark of calibrated MNL methods. Exact model-service settings and executable identities require the corresponding run-specific archive.
 
-## Main results: Days 0–87
+## Main results: Days0–99
 
-| Configuration | All-day car time (person-hours/day) | Change vs. MATSim agents | Target-trip car time (min) | Work late-arrival rate |
-| :--- | ---: | ---: | ---: | ---: |
-| MATSim agents | 12,322.75 | — | 28.31 | 19.71% |
-| Constrained MNL | 17,307.06 | +40.45% | 53.23 | 31.28% |
-| LLM traveler agents | **10,044.57** | −18.49% | 17.43 | 5.67% |
-| Manager | 12,530.01 | +1.68% | 28.48 | 19.91% |
-| Joint | 11,568.74 | −6.12% | **16.33** | **3.82%** |
+These daily means reproduce the manuscript's display precision over the common 100-day window. Rounded entries do not quantify uncertainty and should not be used to reconstruct full-precision percentages.
+
+The [manuscript summary JSON](../../../data/manuscript-demonstration.json) transcribes these reported settings, outcomes, behavior rates, and audit/workload counts. The [data inventory](../../../data/README.md) distinguishes this transcription from selected case records and the separate seed-9261 comparisons.
+
+| Configuration | All-day car time (person-hours/day) | Target-trip car time (min/trip) | Work late-arrival rate |
+| :--- | ---: | ---: | ---: |
+| MATSim | 12,431 | 29.3 | 20.0% |
+| MNL | 17,201 | 53.2 | 31.3% |
+| LLM Traveler | **9,958** | 17.4 | 5.6% |
+| MATSim + Manager | 12,663 | 29.6 | 20.4% |
+| LLM Traveler + Manager | 11,414 | **16.3** | **3.7%** |
+
+The manuscript's Joint value of 16.3 is retained here. The source-derived mean is 16.2499879024 minutes, which directly rounds to 16.2 at one decimal; the original table-rounding pipeline is not identified. The [precision note](../../../data/seed268/README.md#measurement-and-precision) documents the discrepancy while preserving source precision in the CSV export.
 
 - **All-day car time:** total elapsed car-leg time from car departure to car arrival across the full population, including pre-traffic waiting. It is not just time spent on controlled target trips.
 - **Target-trip car time:** mean car duration for the fixed target-trip cohort, which includes multiple activity purposes.
 - **Work late-arrival rate:** late work trips divided by the fixed 11,332 work trips/day. A difference between these percentages is expressed in percentage points.
-- **Window summary:** arithmetic mean of daily values. Relative changes use the ratio of unrounded window means, not the mean of daily percentages.
+- **Mean daily car time per person:** `60 × all-day car person-hours / 16,822`, in minutes/person. This is the normalized all-population measure shown in the manuscript's outcome figure.
+- **Window summary:** arithmetic mean of daily values over Days0–99. Relative changes use the ratio of unrounded window means, not the mean of daily percentages.
 - **Link delay:** a separate vehicle-hours measure excluding pre-traffic waiting. It does not replace the all-day time measure.
 
-Consecutive days and travelers within a run are dependent observations, not independent simulation replications. The figures show daily values and trailing seven-day means, with no confidence intervals.
+Consecutive days and travelers within a run are dependent observations, not independent simulation replications. The manuscript's time-series figures show daily values and trailing seven-day means, with no confidence intervals.
 
-## Joint versus LLM traveler agents
+## Individual and system-level outcomes
 
-Joint has 1.09 minutes (6.28%) lower target-trip car time and 1.85 percentage points lower work lateness, but 15.17% higher all-day car time. The all-day difference is 1,524.17 person-hours/day:
+LLM Traveler has the lowest mean daily car time per person, **19.90% below MATSim**. Joint has the shortest mean target-trip time. Relative to LLM Traveler, Joint has **6.63% lower target-trip car time** but **14.62% higher mean daily car time per person**. MATSim + Manager has higher all-day car time than MATSim in these recorded runs.
 
-| Decomposition | Joint minus LLM traveler agents (person-hours/day) |
-| :--- | ---: |
-| Target trips | −215.01 |
-| Other car trips | +1,739.18 |
-| Total | +1,524.17 |
-
-The same total can instead be decomposed into **+1,178.45** person-hours/day of pre-traffic waiting and **+345.72** person-hours/day after traffic entry. These are two decompositions of the same difference and must not be added together. Other trips include the controlled people's non-target journeys; they are not a separate untreated population.
-
-The all-day difference is already **+14.90% on Days 0–49**, before Joint charges any toll. Even on Days 0–19, when neither pricing configuration charges tolls, Joint is 12.53% higher than LLM traveler agents. Removing Day 0 does not remove the gap. These observations prevent attribution of the Joint–LLM traveler agents difference to the added pricing mechanism or a claim of causal synergy.
+Differences already exist before positive charging, preventing attribution of the Joint–Traveler contrast to the manager alone. Target/other-trip and waiting/post-entry decompositions are alternative accounts of the same total; other trips include controlled people's non-target journeys. Detailed individual distributions and daily decompositions cannot be reconstructed from the manuscript's rounded outcome table.
 
 ## Actual policy history
 
-| Configuration | Day 20 | Day 50 | Day 80 | Charged days within Days 0–87 |
+| Configuration | Day20 | Day50 | Day80 | Charged days within Days0–99 |
 | :--- | :--- | :--- | :--- | ---: |
-| Manager | Test charges on 10 links | Hold | Adjust to charges on 6 links | 68 |
-| Joint | Hold zero charges | Charge 1.5 scenario units on each of `43_4` and `43_3` | Hold | 38 |
+| MATSim + Manager | Positive charging begins | Review opportunity | Review opportunity | 80 |
+| LLM Traveler + Manager | Retain zero charges | Charge 1.5 scenario units on each of `43_3` and `43_4` | Retain the same charges | 50 |
 
-Charges apply per actual link entry throughout `[0,108000)` seconds. Manager and Joint differ in activation dates, links, prices and history; they are not responses to an identical fixed policy. Manager-generated explanations record hypotheses, not verified causal effects.
+Days20, 50, and 80 correspond to simulation days 21, 51, and 81. There are 20 initial toll-free days. Charges apply per actual link entry throughout `[0,108000)` seconds. A policy opportunity does not necessarily change the effective prices. Manager and Joint differ in activation dates and policy histories; they are not responses to an identical fixed policy. Manager-generated explanations record hypotheses, not verified causal effects. Joint assigns 5,897 travelers to current toll announcements and 5,896 to no current announcements, with personal feedback available to both groups.
 
 ## Schedule and individual outcomes
 
-LLM traveler agents and Joint depart 34.93 and 39.55 minutes earlier on average than their original plans. Earliest-boundary selection rates are 39.91% and 44.85%. Mean positive early-arrival durations across all work trips are 88.94 and 94.22 minutes, respectively; this is a schedule measure and is not automatically a monetized welfare cost.
+LLM Traveler and Joint select departures **34.96** and **39.65 minutes earlier** on average than their original plans. These schedule changes accompany travel-time and punctuality outcomes; no monetary value is assigned to earlier arrival or departure inconvenience. Mean outcomes do not imply that every traveler benefits.
 
-Relative to LLM traveler agents, Joint saves 0.31 minutes at the median target traveler. The shares with lower and higher mean car time are 59.86% and 40.07%. These percentages do not sum to 100% because some differences are zero and values are rounded. Mean results do not imply universal benefit. Information-group differences already exist before tolls and are not evidence that withholding information improves decisions.
+The manuscript reports the following choice-change rates over **99 adjacent-day transitions**. Overall rates use all 11,793 targets. Candidate-based multi-route rates use the 9,013 targets with multiple routes; the remaining 2,780 cannot switch routes within their fixed candidate sets. Routes are identified by complete link sequences, not local candidate labels.
+
+| Configuration | Overall route changes | Multi-route changes | Departure changes |
+| :--- | ---: | ---: | ---: |
+| MATSim | 5.26% | — | 20.05% |
+| MNL | 48.55% | 63.52% | 85.24% |
+| LLM Traveler | 3.08% | 4.03% | 29.45% |
+| MATSim + Manager | 5.43% | — | 20.28% |
+| LLM Traveler + Manager | 2.19% | 2.86% | 28.04% |
+
+A dash denotes a candidate-space comparison that is not applicable to native MATSim choices. Native route and activity-time innovation is disabled at log Day90; existing-plan selection continues. The resulting decline in route switching cannot be interpreted solely as behavioral stabilization. These observations do not establish learned habits, coordination, or welfare improvements.
 
 ## Execution validation and model-call scope
 
-The supplied audit reports **1,037,784** legal complete-day Joint decisions and the same number of matching executions (11,793 trips × 88 days). Selected route/time records agree with trip and execution checks, and trip-level daily car time, departure shifts and lateness reconcile with metrics. This establishes execution consistency for the checked records, not the faithfulness of every rationale or the semantic correctness of all summaries.
+The manuscript reports **1,179,300 finalized Joint target decisions** (**11,793 trips × 100 days**) with legal route/departure choices linked to applied plans and completed routes. The 100-day personal-memory chains are continuous, and finalized summaries remain within the 500-character limit. All **three policy decisions** are valid and all **100 daily manager-memory updates** completed. The information-access check covers **4,000 sampled input contexts** only: 2,000 from Traveler and 2,000 from Joint. No current announcements were disclosed to uninformed travelers, and network-traffic visibility was disabled in the sampled contexts.
 
-The analysis checks three valid Joint policy outputs and 88 completed-day pricing-role reflections. One invalid JSON reflection was repaired. Full traveler attempt streams and the complete semantic summary chain were not audited. Joint's API-usage snapshot includes partial Day 88 calls and inconsistent counters; it is not used for a strict per-completed-day cost or an overall failure-rate estimate.
+Output repair was required for **2,433 finalized travel-decision records (0.206%)** and **2,943 personal-memory records (0.250%)**. One manager-memory JSON response was repaired through retry. These checks describe accepted outputs after validation and repair; they do not imply that every initial response was valid. Semantic review was disabled, and execution consistency does not certify every rationale or summary as semantically correct.
+
+The complete-run inference workload is reported in the manuscript appendix. Counts include retries and repairs; tokens are service-reported totals.
+
+| Configuration | API calls | Tokens |
+| :--- | ---: | ---: |
+| MATSim | 0 | 0 |
+| MNL | 0 | 0 |
+| LLM Traveler | 2,362,964 | 5,713,538,990 |
+| MATSim + Manager | 109 | 872,774 |
+| LLM Traveler + Manager | 2,364,090 | 5,451,720,152 |
+
+Joint contains 1,181,736 traveler-decision calls, 1,182,250 personal-memory calls, three manager-policy calls, and 101 manager-memory calls. The 101 manager-memory calls include retry overhead and produce 100 completed daily updates. Each personal task has 1,179,300 finalized records. Extra calls are not hallucination counts; token totals do not measure monetary cost, GPU energy, or end-to-end runtime. Zero LLM calls does not imply zero simulation cost.
 
 ## Individual examples
 
-[Three individual decision traces](seed268-individual-cases.md) connect permitted information, structured actions, generated rationales and executed outcomes. Two concise examples appear on the homepage; a third documents a rationale/action time discrepancy. Published evidence and a read-only extraction script support inspecting the cases.
-
-## Separate 100-day results
-
-The following table uses **Days 0–99 for the four completed runs only**. It is not combined with the Joint 88-day table.
-
-| Configuration | All-day car time (person-hours/day) | Change vs. MATSim agents | Target-trip car time (min) | Work late-arrival rate |
-| :--- | ---: | ---: | ---: | ---: |
-| MATSim agents | 12,431.45 | — | 29.32 | 19.97% |
-| Constrained MNL | 17,200.90 | +38.37% | 53.19 | 31.25% |
-| LLM traveler agents | 9,958.11 | −19.90% | 17.40 | 5.61% |
-| Manager | 12,662.64 | +1.86% | 29.64 | 20.42% |
-
-Joint has no complete 100-day result in this snapshot. The main comparison ends before the Day 90 MATSim strategy-innovation shutdown phase.
+[Three sampled individual decision traces](seed268-individual-cases.md) connect permitted information, structured actions, generated rationales, and executed outcomes. The manuscript uses Joint traveler `10010_2` on Day60 to illustrate traceability and traveler `10042_2` on Day61 to illustrate a rationale/action time discrepancy. These selected cases do not estimate error prevalence or isolate the effects of route, departure time, and shared conditions.
 
 ## Data identifiers
 
-The display labels **MATSim agents** and **LLM traveler agents** correspond to the original CSV identifiers `Native` and `Traveler`, respectively. Manager and Joint denote MATSim agents and LLM traveler agents combined with an LLM pricing agent. Machine-readable identifiers and recorded outputs retain their original values.
+The manuscript labels **MATSim**, **MNL**, **LLM Traveler**, **MATSim + Manager**, and **LLM Traveler + Manager** correspond to archived identifiers `Native`, `MNL` (also displayed as `Constrained MNL`), `Traveler`, `Manager`, and `Joint`. The appendix also uses “Pricing” for the manager role. Machine-readable identifiers and recorded outputs retain their original values.
 
-## Published aggregate files
+## Available records and reproduction scope
+
+The current files support recalculating manuscript aggregates, inspecting source-derived audit summaries, and tracing selected cases. Full raw personal logs and simulation files remain in the external archive.
+
+The [data inventory](../../../data/README.md#completed-100-day-archive-exports) links the completed aggregate/audit exports and their source-run mapping.
 
 | File | Content |
 | :--- | :--- |
-| [Common-window summary](data/seed268_five_conditions_20261022/comparison_common88.csv) | Five configurations over Days 0–87 |
-| [Daily metrics](data/seed268_five_conditions_20261022/daily_metrics.csv) | Available complete daily aggregates, including four 100-day runs |
-| [Period summaries](data/seed268_five_conditions_20261022/period_summary.csv) | Explicitly labeled common, pre-pricing, pricing and 100-day windows |
-| [Paired comparisons](data/seed268_five_conditions_20261022/paired_comparisons.csv) | Differences and ratios for each reported comparison/window |
-| [Individual-effect summaries](data/seed268_five_conditions_20261022/individual_effects.csv) | Within-run medians and shares with lower or higher target-trip car time |
-| [Matching audit](data/seed268_five_conditions_20261022/matching_audit.json) | Matched inputs and known implementation differences |
-| [Joint execution audit](data/seed268_five_conditions_20261022/joint_execution_audit.json) | Counts of legal decisions and matching execution checks |
-| [Analysis verification](data/seed268_five_conditions_20261022/verification.json) | Checks recorded by the source analysis |
-| [Snapshot metadata](data/seed268_five_conditions_20261022/metadata.json) | Completion state, runtime JAR hashes and copied-file checksums |
+| [Daily aggregates](../../../data/seed268/daily-metrics.csv) | Five configurations × 100 days, including source-derived outcomes and selected-action changes |
+| [Run summaries](../../../data/seed268/run-summary.csv) | Full-precision window means and recorded inference totals |
+| [Joint audit](../../../data/seed268/execution-audit.json) | Recomputed finalized-action, execution, memory-continuity, repair, and sampled-information checks |
+| [Run metadata](../../../data/seed268/run-metadata.json) | Source paths/hashes, archived runtime/input identities, and export mapping |
+| [Export validation](../../../data/seed268/validation.json) | Agreement with manuscript tables and relative differences |
+| [Manuscript summary](../../../data/manuscript-demonstration.json) | Reported 100-day settings, rounded outcomes, choice-change rates, audit counts, and workload |
+| [Case evidence](individual-case-evidence.json) | Selected decision/context/execution excerpts and source hashes |
+| [Case traces](individual-case-traces.csv) | 18 selected date/trip records |
+| [Case validation](individual-case-validation.json) | Checks scoped to those selected excerpts |
 
-PNG and editable SVG figures are stored in [the figure directory](assets/seed268_five_conditions_20261022). The aggregate files permit recomputing the displayed means, percentages and time decompositions. The original simulation logs, all model conversations and runtime JARs are not included in this README update package; it does not provide a complete rerun of the underlying experiments.
+The [100-day outcome figure](../../seed268/outcomes.svg) uses mean daily car time per person, target-trip time, and work lateness; the daily export supplies those unsmoothed series. The [figure inventory](../../README.md) also links the manuscript's canonical PDF figures.
+
+The [source-location guide](../../../data/seed268/README.md#source-location-and-regeneration) identifies the author's local `arxiv-v1-data` archive and regeneration command. Original simulation logs and model conversations remain in that external archive. Archived executable hashes identify historical builds; exact reruns additionally require the corresponding executable or source revision, complete inputs and candidate files, original prompts, final configuration, model-service settings, and a pinned release-to-run mapping. A traffic seed alone does not fix remote model responses.

@@ -58,6 +58,11 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         try { output = new OutputWriter(Path.of(scenario.getConfig().controller().getOutputDirectory(), "morning"), true); }
         catch (java.io.IOException e) { throw new IllegalStateException(e); }
         writePreparation(output, cohort, manifest);
+        if (settings.jointMnl()) {
+            long choiceSeed = settings.mnlChoiceSeed == null ? scenario.getConfig().global().getRandomSeed() : settings.mnlChoiceSeed;
+            output.writeDoc("baseline-parameters.json", settings.mnlParameters.report(choiceSeed, settings.historyDays));
+            if (policy == null) policy = new MorningMnlPolicy(settings.mnlParameters, choiceSeed, settings.historyDays, output);
+        }
         if (tolls != null) {
             tolls.setOutput(output);
             output.appendLine("policies.jsonl", tolls.state().toJson());
@@ -217,7 +222,9 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         }
         var controlled = new ArrayList<>(contexts.keySet());
         List<MorningRoutePolicy.Decision> decisions;
-        if (pool != null) {
+        // A manager also creates this pool. Keep offline policies in cohort order so
+        // a shared legacy MNL random stream is not assigned by thread scheduling.
+        if (pool != null && settings.policyName.equals("llm")) {
             var tasks = controlled.stream().<Callable<MorningRoutePolicy.Decision>>map(m -> () -> policy.choose(contexts.get(m))).toList();
             decisions = LlmDecisionBatch.run(pool, tasks, controlled.stream().map(m -> m.key).toList(),
                     Duration.ofSeconds(settings.stallSeconds), day, "morning_routes", count -> {
@@ -312,7 +319,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
 
     private MorningRoutePolicy.Context context(int day, MorningCohort.Member member) {
         var options = optionsForDeparture(day, member, member.plannedDeparture);
-        var departures = settings.policyName.equals("llm") ? member.departureOptions.stream()
+        var departures = settings.jointTravelerContext() ? member.departureOptions.stream()
                 .map(t -> new MorningRoutePolicy.DepartureOption(t, optionsForDeparture(day, member, t))).toList()
                 : List.<MorningRoutePolicy.DepartureOption>of();
         return new MorningRoutePolicy.Context(day, member.key, member.person.getId().toString(), member.originPurpose,
@@ -321,7 +328,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                         "personalPreferencesSource", member.profile == null ? "input attributes only" : "input attributes plus fixed synthetic legacy profile; no numeric tolerance/value-of-time inferred",
                         "costUnits", "scenario monetary units, not an asserted real-world currency"),
                 options, MorningPromptRenderer.recentFacts(member.memory.recent(),day,false,settings.historyDays), member.profile, member.memory.summary(), member.memory.summaryDay(),
-                settings.policyName.equals("llm") ? cohort.information.visibleForLlm(member.person.getId().toString())
+                settings.jointTravelerContext() ? cohort.information.visibleForLlm(member.person.getId().toString())
                         : cohort.information.visible(member.person.getId().toString(), day), departures);
     }
 
@@ -346,7 +353,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             }
             double estimate = time - carDeparture;
             var links = candidate.linkIds().stream().map(Object::toString).toList();
-            var knowledge = settings.policyName.equals("llm") ? cohort.information.pricingForLlm(member.person.getId().toString(), links, entryTimes,
+            var knowledge = settings.jointTravelerContext() ? cohort.information.pricingForLlm(member.person.getId().toString(), links, entryTimes,
                     -monetaryRate * distance(candidate), tolls, day) : cohort.information.pricing(member.person.getId().toString(), links, entryTimes,
                     -monetaryRate * distance(candidate), tolls, day);
             Double estimatedToll = knowledge.unknownLinks().isEmpty() ? knowledge.knownTollSubtotal() : null;

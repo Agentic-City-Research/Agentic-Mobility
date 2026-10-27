@@ -1,4 +1,4 @@
-"""Replot the README traveler comparison from the committed aggregate CSV.
+"""Replot the historical 61-day traveler comparison from the archived aggregate CSV.
 
 Run from the repository root: python scripts/plot_readme_traveler_results.py
 Requires matplotlib. No simulation, model service, or individual trip logs are used.
@@ -95,7 +95,8 @@ def draw(data_path: Path, output_dir: Path) -> None:
 if __name__ == "__main__":
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", type=Path, default=root / "docs/data/llm-traveler-daily-comparison.csv")
-    parser.add_argument("--output-dir", type=Path, default=root / "docs/assets")
+    archive = root / "docs/history/2026-10-18"
+    parser.add_argument("--data", type=Path, default=archive / "data/daily-comparison.csv")
+    parser.add_argument("--output-dir", type=Path, default=archive / "figures")
     args = parser.parse_args()
     draw(args.data, args.output_dir)

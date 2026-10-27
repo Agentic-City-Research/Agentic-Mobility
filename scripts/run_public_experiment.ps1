@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('hybrid', 'reference', 'fixed-routes')][string]$Mode = 'hybrid',
-    [ValidateSet('llm', 'mnl', 'shortest', 'mock')][string]$Policy = 'mnl',
+    [ValidateSet('llm', 'mnl-joint', 'mnl', 'shortest', 'mock')][string]$Policy = 'mnl',
     [ValidatePattern('^(all|[0-9]+)$')][string]$LlmAgents = '0',
     [switch]$Manager,
     [string]$FixedTollPolicy,
@@ -82,6 +82,8 @@ param(
     [ValidateScript({ $_ -ge 0 -and -not [double]::IsInfinity($_) })][double]$CandidateDistanceSlackMeters = 2000,
     [ValidateScript({ $_ -ge 0 -and $_ -le 1 })][double]$CandidateMaxOverlap = 0.85,
     [string]$CandidateFile,
+    [string]$MnlParameters,
+    [Nullable[long]]$MnlChoiceSeed,
     [switch]$ValidateOnly,
     [string]$Java = 'java',
     [string]$Heap = '8g'
@@ -93,6 +95,8 @@ if (-not (Test-Path -LiteralPath $taskJar)) { throw 'Run mvn package first to bu
 $taskConfig = Join-Path $taskRoot 'scenarios/SiouxFalls-public/config.xml'
 if ($Manager -and $FixedTollPolicy) { throw 'Choose either -Manager or -FixedTollPolicy, not both.' }
 if ($FixedTollPolicy -and $Mode -ne 'hybrid') { throw '-FixedTollPolicy requires -Mode hybrid.' }
+if ($Policy -eq 'mnl-joint' -and -not $MnlParameters) { throw '-Policy mnl-joint requires -MnlParameters.' }
+if ($Policy -ne 'mnl-joint' -and ($MnlParameters -or $PSBoundParameters.ContainsKey('MnlChoiceSeed'))) { throw '-MnlParameters and -MnlChoiceSeed require -Policy mnl-joint.' }
 $taskSamplingSummary = $null
 if ($PSBoundParameters.ContainsKey('SampleRate')) {
     if ($SamplePersons -ne 0) { throw 'Choose either -SampleRate or -SamplePersons, not both.' }
@@ -157,6 +161,8 @@ if ($GenerationParams) { $taskArguments += @('--generation-params', $GenerationP
 if ($Output) { $taskArguments += @('--output', $Output) }
 if ($RunDate) { $taskArguments += @('--run-date', $RunDate) }
 if ($CandidateFile) { $taskArguments += @('--candidate-file', (Resolve-Path -LiteralPath $CandidateFile).Path) }
+if ($MnlParameters) { $taskArguments += @('--mnl-parameters', (Resolve-Path -LiteralPath $MnlParameters).Path) }
+if ($PSBoundParameters.ContainsKey('MnlChoiceSeed')) { $taskArguments += @('--mnl-choice-seed', "$MnlChoiceSeed") }
 if ($ProfileFile) { $taskArguments += @('--profile-file', (Resolve-Path -LiteralPath $ProfileFile).Path) }
 if ($PSBoundParameters.ContainsKey('ProfileSeed')) { $taskArguments += @('--profile-seed', "$ProfileSeed") }
 if ($TravelerSemanticReview) { $taskArguments += @('--traveler-semantic-review', '--semantic-review-max-output-tokens', "$SemanticReviewMaxOutputTokens") }

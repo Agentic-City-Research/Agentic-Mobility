@@ -28,7 +28,7 @@ public final class MorningExperiment implements Callable<Integer> {
     static final double STORAGE_CAPACITY_EXPONENT = 0.75;
     @Option(names = "--config", defaultValue = "scenarios/SiouxFalls-public/config.xml") Path configFile;
     @Option(names = "--mode", defaultValue = "hybrid", description = "hybrid (main experiment) | reference | fixed-routes (auxiliary control)") String mode;
-    @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl | shortest | mock; llm requires hybrid") String policyName;
+    @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl-joint | mnl | shortest | mock; llm/mnl-joint require hybrid") String policyName;
     @Option(names = "--llm-agents", defaultValue = "0", description = "Hybrid: 0 for native baseline, all or a person count for morning policy control") String llmAgents;
     @Option(names = "--manager", description = "Enable autonomous all-day per-link congestion pricing in hybrid after 20 free days") boolean managerEnabled;
     @Option(names = "--fixed-toll-policy", description = "JSON rules file for fixed congestion pricing in hybrid, without a manager; mutually exclusive with --manager") Path fixedTollPolicyFile;
@@ -91,6 +91,9 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--candidate-max-overlap", defaultValue = "0.85", description = "Max shared directed-link length / shorter route length between any two selected routes; 1 disables") double candidateMaxOverlap;
     @Option(names = "--candidate-file", description = "Reuse candidates.jsonl.gz or legacy candidates.jsonl; missing ODs fail rather than regenerate") Path candidateFile;
     @Option(names = "--logit-beta", defaultValue = "0.3", description = "Sensitivity per minute, research baseline parameter") double beta;
+    @Option(names = "--mnl-parameters", description = "Required provenance/unit-checked JSON for --policy mnl-joint; no implicit coefficients") Path mnlParametersFile;
+    @Option(names = "--mnl-choice-seed", description = "Independent joint MNL seed; defaults to simulation seed") Long mnlChoiceSeed;
+    MorningMnlParameters mnlParameters;
     @Option(names = "--context-samples", defaultValue = "20", description = "Number of LLM-ready contexts logged per day; 0 disables") int contextSamples;
     @Option(names = "--trip-output-interval", defaultValue = "1") int tripOutputInterval;
     @Option(names = "--innovation-stop-day", description = "Native replanning modes: override innovative strategy disable day") Integer innovationStopDay;
@@ -106,6 +109,8 @@ public final class MorningExperiment implements Callable<Integer> {
     boolean overlaysChoices() { return fixed() || hybrid(); }
     boolean fixesTimes() { return fixed() || hybrid() && !nativeTimeMutation; }
     boolean reflects() { return policyName.equals("llm"); }
+    boolean jointMnl() { return policyName.equals("mnl-joint"); }
+    boolean jointTravelerContext() { return policyName.equals("llm") || jointMnl(); }
     boolean fixedTollsEnabled() { return fixedTollPolicyFile != null; }
     boolean pricingEnabled() { return managerEnabled || fixedTollsEnabled(); }
     String pricingMode() { return managerEnabled ? "manager" : fixedTollsEnabled() ? "fixed" : "none"; }
@@ -158,12 +163,16 @@ public final class MorningExperiment implements Callable<Integer> {
         int controlled = fixed() || hybrid() && llmAgents.equalsIgnoreCase("all") ? cohort.persons.size()
                 : hybrid() ? Integer.parseInt(llmAgents) : 0;
         cohort.selectControlledPeople(controlled, populationSeed);
+        if (jointMnl() && cohort.controlledPersons.isEmpty()) throw new IllegalArgumentException("mnl-joint needs at least one controlled person");
         cohort.configureDepartureOptions(this, config.qsim().getEndTime().seconds());
         var informationPeople = informationScope.equals("all")
                 ? scenario.getPopulation().getPersons().keySet().stream().map(Object::toString).toList()
                 : cohort.controlledPersons;
         cohort.configureInformation(informationPeople, informedShare,
                 informationSeed == null ? populationSeed : informationSeed, tollHistoryBinSeconds);
+        if (jointMnl() && pricingEnabled() && mnlParameters.unknownTollMode.equals("reject")
+                && cohort.controlledPersons.stream().anyMatch(p -> !cohort.information.informed(p)))
+            throw new IllegalArgumentException("mnl-joint with unknownTollMode=reject requires no pricing or all controlled travelers informed; configure an explicit personal-with-prior assumption otherwise");
         cohort.information.beginDay(config.controller().getFirstIteration());
         cohort.assignProfiles(personalProfiles, profileSeed == null ? populationSeed : profileSeed,
                 profileFile == null ? null : MorningProfiles.read(profileFile));
@@ -194,6 +203,7 @@ public final class MorningExperiment implements Callable<Integer> {
         if (validateOnly) {
             try (var writer = new OutputWriter(outputPath.resolve("morning"), true)) {
                 MorningLoop.writePreparation(writer, cohort, manifest);
+                if (jointMnl()) writer.writeDoc("baseline-parameters.json", mnlParameters.report(mnlChoiceSeed == null ? actualSeed : mnlChoiceSeed, historyDays));
                 if (fixedTollsEnabled()) writer.writeDoc("fixed-toll-policy.json", fixedTollPolicy.inputJson());
                 if (managerEnabled) {
                     var environment=MorningManagerEnvironment.from(scenario,this,manifest);
@@ -224,7 +234,7 @@ public final class MorningExperiment implements Callable<Integer> {
             });
         }
         var loop = new MorningLoop(scenario, this, cohort, policyOverride != null ? policyOverride
-                : policyName.equals("llm") ? null : MorningRoutePolicy.baseline(policyName, actualSeed, beta), observations, times, manifest, tolls);
+                : jointTravelerContext() ? null : MorningRoutePolicy.baseline(policyName, actualSeed, beta), observations, times, manifest, tolls);
         controller.addControlerListener(loop);
         try { controller.run(); }
         finally { loop.close(); OutputDirectoryLogging.closeOutputDirLogging(); }
@@ -266,7 +276,14 @@ public final class MorningExperiment implements Callable<Integer> {
         modelOptions.apply(llmConfig);
         if (!Set.of("original", "reverse", "shuffle").contains(candidateOrder)) throw new IllegalArgumentException("Invalid --candidate-order");
         if (!mode.equals("reference") && !fixed() && !hybrid()) throw new IllegalArgumentException("--mode must be hybrid, reference or fixed-routes");
-        if (!Set.of("llm", "mnl", "shortest", "mock").contains(policyName)) throw new IllegalArgumentException("Unknown --policy");
+        if (!Set.of("llm", "mnl-joint", "mnl", "shortest", "mock").contains(policyName)) throw new IllegalArgumentException("Unknown --policy");
+        if (jointMnl()) {
+            if (!hybrid() || llmAgents.equals("0")) throw new IllegalArgumentException("--policy mnl-joint requires --mode hybrid and a positive --llm-agents count or all (controlled people, not model calls)");
+            if (mnlParametersFile == null) throw new IllegalArgumentException("--policy mnl-joint requires explicit --mnl-parameters");
+            mnlParameters = MorningMnlParameters.load(mnlParametersFile);
+        } else if (mnlParametersFile != null || mnlChoiceSeed != null) {
+            throw new IllegalArgumentException("--mnl-parameters and --mnl-choice-seed apply only to --policy mnl-joint");
+        }
         if (!llmAgents.equalsIgnoreCase("all") && !llmAgents.matches("[0-9]+")) throw new IllegalArgumentException("--llm-agents must be 0, all or a nonnegative person count");
         if (!llmAgents.equalsIgnoreCase("all")) Integer.parseInt(llmAgents);
         if (!hybrid() && (!llmAgents.equals("0") || policyName.equals("llm"))) throw new IllegalArgumentException("--llm-agents and --policy llm require --mode hybrid");
@@ -443,7 +460,10 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("executionOrder", overlaysChoices()
                 ? "Iteration starts: scheduled manager update or one-time fixed toll activation -> native replanning -> "
                 + (fixesTimes() ? "restore original activity ends" : "retain native activity-time choices")
-                + " and apply controlled joint time/route choices -> native plans dump -> QSim and payments -> factual results and policy-linked observations -> personal memory reflection. Automatic strategy intervention only in explicit controlled manager profile."
+                + " and apply controlled choices -> native plans dump -> QSim and payments -> factual results and policy-linked observations"
+                + (reflects() && !cohort.controlledPersons.isEmpty() ? " -> personal memory reflection"
+                   : jointMnl() ? " -> retain recent personal facts for the next baseline decision" : "")
+                + ". Automatic strategy intervention only in explicit controlled manager profile."
                 : "Native selection/replanning -> native plans dump -> observation preparation -> QSim; no route overlay");
         result.put("seed", config.global().getRandomSeed());
         result.put("selectionSeeds", Map.of("population", populationSeed, "controlledRoster", populationSeed,
@@ -558,7 +578,7 @@ public final class MorningExperiment implements Callable<Integer> {
                 "affectingDuration", config.timeAllocationMutator().isAffectingDuration(),
                 "aroundInitialEndTimeOnly", config.timeAllocationMutator().isMutateAroundInitialEndTimeOnly(),
                 "scope", "Native full-day plans; controlled target departures are overwritten by the configured morning policy"));
-        result.put("plannedTimesFixed", fixesTimes() && !(policyName.equals("llm") && !cohort.controlledPersons.isEmpty()));
+        result.put("plannedTimesFixed", fixesTimes() && !(jointTravelerContext() && !cohort.controlledPersons.isEmpty()));
         result.put("departureProtocol", Map.of("originalPlanAnchor", true, "earlierSeconds", departureBeforeSeconds,
                 "laterSeconds", departureAfterSeconds, "stepSeconds", departureStepSeconds,
                 "enabledForLlmTargetTrips", policyName.equals("llm") && !cohort.controlledPersons.isEmpty(),
@@ -596,6 +616,29 @@ public final class MorningExperiment implements Callable<Integer> {
         inputHashes.put("population", inputHash(resolveInput(config.plans().getInputFile())));
         inputHashes.put("facilities", inputHash(resolveInput(config.facilities().getInputFile())));
         if (fixedTollsEnabled()) inputHashes.put("fixedTollPolicy", fixedTollPolicy.source());
+        if (jointMnl()) {
+            inputHashes.put("mnlParameters", mnlParameters.source());
+            result.put("baselineParameters", mnlParameters.report(mnlChoiceSeed == null ? config.global().getRandomSeed() : mnlChoiceSeed, historyDays));
+            result.put("baselineObjective", "Seeded joint logit over the LLM route/departure grid; explicit time, money, lateness and departure-shift coefficients; own recent experience update");
+            result.put("memoryMode", "structured-recent-experience");
+            result.put("singleCandidateTreatment", "Keep the sole route and every legal departure-time option; no traveler model calls");
+            result.put("personalMemory", "Baseline recomputes estimates from its own recent factual window only; no self-written summary, cumulative counts, exact long-term payment table or other travelers' experience");
+            result.put("memoryTemplate", null); result.put("memoryTargetChars", null); result.put("memoryMaxChars", null);
+            result.put("memoryDistortionPolicy", "No generated text summary or archive retrieval; estimates use only supplied recent facts, with explicit missing-observation fallback");
+            result.put("memoryUpdateTiming", "Actual facts recorded after QSim; bounded estimates reconstructed at the next decision, never from same-day/future outcomes");
+            result.put("memoryReflectionInputs", List.of());
+            result.put("memoryReflectionExperienceLimit", null);
+            result.put("memoryFailurePolicy", "No traveler model calls or reflection; invalid inputs fail rather than silently change actions");
+            result.put("logitBetaPerMinute", null);
+            result.put("outputValidation", "Joint action enum validation; all finite utility components/probabilities audited; no traveler JSON generation");
+            var departureProtocol = new LinkedHashMap<>((Map<String, Object>)result.get("departureProtocol"));
+            departureProtocol.put("enabledForBaselineTargetTrips", true);
+            result.put("departureProtocol", departureProtocol);
+            var information = new LinkedHashMap<>((Map<String, Object>)result.get("travelerInformation"));
+            information.put("historicalToll", "Same bounded context as LLM: no persistent exact-payment lookup. Baseline belief uses only supplied recent own route/bin payments and the explicit parameter-file prior; unknown context costs stay null.");
+            result.put("travelerInformation", information);
+            result.put("designChanges", List.of("Native full-day replanning retained as configured", "Only selected cohort trips use joint MNL instead of LLM", "Shared LLM action grid, static predictions and visibility; separate explicit bounded-experience estimator"));
+        }
         result.put("inputHashes", inputHashes);
         return result;
     }

@@ -2,7 +2,7 @@ package org.matsim.agentic;
 
 import java.util.*;
 
-/** LLM integration boundary: a policy can return ONLY one of this traveler's OD route IDs.
+/** Traveler policy boundary: choices use this trip's supplied routes and, when enabled, departure options.
  * Context contains real information, not a MATSim utility score. Missing personal
  * preferences remain absent rather than being invented from age or sex.
  */

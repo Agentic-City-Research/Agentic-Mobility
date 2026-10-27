@@ -35,7 +35,7 @@ exploring AI agents and interconnected urban systems.
 
 Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Agents interact through shared network conditions: their decisions affect the environment experienced by other agents.
 
-The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports LLM-controlled travelers and an LLM pricing agent, with the experiments below evaluating these roles separately.
+The current implementation uses MATSim to execute mobility decisions and generate feedback. The experiments below compare LLM-controlled travelers and an LLM pricing agent both separately and together.
 
 ![AgenticMobility framework](docs/assets/agenticmobility_framework_siouxfalls.svg)
 
@@ -82,8 +82,10 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | MATSim agents | MATSim replanning | None |
 | Constrained MNL | MNL over fixed route–departure options | None |
 | LLM traveler agents | LLM route–departure choices | None |
-| Manager | MATSim replanning | Enabled; tolls from Day 20 |
-| Joint | LLM route–departure choices | Enabled; tolls from Day 50 |
+| Manager | MATSim replanning | Enabled; tolls from simulation Day 21 (log Day20) |
+| Joint | LLM route–departure choices | Enabled; tolls from simulation Day 51 (log Day50) |
+
+The recovered joint baseline uses `--policy mnl-joint` with an explicit parameter file; the older `--policy mnl` is route-only. See [joint MNL setup and provenance](docs/joint-mnl-baseline.md).
 
 ### Simulation Videos
 
@@ -130,7 +132,7 @@ Visualization: 500 sampled travelers. Quantitative results: the complete populat
 | MATSim agents | 44.34 | — | 29.32 | 19.97% |
 | Constrained MNL | 61.35 | +38.37% | 53.19 | 31.25% |
 | LLM traveler agents | **35.52** | −19.90% | 17.40 | 5.61% |
-| Manager | 45.17 | +1.86% | 29.64 | 20.42% |
+| Manager | 45.16 | +1.86% | 29.64 | 20.42% |
 | Joint | 40.71 | −8.18% | **16.25** | **3.73%** |
 
 All-day car time is normalized to min/person by dividing the daily person-hours total by the 16,822 simulated travelers and converting to minutes. 
@@ -140,7 +142,7 @@ All car legs completed, with no stuck agents. Car time includes waiting before n
 
 [![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/outcomes.png)](docs/assets/seed268/outcomes.svg)
 
-Thin lines show daily values; thick lines show trailing seven-day means. Markers identify toll activation (Manager: Day 20; Joint: Day 50), the Day 80 policy review, and the configured MATSim route/time innovation cutoff on Day 90; existing-plan selection continues.
+Thin lines show daily values; thick lines show trailing seven-day means. Figure markers use zero-based log days: toll activation at Day20 for Manager and Day50 for Joint, a policy review on Day80, and the MATSim route/time innovation cutoff on Day90. These are simulation days 21, 51, 81, and 91 respectively; existing-plan selection continues after the cutoff.
 
 Compared with LLM traveler agents alone, **Joint has 6.63% shorter target-trip time and 1.87 percentage points less work lateness, alongside 14.62% more all-day car time**. Target trips save 226.73 person-hours/day, while other car trips add 1,682.97. Differences already exist before Joint tolling. Across individual targets, 60.65% have lower 100-day mean car time in Joint and 39.28% have higher time.
 
@@ -182,7 +184,7 @@ Route and departure time both changed. This trip paid zero tolls; the trace does
 
 </details>
 
-[Case records and execution checks →](docs/seed268-individual-cases.md)
+[Case records and execution checks →](docs/assets/data/seed268/seed268-individual-cases.md)
 
 ### Current toll information and route choice
 
@@ -194,10 +196,10 @@ In Joint, **5,897 travelers receive current toll announcements and 5,896 do not*
 | Measure | Informed | Uninformed |
 | :--- | ---: | ---: |
 | Use of subsequently tolled links, Days 1–50 | 6.67% | 6.54% |
-| Use of tolled links, Days 50–100 | 2.49% | 6.94% |
-| Mean target payment, Days 50–100 (scenario units/trip) | 0.075 | 0.208 |
-| Target car time, Days 50–100 (min/trip) | 17.02 | 15.17 |
-| Work late-arrival rate, Days 50–100 | 3.81% | 2.50% |
+| Use of tolled links, Days 51–100 | 2.49% | 6.94% |
+| Mean target payment, Days 51–100 (scenario units/trip) | 0.075 | 0.208 |
+| Target car time, Days 51–100 (min/trip) | 17.02 | 15.17 |
+| Work late-arrival rate, Days 51–100 | 3.81% | 2.50% |
 
 [![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/assets/seed268/information_route_response.svg)
 
@@ -207,7 +209,7 @@ Links are identified retrospectively before charging and in the no-toll comparis
 
 **Interpretation.** The main comparison contains one run per configuration. MNL uses uncalibrated homogeneous parameters, and some executable builds differ. Shared traffic and pre-existing differences limit causal attribution and claims of traveler–pricing synergy.
 
-**[Experiment settings, data, behavioral results and validation →](docs/seed268-experiments.md)**
+**[Experiment settings, data, behavioral results and validation →](docs/assets/data/seed268/seed268-experiments.md)**
 
 <br>
 

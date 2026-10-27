@@ -4,6 +4,8 @@
 
 Commands run from the repository root unless stated otherwise. This guide contains the detailed experiment, deployment, output, and troubleshooting instructions.
 
+For paper results, use [Reported experiments](reported-experiments.md). The manuscript evaluates five configurations at simulation seed **268** over **100 days (log Days0–99)**, with population seed **6021** and a **20% sample of demand 100**. The commands below include smaller installation/integration examples; their seeds, population sizes, and request budgets are not historical reproduction settings. See the [configuration mapping](experiments-and-evaluation.md#manuscript-configuration-mapping), [data inventory](data/README.md), and [figure inventory](assets/README.md).
+
 **A research platform for LLM travelers and congestion-pricing managers in MATSim.**
 
 [![Java](https://img.shields.io/badge/Java-25-orange)](../pom.xml)
@@ -44,11 +46,13 @@ The simulation separates daily observation and memory from periodic policy inter
 
 **Traveler actions.** Eligible target trips are selected from original plans, by default with a planned destination activity start before 09:00. Controlled trips have up to four frozen route candidates. The default departure grid spans 90 minutes before to 30 minutes after the original departure, in 15-minute steps, subject to activity and simulation boundaries. Profiles, schedules, visible prices, and personal history enter the prompt. Other trips retain native behavior in the main `hybrid` mode.
 
-**Traveler memory and information.** LLM travelers replace their summaries after each day: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences cover three days and are provided separately. Each reflection receives the previous summary to carry useful long-term experience and habits beyond that window. Informed travelers see relevant current announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
+**Traveler memory and information.** LLM travelers replace their summaries after each day: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences cover three days and are provided separately. Each reflection receives the previous summary to retain selected older experiences and interpretations beyond that window. Informed travelers see relevant current announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
 
 **Manager actions.** The default `basic` manager returns a complete policy with at most 40 rules, one per existing directed car link. Each rule sets a finite nonnegative amount per entry throughout `[0, QSim endTime)`. The supplied public scenario ends at 30:00, so its all-day window is `[0,108000)`, including trips after midnight. Each traversal is charged separately. An accepted policy replaces the previous policy; an empty policy withdraws all tolls.
 
 **Two timescales.** The first 20 simulation days are free. Policy decisions occur on days **21, 51, 81, ...** by default. Manager memory updates **every completed day**, including the free period, targeting 400–600 English words with a 1,000-word hard limit. Reflection cannot change tolls. Failed or timed-out reflection retains old memory; the next input includes missed observations. Holding an identical price function does not restart its observation period. The optional `controlled` profile adds legacy pricing restrictions, daily safety withdrawal, and cooldown behavior.
+
+The policy days above are one-based simulation days, corresponding to log Days20, 50, and 80. A review can hold an empty policy. In the manuscript, positive charging begins on log Day20 for Manager and Day50 for Joint; Joint retains its Day50 prices at Day80. Semantic review is disabled in the reported runs, and the `controlled` manager is an additional configuration outside the five-condition demonstration.
 
 ## Installation
 
@@ -116,7 +120,7 @@ Run a small, two-day traffic simulation with no model calls:
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
   --config scenarios/SiouxFalls-public/config.xml \
   --mode hybrid --policy mnl --llm-agents 0 \
-  --demand 100 --sample-persons 100 --days 2 --seed 4711 \
+  --demand 100 --sample-persons 100 --days 2 --population-seed 4711 --seed 4711 \
   --output output/quickstart
 ```
 
@@ -126,7 +130,7 @@ Windows PowerShell:
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
   --config scenarios/SiouxFalls-public/config.xml `
   --mode hybrid --policy mnl --llm-agents 0 `
-  --demand 100 --sample-persons 100 --days 2 --seed 4711 `
+  --demand 100 --sample-persons 100 --days 2 --population-seed 4711 --seed 4711 `
   --output output/quickstart
 ```
 
@@ -134,7 +138,7 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 
 ## Experiments
 
-These examples share 10% population sampling, a fixed population seed, and a fixed MATSim seed.
+These integration examples share 10% population sampling, population seed 4711, and MATSim seed 4711. They select 8,411 people from the original-demand input. The paper instead uses demand 100 at 20% (16,822 people), population seed 6021, simulation seed 268, and 11,793 targets; use the [paper configuration table](experiments-and-evaluation.md#manuscript-configuration-mapping) when preparing a related study. Exact reruns additionally need the archived executable, candidates/profiles, prompts, final configuration, and model-service settings.
 
 ### Bash: common configuration
 
@@ -155,6 +159,18 @@ java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
 ```
 
 This mode needs no model service. With zero controlled travelers, `--policy mnl` does not replace native MATSim route choices.
+
+### Constrained MNL
+
+For a small offline integration check with the same target-control count as the traveler examples:
+
+```bash
+java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
+  --policy mnl-joint --llm-agents 3 \
+  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
+```
+
+The joint policy chooses target route/departure actions from fixed sets without traveler LLM calls. The paper's MNL condition controls all 11,793 eligible targets and uses uncalibrated homogeneous coefficients. The separate `--policy mnl` selects a route only and keeps the original planned departure. For parameter provenance, seeded choices, and unknown-toll handling, see [joint MNL](joint-mnl-baseline.md).
 
 ### Connect a model service
 
@@ -235,6 +251,10 @@ $Common = @('--config', 'scenarios/SiouxFalls-public/config.xml', '--mode', 'hyb
 # Native baseline
 java -Xmx8g -cp $Jar $App @Common --policy mnl --llm-agents 0 --output output/baseline
 
+# Small constrained-MNL integration check
+java -Xmx8g -cp $Jar $App @Common --policy mnl-joint --llm-agents 3 `
+  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
+
 # Configure the existing model service before either LLM command
 $env:AGENTIC_API_KEY = 'YOUR_MODEL_API_KEY'
 $env:AGENTIC_MODEL = 'YOUR_SERVED_MODEL_NAME'
@@ -304,6 +324,8 @@ $$
 
 These factors apply to the original road network. For `--demand 100`, `k=0.1` selects 8,411 of 84,110 people; storage capacity is approximately 0.177828. `--demand 200` selects doubled-demand input before sampling.
 
+The manuscript uses `--demand 100 --sample-rate 0.2`: 16,822 people, flow factor 0.2, and storage factor approximately 0.299070. Demand 200 at 10% also yields 16,822 people but selects from a different population with different capacity factors, so it does not reproduce the manuscript scenario.
+
 `--population-seed` fixes sampling independently of `--seed`, which controls MATSim randomness. Keep input files, demand, sample rate, and population seed identical across comparison groups. Reuse candidates and profiles with `--candidate-file` and `--profile-file`. Model generation seeds are separate; recorded requests and responses are still needed to reproduce LLM experiments.
 
 The defaults retain native departure-time mutation. Use `--no-native-time-mutation` consistently across comparison groups when testing fixed native activity ends. Do not combine `--sample-rate` with diagnostic `--sample-persons`.
@@ -363,6 +385,8 @@ java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
 
 PowerShell uses the same CLI switches; its convenience runner offers `-TravelerSemanticReview`. The Qwen template accepts `TRAVELER_SEMANTIC_REVIEW=1`.
 
+This reviewed example is an optional extension. Semantic review was disabled in the manuscript, whose structural/execution audit does not establish semantic correctness for all reasons or memories.
+
 Each valid choice or memory can receive **at most one additional review call**, outside structural retries. The model checks clear factual contradictions against visible fixed facts and recent executed records, with previous subjective memory supplied separately. Claim/evidence quotes must occur in the original text and factual input. The selected route and numeric departure time are locked: review may revise only the reason or memory.
 
 | Review status | Accepted result |
@@ -413,6 +437,8 @@ Report completion and failure counts alongside travel time and delay:
 - Full-day car person-hours include waiting before road-traffic entry. The complete total is `null` if any planned car leg fails to finish; completed totals and observed lower bounds are retained separately.
 - Cohort metrics include car and door-to-door travel times, completion, punctuality, P95/slowest-5% completed car times, route distance, and travel-time index.
 - The manager's objective uses full-day delay on completed full-link traversals. Aborted, unfinished, and partial traversals are separate; this scope differs from complete OD journeys.
+
+The manuscript uses fixed denominators of 16,822 people, 11,793 target trips, and 11,332 work targets for mean daily car time per person, target-trip time, and work lateness, respectively. Mean daily car time per person is `60 × total car person-hours / 16,822`. Route changes compare complete ordered link sequences; departure changes compare selected times. The rates average 99 adjacent-day transitions, with multi-route rates restricted to 9,013 targets. Native innovation stops at log Day90; existing-plan selection continues. See [measurement and interpretation](experiments-and-evaluation.md#manuscript-measurement-and-interpretation) for the remaining boundaries.
 
 Missing outcomes are not filled with zero travel time. Compare matched experimental groups and multiple simulation seeds. Changes relative to the initial free period describe observed differences; they do not alone establish causal pricing benefits.
 

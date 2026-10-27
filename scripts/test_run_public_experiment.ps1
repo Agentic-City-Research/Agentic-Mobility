@@ -138,8 +138,19 @@ foreach ($taskEntry in $taskCandidateExpected.GetEnumerator()) {
         throw "Candidate option not forwarded: $($taskEntry.Key)"
     }
 }
+$taskMnlParameters = Join-Path $taskTestRoot 'mnl-parameters.json'
+[IO.File]::WriteAllText($taskMnlParameters, '{}')
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+[IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy mnl-joint -LlmAgents all -MnlParameters $taskMnlParameters -MnlChoiceSeed 0 | Out-Null
+$taskCapturedArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+foreach ($taskExpected in @(@('--policy', 'mnl-joint'), @('--mnl-parameters', $taskMnlParameters), @('--mnl-choice-seed', '0'))) {
+    $taskIndex = [Array]::IndexOf($taskCapturedArguments, $taskExpected[0])
+    if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskExpected[1]) { throw "Joint MNL option not forwarded: $($taskExpected[0])" }
+}
+
 foreach ($taskOptions in @(
-    @{ MemoryMode = 'none' },
+    @{ MemoryMode = 'none' }, @{ Policy = 'mnl-joint'; LlmAgents = 'all' }, @{ Policy = 'mnl'; MnlParameters = $taskMnlParameters },
     @{ CohortSelection = 'actual-arrival' }, @{ PlannedArrivalBefore = 0 },
     @{ SampleRate = 0 }, @{ SampleRate = -0.1 }, @{ SampleRate = 1.1 },
     @{ SampleRate = [double]::NaN }, @{ SampleRate = [double]::PositiveInfinity },

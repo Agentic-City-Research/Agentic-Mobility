@@ -1,11 +1,30 @@
 # AgenticMobility 详细操作指南（中文）
 
-此文件保留原 README 的详细操作说明；英文项目入口见 [README](../README.md)。下文中的终端命令均从仓库根目录执行。
+此文件说明当前接口的安装与运行；英文项目入口见 [README](../README.md)。下文中的终端命令均从仓库根目录执行。论文结果以 [arXiv 主文件](../paper/AgenticMobility_arXiv/main.tex) 实际引入的正文和 `appendices/app_1.tex` 为准，汇总见 [Reported experiments](reported-experiments.md)。
 
 
 本项目在 MATSim 2026.0 上实现 LLM 出行者的路线与出发时间联合选择、个人经历与自写记忆，以及收费管理者实验。当前发行使用 Sioux Falls 全天活动链；旧的独立早高峰单程场景保存在源码历史中。
 
 当前运行入口是 `org.matsim.agentic.MorningExperiment`。项目以 Java 源码、场景输入和脚本分发，运行前需要构建 JAR。
+
+## 论文实验与操作示例
+
+论文完成了 MATSim、MNL、LLM Traveler、MATSim + Manager、LLM Traveler + Manager 五种配置，每组使用仿真种子 **268**，运行 **100 天（日志 Days0–99）**。这是一组单次运行的配置比较；连续日期不是独立重复实验。
+
+| 项目 | 论文设置 |
+| --- | --- |
+| 人口与容量 | `Demand 100` 的 84,110 人输入按 20% 抽样，保留 16,822 人；flow 系数 0.2，storage 系数约 0.299070 |
+| 人口及分组种子 | 6021，用于人口抽样、画像、信息分组和受控名单；与仿真种子 268 分开 |
+| 固定目标 | 11,793 人的 11,793 个目标行程，覆盖 2,877 个 OD；工作迟到率分母为 11,332 |
+| MNL 与 LLM 行动 | 使用固定路线和出发时间候选；MATSim 原生目标选择不受同一候选集约束 |
+| 政策机会 | 日志 Day20、50、80，即第 21、51、81 个模拟日 |
+| 实际正收费 | Manager 从日志 Day20 开始；Joint 在 Day20 保持零收费，从 Day50 开始收费，Day80 保持原价格 |
+| 原生创新策略 | 日志 Day90 停止路线与活动时间创新；已有计划的选择继续 |
+| 语义审查 | 论文运行关闭；结构合法和执行一致不代表理由、摘要均正确 |
+
+下文的 100 人/2 天、10% 抽样、3 名受控人员和种子 4711 是安装或接入检查。完整角色参数对应关系见 [论文配置表](experiments-and-evaluation.md#manuscript-configuration-mapping)。`-Policy mnl -LlmAgents 0` 是原生 MATSim 基线；MNL 配置需要非空受控集合，论文候选式配置覆盖全部目标人员。固定收费文件与 `controlled` 管理者是额外功能，不属于论文五组比较。
+
+数据范围见 [数据索引](data/README.md)：当前保留论文 100 天结果的来源摘要及个案证据，另列 seed-9261 历史比较。论文摘要不包含完整 100 天的每日轨迹和原始审计流。精确重跑还需要对应运行包、候选/画像、原始提示词、最终配置和模型服务设置。
 
 
 ## 1. 下载与环境准备
@@ -142,7 +161,10 @@ matsim-example-project-0.0.1-SNAPSHOT.jar
 |---|---|---|---|
 | 1.0 | 100% | 1.0 | 1.0 |
 | 0.25 | 25% | 0.25 | 约 0.353553 |
+| 0.2（论文） | 20% | 0.2 | 约 0.299070 |
 | 0.1 | 10% | 0.1 | 约 0.177828 |
+
+论文采用 `Demand 100` 的 20% 抽样。`Demand 200` 的 10% 抽样虽然也有 16,822 人，但人口身份和容量条件不同，不能替代论文设置。
 
 完整人口实验可以省略 `-SampleRate` 和 `-SamplePersons`，此时默认场景的两项容量系数均为 `1.0`。正式比较需要保持人口、容量、随机种子和其他设置一致。
 
@@ -214,7 +236,7 @@ LLM 旅客在每一天联合选择路线与出发时刻，仿真结束后再调�
   -Output 'output/manager-pct10'
 ```
 
-管理者每天在仿真结束后调用模型更新记忆。前 20 个模拟日不收费，第 21 日首次政策决策，此后每 30 日更新收费；30 天示例包含一次政策更新机会，7 天实验仍会进行 7 次日末记忆调用。
+管理者每天在仿真结束后调用模型更新记忆。前 20 个模拟日不收费，第 21 日首次政策决策，此后每 30 日获得一次政策更新机会；决策可以保持零收费或维持原价格。30 天示例包含一次政策更新机会，7 天实验仍会进行 7 次日末记忆调用。第 21、51、81 日对应日志 Day20、50、80；论文 Joint 的正收费实际到日志 Day50 才开始。
 
 当前默认管理者为 **Basic**：完整记忆最多 1000 英文词、政策最多 40 个收费 link，每个 link 全天使用一个固定金额。显式 `-ManagerProfile controlled` 启用旧监测/回退条件，收费仍为全天，详见 [manager_v5.md](../scripts/manager_v5.md)。当前信息边界和默认协议见 [manager_basic_joint.md](../scripts/manager_basic_joint.md)。
 
@@ -224,7 +246,7 @@ Manager 每个仿真日结束后更新管理记忆，包括前 20 个免费观�
 
 Manager 收费规则固定为 `start=0`、`end=QSim endTime`，每个 link 最多出现一次，金额仍按每次实际进入该 link 收取。当前公共场景 `endTime=30:00:00`，对应 `[0,108000)`；跨 24:00 的行程也适用同一金额。模型不能选择仅早高峰收费或分时价格，非法时窗经过有限修复仍不合格时保留旧政策。15 分钟/整小时分箱继续用于交通观测，不限制全天窗口的结束时刻。前 20 天免费及政策更新间隔沿用现有设置；固定收费 JSON 文件仍按文件指定的时窗执行。
 
-要同时启用 LLM 旅客与管理者，可在上一节旅客命令中增加 `-Manager`，将天数设置为至少 21，并相应调整调用预算。
+要同时启用 LLM 旅客与管理者，可在上一节旅客命令中增加 `-Manager` 并调整调用预算。至少 21 天才能覆盖第一次政策决策机会，但这不保证产生正收费；不足 21 天仍可检查管理者每日记忆。
 
 ### 固定收费，无模型管理者
 
@@ -237,6 +259,8 @@ Manager 收费规则固定为 `start=0`、`end=QSim endTime`，每个 link 最�
 ## 7. Linux、macOS 或直接调用 Java
 
 PowerShell 脚本封装了参数、完整控制台日志和运行时 JAR 副本。直接运行 Java 时，下面的离线例子与 100 人程序冒烟测试对应：
+
+论文的联合路线—出发时间 MNL 使用 `--policy mnl-joint --mnl-parameters config/baselines/mnl-joint.example.json`；`--llm-agents` 在此表示受控人数，不调用旅客模型。原有 `--policy mnl` 只选择路线。参数、未知收费处理及历史版本关系见 [联合 MNL 说明](joint-mnl-baseline.md)。
 
 ```bash
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
@@ -274,7 +298,9 @@ Slurm 模板为 [run_hpc_qwen.slurm](../scripts/run_hpc_qwen.slurm) 和 [agentic
 | PowerShell 参数 | Java 参数 | 作用 |
 | --- | --- | --- |
 | `-Mode hybrid` | `--mode hybrid` | 当前主实验入口，保留原生全天背景 |
-| `-Policy llm` | `--policy llm` | 旅客使用真实模型；其他可选值为 mnl、shortest、mock |
+| `-Policy llm` | `--policy llm` | 旅客使用真实模型；其他可选值为 mnl-joint、mnl、shortest、mock |
+| `-MnlParameters FILE` | `--mnl-parameters FILE` | 联合 MNL 必需的参数及来源文件；原有 `mnl` 策略仅选择路线 |
+| `-MnlChoiceSeed 268` | `--mnl-choice-seed 268` | 联合 MNL 独立选择种子，默认使用仿真种子 |
 | `-LlmAgents 3` | `--llm-agents 3` | 合格目标人员中由所选策略接管的人数；支持 0/all |
 | `-Demand 100` | `--demand 100` | 选择 100pct 原始人口；200 为双倍需求 |
 | `-SampleRate 0.1` | `--sample-rate 0.1` | 人口按 k 采样，流量容量 k、存储容量 k^0.75 |
@@ -321,6 +347,10 @@ python scripts/analyze_morning_choices.py --morning 'output/llm-first-run/mornin
 ```
 
 正常实验应检查 `status.json` 的 `complete=true`，并核对 `daysCompleted`。只看到 `progress.json` 里的天数不代表最终导出成功。日末完整事实与摘要存档也不代表支持交通仿真自动断点续跑。
+
+分析脚本要求完整的状态、清单和对应的旅客记录流；缺失或不完整时会报错，而不是把缺失调用计为零。费用 `null` 表示未知：脚本分别统计信息从未知变为已知、从已知变为未知，以及两个已知数值之间的变化。若服务未报告某些调用的 token 用量，总 token 数显示为 `null`。
+
+论文审计覆盖 Joint 的 **1,179,300 个最终目标决策、100 天个人记忆链、3 次政策决策和 100 次每日管理记忆更新**；信息边界检查单独覆盖 4,000 个抽样输入。执行审计针对校验和修复后的记录，不证明初次生成全部合法，也不证明所有理由和记忆内容正确。
 
 ### 新增评价指标
 
@@ -415,7 +445,7 @@ pwsh -File scripts/test_run_public_experiment.ps1
 
 普通回归测试使用离线策略或本机测试接口。完整交通背景验证默认跳过，可通过 Maven 参数 `-Dmorning.fullTrafficValidation=true` 显式启用。
 
-历史测试记录对应当时的源码版本。2026-10-15 发布整理移除了旧原型、上游演示及其专用测试；本次仅做静态检查，尚未重新运行构建与回归测试。旧测试数量和结果不代表当前源码已经通过验证。
+构建和回归结果应关联实际源码提交、命令和运行环境。历史测试数量、旧构建的运行完成记录以及论文的执行审计不能替代当前检出的构建与回归检查；本文不将历史测试记录作为当前版本的通过证明。
 
 | 情况 | 处理 |
 | --- | --- |

@@ -4,6 +4,8 @@
 
 This guide takes you from a source checkout to a small native traffic run, then to an optional LLM-traveler run. All commands run from the repository root. The examples are setup instructions; they do not report experimental results.
 
+For the current paper, see [Reported experiments](reported-experiments.md) and the [manuscript configuration mapping](experiments-and-evaluation.md#manuscript-configuration-mapping). The paper uses five configurations, seed 268, population seed 6021, a 20% sample of demand 100, and 100 simulated days. The diagnostic seed 4711 and the small examples below are deliberate setup choices. The [data inventory](data/README.md) identifies the earlier aggregate exports and their available windows.
+
 ## 1. Check requirements
 
 | Requirement | Used for |
@@ -231,7 +233,7 @@ The content need not match `OK` exactly. Confirm a successful response and non-e
 | Manager reflection | After every completed simulation day, including the initial free period, plus allowed output retries. | A replacement manager memory. |
 | Optional traveler review | When explicitly enabled, at most once per structurally legal choice or reflection proposal. | Review status and permitted text revisions. |
 
-The current entry point shares one model ID, endpoint, credential, and sampling configuration across enabled tasks. It provides separate output-token limits for traveler choice, traveler memory, manager policy, manager memory, and optional review.
+The current entry point shares one model ID, endpoint, credential, and sampling configuration across enabled tasks. It provides separate output-token limits for traveler choice, traveler memory, manager policy, manager memory, and optional review. These are current-interface capabilities; historical run-specific model/service settings must be taken from the corresponding archive rather than inferred from this example or from a model ID in a different run.
 
 Native-only runs and `--validate-only` make no model calls. When an LLM role is enabled, the application invokes the relevant tasks automatically. Full request construction and response parsing are implemented in [`DeepSeekClient`](../src/main/java/org/matsim/agentic/DeepSeekClient.java); despite its name, the client is configured by the endpoint and model rather than tied to one provider.
 
