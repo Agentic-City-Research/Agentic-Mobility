@@ -37,7 +37,7 @@ Agentic Mobility is a research platform for studying AI agents and collective dy
 
 The current implementation uses MATSim to execute mobility decisions and generate feedback. The experiments below compare LLM-controlled travelers and an LLM pricing agent both separately and together.
 
-![AgenticMobility framework](docs/assets/agenticmobility_framework_siouxfalls.svg)
+![AgenticMobility framework](docs/assets/framework.svg)
 
 
 ### Daily simulation cycle
