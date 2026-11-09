@@ -164,7 +164,7 @@ final class MorningCohort {
             var start = m.currentTrip().getOriginActivity().getStartTime();
             double earliest = start.isDefined() ? Math.max(0, start.seconds()) : 0;
             m.departureOptions = MorningDepartureOptions.generate(m.plannedDeparture, earliest, horizon,
-                    settings.departureBeforeSeconds, settings.departureAfterSeconds, settings.departureStepSeconds);
+                    settings.departureBeforeSeconds, settings.departureAfterSeconds, settings.departureStepSeconds, true);
         }
     }
 

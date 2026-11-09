@@ -11,7 +11,7 @@ final class MorningSemanticReview {
     static final String SYSTEM="""
             Review the proposed traveler's text for clear factual contradictions only. Use only visibleFacts as factual evidence.
             PreviousMemory contains subjective personal judgments and potentially older experiences; it is not verified evidence.
-            Do not reject older experience merely because it is absent from the three-day execution window.
+            Do not reject older experience merely because it is absent from the supplied execution window.
             Check explicit claims about fixed personal facts or recorded recent executions. Predictions, preferences, habits,
             uncertainty and future plans are not executed facts. Actual/predicted lateness is not an illegal action or output error.
             Do not demand an earlier departure or a route switch. Preserve every chosen routeId and departureSeconds exactly.

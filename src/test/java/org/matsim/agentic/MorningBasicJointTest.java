@@ -115,7 +115,8 @@ class MorningBasicJointTest {
             return response(Json.write(Map.of("routeId","c0","departureSeconds",day==1||day>=20&&day%2==1?27000:day==2?25200:19800,"reason","Offline joint action execution fixture")));
         };
         assertEquals(0,new CommandLine(settings).execute("--config",config.toString(),"--output",out.toString(),"--policy","llm",
-                "--llm-agents","all","--manager","--manager-update-interval","7","--days","29","--informed-share","0","--max-requests","90"));
+                "--llm-agents","all","--manager","--manager-update-interval","7","--days","29","--informed-share","0","--max-requests","90",
+                "--departure-before-seconds","5400","--departure-after-seconds","2700"));
         assertEquals(29,travelerCalls.get()); assertEquals(2,managerCalls.get());
         var trips=JsonlTestSupport.readLines(out.resolve("morning/trips.jsonl.gz")).stream().map(Json::readTree).toList();
         for(int day=0;day<29;day++) {
@@ -127,8 +128,9 @@ class MorningBasicJointTest {
         }
         var contexts=JsonlTestSupport.readLines(out.resolve("morning/decision-contexts.jsonl.gz")).stream().map(Json::readTree).toList();
         for(var c:contexts) {
-            assertTrue(c.get("information").get("personalPayments").isEmpty());
-            assertTrue(c.get("candidates").get(0).get("estimatedToll").isNull());
+            assertTrue(c.get("information").get("currentNetworkTolls").isEmpty());
+            assertTrue(c.get("candidates").get(0).get("estimatedToll").isNumber());
+            assertEquals("personal_history_zero_prior",c.get("candidates").get(0).get("pricingKnowledge").get("source").asText());
         }
         var evaluations=JsonlTestSupport.readLines(out.resolve("morning/manager-policy-evaluations.jsonl.gz")).stream().map(Json::readTree).toList();
         var phases=evaluations.getLast().get("feedback").get("trackedChargingWindows").get(0).get("phases");

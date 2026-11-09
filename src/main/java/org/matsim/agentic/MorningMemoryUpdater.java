@@ -5,8 +5,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Post-QSim reflection; returns a proposal, never mutates trip state inside a worker. */
 final class MorningMemoryUpdater {
-    static final String VERSION = "morning-reflection-v9-continuous-memory";
-    static final int RECENT_EXPERIENCE_LIMIT = 3;
+    static final String VERSION = "morning-reflection-v10-period-window";
+    static final int RECENT_EXPERIENCE_LIMIT = 5;
     static final int TARGET_CHARACTERS = 240;
     static final int MAX_CHARACTERS = 500;
     static final String SYSTEM = MorningPromptRenderer.FACT_RULES + """
@@ -32,7 +32,10 @@ final class MorningMemoryUpdater {
                    Double latestArrivalSeconds, Map<String, Object> personAttributes, Profile profile,
                    String previousMemory, Integer previousMemoryDay,
                    List<MorningMemory.Experience> recentExperiences, List<String> availableRouteIds,
-                   String informationGroup, List<MorningRoutePolicy.TollObservation> personalPayments) {
+                   String informationGroup, List<MorningRoutePolicy.TollObservation> personalPayments, MorningFactLedger.View ledger) {
+        public Context(int day, String tripId, String personId, String destinationPurpose, Double latestArrivalSeconds, Map<String, Object> personAttributes, Profile profile, String previousMemory, Integer previousMemoryDay, List<MorningMemory.Experience> recentExperiences, List<String> availableRouteIds, String informationGroup, List<MorningRoutePolicy.TollObservation> personalPayments) {
+            this(day, tripId, personId, destinationPurpose, latestArrivalSeconds, personAttributes, profile, previousMemory, previousMemoryDay, recentExperiences, availableRouteIds, informationGroup, personalPayments, null);
+        }
         public Context(int day, String tripId, String personId, String destinationPurpose,
                        Double latestArrivalSeconds, Map<String, Object> personAttributes, Profile profile,
                        String previousMemory, Integer previousMemoryDay,
@@ -51,6 +54,10 @@ final class MorningMemoryUpdater {
     private final Map<String, Object> modelSettings;
     private final MorningRequestBudget budget;
     private MorningSemanticReview semanticReview;
+    private String memoryVariant = "original";
+    private int reflectionInterval = 5;
+    void setMemoryVariant(String variant) { memoryVariant = variant; }
+    void setReflectionInterval(int interval) { reflectionInterval = interval; }
     private final AtomicLong calls = new AtomicLong();
 
     MorningMemoryUpdater(LlmClient client, OutputWriter output, int attempts, int maxChars,
@@ -67,7 +74,10 @@ final class MorningMemoryUpdater {
     }
 
     static String render(Context c) {
-        validate(c);
+        return render(c, RECENT_EXPERIENCE_LIMIT);
+    }
+    static String render(Context c, int window) {
+        validate(c, window);
         var s = new StringBuilder();
         s.append("AVAILABLE ROUTE IDENTIFIERS FOR THIS TRIP: ").append(Json.write(c.availableRouteIds())).append(".\n");
         if (c.availableRouteIds().size() == 1) s.append("Only one route is available; do not plan to switch to an invented alternative.\n");
@@ -76,7 +86,7 @@ final class MorningMemoryUpdater {
             s.append("The fixed required arrival time is ").append(c.latestArrivalSeconds()).append(" seconds after midnight; it is unchanged.\n");
         else s.append("No arrival deadline is supplied for this destination.\n");
         s.append("REFLECT AFTER SIMULATION DAY ").append(c.day()).append('\n');
-        s.append("Recent factual window includes today: simulation days ").append(Math.max(0,c.day()-RECENT_EXPERIENCE_LIMIT+1))
+        s.append("Recent factual window includes today: simulation days ").append(Math.max(0,c.day()-window+1))
                 .append(" through ").append(c.day()).append(". The previous summary is continuous personal memory, not part of this window.\n");
         s.append("YOUR PREVIOUS SELF-WRITTEN MEMORY\n");
         if (c.previousMemory().isBlank()) s.append("Empty; no pre-experiment experiences are assumed.\n");
@@ -86,13 +96,17 @@ final class MorningMemoryUpdater {
             s.append("YOUR OWN ACTUAL PAID ROAD ENTRIES, INCLUDING OTHER TRIPS\ncolumns=[day,linkId,entry_s,amount]\n");
             c.personalPayments().forEach(e -> MorningPromptRenderer.appendPayment(s, e));
         }
+        MorningFactLedger.append(s, c.ledger(), c.day());
         s.append("Update your notes for future days.\n");
         return s.toString();
     }
 
     static void validate(Context c) {
+        validate(c, RECENT_EXPERIENCE_LIMIT);
+    }
+    static void validate(Context c, int window) {
         if (c.day() < 0 || c.previousMemory() == null || c.recentExperiences() == null || c.recentExperiences().isEmpty()
-                || c.recentExperiences().size() > RECENT_EXPERIENCE_LIMIT
+                || c.recentExperiences().size() > window
                 || c.latestArrivalSeconds() != null && (!Double.isFinite(c.latestArrivalSeconds()) || c.latestArrivalSeconds() < 0)
                 || c.availableRouteIds() == null || c.availableRouteIds().isEmpty()
                 || c.availableRouteIds().size() > 4 || new HashSet<>(c.availableRouteIds()).size() != c.availableRouteIds().size()
@@ -100,9 +114,10 @@ final class MorningMemoryUpdater {
                 || c.previousMemory().isBlank() != (c.previousMemoryDay() == null)
                 || c.previousMemoryDay() != null && (c.previousMemoryDay() < 0 || c.previousMemoryDay() >= c.day()))
             throw new IllegalArgumentException("Invalid post-simulation memory context");
+        MorningFactLedger.validate(c.ledger(), c.day());
         int last = -1;
         for (var e : c.recentExperiences()) {
-            if (e.day() <= last || e.day() > c.day() || e.day()<Math.max(0,c.day()-RECENT_EXPERIENCE_LIMIT+1) || !c.availableRouteIds().contains(e.routeId()))
+            if (e.day() <= last || e.day() > c.day() || e.day()<Math.max(0,c.day()-window+1) || !c.availableRouteIds().contains(e.routeId()))
                 throw new IllegalArgumentException("Unordered/future memory experience or unknown route");
             last = e.day();
             for (Double t : Arrays.asList(e.carSeconds(), e.arrivalSeconds(), e.lateSeconds(), e.departureSeconds(), e.doorSeconds()))
@@ -115,14 +130,24 @@ final class MorningMemoryUpdater {
             MorningPromptRenderer.validatePayment(payment, c.day() + 1);
     }
 
+    static String systemForInterval(int interval, int maxChars) {
+        return (SYSTEM + "Keep memory within " + maxChars + " Unicode characters, including spaces and punctuation.\n")
+                .replace("last three days", interval == 1 ? "last day" : "last " + interval + " days")
+                .replace("three-day log", interval + "-day log");
+    }
+
     Update update(Context context) {
-        String base = render(context), system = SYSTEM + "Keep memory within " + maxChars + " Unicode characters, including spaces and punctuation.\n";
+        int window = reflectionInterval;
+        String base = render(context, window), system = systemForInterval(reflectionInterval, maxChars);
+        if (!memoryVariant.equals("original")) system += " Count each simulation day only once; the old summary and recent records can overlap. Ledger facts, when present, take precedence over notes.\n";
+        if (context.ledger() != null) system = system.replace("All lasting information, including remembered charging roads and payments, shares this one summary budget.", "Personal notes share one summary budget; the supplied ledger separately records past trip outcomes.");
         var schema = MorningOutputContract.memory(maxChars);
         var requestSettings = MorningOutputContract.requestSettings(modelSettings, schema);
         var knownRouteIds = new LinkedHashSet<>(context.availableRouteIds());
         String error = null; long started = System.nanoTime();
         String contextHash = MorningPromptRenderer.hash(Json.write(context));
         output.appendLine("memory-contexts.jsonl", context);
+        if (context.ledger() != null) output.appendLine("ledger-views.jsonl", Map.of("day",context.day(),"personId",context.personId(),"tripId",context.tripId(),"phase","reflection","view",context.ledger(),"viewHash",MorningPromptRenderer.hash(Json.write(context.ledger()))));
         for (int attempt = 1; attempt <= attempts; attempt++) {
             budget.reserve(); calls.incrementAndGet();
             String user = base + (error == null ? "" : "\nYour previous output was invalid: " + error

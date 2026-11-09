@@ -34,8 +34,9 @@ TOLL_HISTORY_BIN_SECONDS="${TOLL_HISTORY_BIN_SECONDS:-3600}"
 MEMORY_MODE="${MEMORY_MODE:-llm}"
 MAX_OUTPUT_TOKENS="${MAX_OUTPUT_TOKENS:-1024}"
 REASON_MAX_CHARS="${REASON_MAX_CHARS:-120}"
-HISTORY_WINDOW="${HISTORY_WINDOW:-3}"
-DEPARTURE_BEFORE_SECONDS="${DEPARTURE_BEFORE_SECONDS:-5400}"
+TRAVELER_REFLECTION_INTERVAL="${TRAVELER_REFLECTION_INTERVAL:-5}"
+HISTORY_WINDOW="${HISTORY_WINDOW:-$TRAVELER_REFLECTION_INTERVAL}"
+DEPARTURE_BEFORE_SECONDS="${DEPARTURE_BEFORE_SECONDS:-3600}"
 DEPARTURE_AFTER_SECONDS="${DEPARTURE_AFTER_SECONDS:-1800}"
 DEPARTURE_STEP_SECONDS="${DEPARTURE_STEP_SECONDS:-900}"
 MANAGER_PROFILE="${MANAGER_PROFILE:-basic}"
@@ -92,7 +93,8 @@ done
 [[ "$VALIDATE_ONLY" == 0 || "$VALIDATE_ONLY" == 1 ]] || fail 'VALIDATE_ONLY must be 0 or 1.'
 [[ "$INFORMATION_SCOPE" == controlled || "$INFORMATION_SCOPE" == all ]] || fail 'INFORMATION_SCOPE must be controlled or all.'
 [[ "$MEMORY_MODE" == llm ]] || fail 'MEMORY_MODE only supports llm.'
-[[ "$HISTORY_WINDOW" =~ ^[1-3]$ ]] || fail 'HISTORY_WINDOW must be 1..3.'
+[[ "$TRAVELER_REFLECTION_INTERVAL" == 1 || "$TRAVELER_REFLECTION_INTERVAL" == 5 ]] || fail 'TRAVELER_REFLECTION_INTERVAL must be 1 or 5.'
+[[ "$HISTORY_WINDOW" =~ ^[1-5]$ ]] || fail 'HISTORY_WINDOW must be 1..5.'
 [[ "$TRAVELER_SEMANTIC_REVIEW" == 0 || "$TRAVELER_SEMANTIC_REVIEW" == 1 ]] || fail 'TRAVELER_SEMANTIC_REVIEW must be 0 or 1.'
 for value_name in MAX_OUTPUT_TOKENS REASON_MAX_CHARS SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS; do
     [[ "${!value_name}" =~ ^[1-9][0-9]*$ ]] || fail "$value_name must be positive."
@@ -183,7 +185,7 @@ experiment_args=(
     --max-output-tokens "$MAX_OUTPUT_TOKENS" --reason-max-chars "$REASON_MAX_CHARS"
     --personal-profiles legacy --profile-seed "$POPULATION_SEED"
     --departure-before-seconds "$DEPARTURE_BEFORE_SECONDS" --departure-after-seconds "$DEPARTURE_AFTER_SECONDS" --departure-step-seconds "$DEPARTURE_STEP_SECONDS"
-    --memory-mode "$MEMORY_MODE" --history-window "$HISTORY_WINDOW" --memory-max-chars 500 --memory-max-output-tokens 1024
+    --memory-mode "$MEMORY_MODE" --history-window "$HISTORY_WINDOW" --traveler-reflection-interval "$TRAVELER_REFLECTION_INTERVAL" --memory-max-chars 500 --memory-max-output-tokens 1024
     --candidate-order original --candidate-order-seed 0 --trip-output-interval 1 --context-samples 20
     --candidate-search-limit "$CANDIDATE_SEARCH_LIMIT" --candidate-pool-size "$CANDIDATE_POOL_SIZE"
     --candidate-max-time-ratio "$CANDIDATE_MAX_TIME_RATIO" --candidate-time-slack-seconds "$CANDIDATE_TIME_SLACK_SECONDS"

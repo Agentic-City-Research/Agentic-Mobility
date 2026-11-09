@@ -2,56 +2,21 @@
 
 [Documentation](README.md) · [Getting started](getting-started.md) · [Methods & protocols](methods-and-protocols.md) · [Scenarios & data](scenarios-and-data.md)
 
-This guide covers **experiment configuration, supported run modes, and reproducibility records**. [Reported experiments](reported-experiments.md) documents the current manuscript's five seed-268 configurations over Days0–99, with historical seed-9261 comparisons listed separately. The [data inventory](data/README.md) distinguishes manuscript summaries from earlier aggregate exports.
+This edition covers **experiment configuration, supported run modes, and reproducibility records**. Experimental results, metric definitions, statistical procedures, and policy-effect evaluation are deferred to a later edition.
 
 Build the project and check a small native run with [Getting started](getting-started.md) before using these templates. Commands below describe configurations; they are not reports of completed experiments.
 
 ## Supported configurations
 
-| Configuration | Traveler control | Pricing | Model service needed? |
+All runs use the same hybrid traffic workflow. Choose a traveler condition and one mutually exclusive pricing condition:
+
+| Traveler condition | No toll | Fixed toll | LLM manager |
 | :--- | :--- | :--- | :--- |
-| Native baseline | Native full-day MATSim behavior; zero controlled people. | No congestion tolls. | No. |
-| Constrained joint MNL | `mnl-joint`: offline joint route/time choice for selected target trips within fixed candidate sets; native background remains. | No congestion tolls in the manuscript condition. | No. |
-| Route-only MNL | `mnl`: selects a route; each controlled target retains its original planned departure. | Optional pricing. | No, unless the manager is enabled. |
-| LLM travelers | LLM route/time choices for selected target trips; native background remains. | No congestion tolls. | Yes: traveler choices and reflection. |
-| Native travelers + manager | Native travelers. | Daily manager memory and scheduled policy updates. | Yes, from the first day. |
-| LLM travelers + manager | Selected LLM target trips and native background. | The same manager mechanism. | Yes: both roles. |
-| Fixed tolls | Native travelers in the example; a traveler overlay can be configured separately. | A file-defined policy repeated after its free period. | No for the native example. |
+| Native (`--llm-agents 0`) | Native baseline; no model service. | Native + fixed toll; no model service. | Native + manager; manager service required from day 1. |
+| MNL (`--policy mnl --llm-agents all` or a count) | MNL baseline; no model service. | MNL + fixed toll; no model service. | MNL + manager; manager service required. |
+| LLM (`--policy llm --llm-agents all` or a count) | LLM travelers; traveler service required. | LLM travelers + fixed toll; traveler service required. | LLM travelers + manager; services required for both roles. |
 
-These configurations all use `--mode hybrid`. The manuscript evaluates the first five rows; fixed tolls are an additional supported intervention. All use MATSim for environmental execution.
-
-The CLI also provides `reference` and `fixed-routes` modes for auxiliary native/frozen-route configurations. They change the execution assumptions and should be labeled separately. Live LLM choices and manager pricing require `hybrid`. See the [operating guide](usage-guide.md) for auxiliary settings.
-
-## Manuscript configuration mapping
-
-The [active manuscript appendix](../paper/AgenticMobility_arXiv/appendices/app_1.tex) specifies the following recorded settings. These differ from the smaller integration templates below.
-
-| Setting | Manuscript demonstration |
-| :--- | :--- |
-| Duration and simulation seed | 100 days, log Days0–99, `--seed 268`; one run per configuration |
-| Population | Restored demand 100, 84,110 input people, `--sample-rate 0.2`, 16,822 simulated people |
-| Population and assignment seed | `--population-seed 6021`; sampling, profiles, information groups, and controlled roster use 6021 |
-| Capacity factors | Flow 0.2; storage `0.2^0.75`, approximately 0.2991 |
-| Targets | Original destination-activity starts in `[0,32400)`; 11,793 fixed trips by 11,793 people across 2,877 OD pairs |
-| Work-arrival denominator | 11,332 fixed work targets with deadlines |
-| Candidate-based conditions | MNL, LLM Traveler, and Joint share fixed route/departure options; 2,780 single-route and 9,013 multi-route targets |
-| Information in Joint | 5,897 informed and 5,896 uninformed travelers, assigned by person |
-| Pricing opportunities | Log Days20, 50, 80; simulation days 21, 51, 81 |
-| Positive charging | Manager from log Day20; Joint from log Day50, after retaining zero charges at Day20 |
-| Native innovation cutoff | Log Day90; existing-plan selection continues |
-| Memory and validation | Three-day personal facts, 500-character summary limit, three total output attempts; semantic review disabled |
-
-| Manuscript condition | Target-control arguments in the current interface |
-| :--- | :--- |
-| MATSim | `--policy mnl --llm-agents 0` |
-| MNL | `--policy mnl-joint --llm-agents all --mnl-parameters config/baselines/mnl-joint.example.json --mnl-choice-seed 268` |
-| LLM Traveler | `--policy llm --llm-agents all` |
-| MATSim + Manager | `--policy mnl --llm-agents 0 --manager --manager-profile basic` |
-| LLM Traveler + Manager (Joint) | `--policy llm --llm-agents all --manager --manager-profile basic` |
-
-These argument mappings identify roles, not complete historical rerun commands. The joint MNL implementation and parameter file were recovered from the local baseline checkout whose runtime JAR matches the archived MNL run's hash; an exact rerun still requires the corresponding runtime, inputs, candidates, and configuration. See [joint MNL](joint-mnl-baseline.md). Its homogeneous coefficients are uncalibrated. `--policy mnl` is the separate legacy route-only baseline; with `--llm-agents 0`, all choices remain native. Fixed-file toll examples are outside the manuscript's five-condition comparison.
-
-The installation check uses 100 people and two days. The templates below instead use 10% sampling, seeds 4711, and three controlled people for integration checks. Neither is the manuscript experiment. A matching population size obtained from demand 200 at 10% would also have different people and capacity factors from the manuscript's demand 100 at 20%.
+`--llm-agents` selects people in the target cohort; native background and other trips remain in the simulation. `--policy mnl` alone does not enable controlled MNL travelers: the default is `--llm-agents 0`. Fixed tolls (`--fixed-toll-policy`) and the manager (`--manager`) cannot be enabled together. The fixed-policy comparison holds the supplied pricing policy constant; separate manager runs are closed-loop systems whose executed policies may differ.
 
 ## Keep population and control settings distinct
 
@@ -87,7 +52,7 @@ MOBILITY_COMMON=(
 MOBILITY_TRAVELER=(
   --policy llm --llm-agents 3 --concurrency 3
   --information-scope controlled --informed-share 0.5
-  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120
+  --history-window 5 --max-output-tokens 1024 --reason-max-chars 120
   --memory-max-output-tokens 1024 --memory-max-chars 500
   --repair-attempts 3
 )
@@ -107,11 +72,6 @@ The 3,000-call budget is an example. Inspect the prepared trip count and calcula
 # Native baseline: no model calls.
 java -Xmx8g -cp "$MOBILITY_JAR" "$MOBILITY_APP" "${MOBILITY_COMMON[@]}" \
   --policy mnl --llm-agents 0 --output output/native-baseline
-
-# Small constrained-MNL integration run: no model calls.
-java -Xmx8g -cp "$MOBILITY_JAR" "$MOBILITY_APP" "${MOBILITY_COMMON[@]}" \
-  --policy mnl-joint --llm-agents 3 \
-  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
 
 # LLM travelers, without pricing.
 java -Xmx8g -cp "$MOBILITY_JAR" "$MOBILITY_APP" "${MOBILITY_COMMON[@]}" \
@@ -156,7 +116,7 @@ $MobilityCommon = @(
 $MobilityTraveler = @(
   '--policy', 'llm', '--llm-agents', '3', '--concurrency', '3',
   '--information-scope', 'controlled', '--informed-share', '0.5',
-  '--history-window', '3', '--max-output-tokens', '1024', '--reason-max-chars', '120',
+  '--history-window', '5', '--max-output-tokens', '1024', '--reason-max-chars', '120',
   '--memory-max-output-tokens', '1024', '--memory-max-chars', '500',
   '--repair-attempts', '3'
 )
@@ -170,11 +130,6 @@ $MobilityManager = @(
 # Native baseline.
 java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
   --policy mnl --llm-agents 0 --output output/native-baseline
-
-# Small constrained-MNL integration run.
-java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
-  --policy mnl-joint --llm-agents 3 `
-  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
 
 # LLM travelers.
 java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
@@ -210,8 +165,6 @@ Without congestion charging, the run explicitly states that charging is disabled
 ### Manager policy schedule
 
 The first 20 days are toll-free. With `--manager-update-interval 30`, default policy opportunities are days 21, 51, and 81 in a 100-day run. Manager reflection starts on day 1. A run shorter than 21 days can exercise manager memory but cannot include a scheduled manager policy intervention.
-
-Those are one-based simulation days, equivalent to log Days20, 50, and 80. A policy decision can retain zero or unchanged charges. In the manuscript, positive charging begins on log Day20 for Manager and Day50 for Joint; the two conditions do not apply the same intervention history.
 
 `--manager-profile basic` is the default autonomous profile. The `controlled` profile adds restrictions and automatic intervention mechanisms; report that profile as a different condition. `--fixed-toll-free-days` applies to fixed-policy files, not the manager's initial free period.
 
@@ -256,39 +209,13 @@ where `I` is `--manager-update-interval`, default 30.
 | Enabled roles | Base client calls before repairs |
 | :--- | :--- |
 | Native baseline or native fixed tolls | 0 |
-| Constrained MNL without a manager | 0 |
 | LLM travelers | `2 × n × D` for choices and reflections. |
 | Manager only | `D + U` for daily reflection and policy opportunities. |
 | LLM travelers + manager | `2 × n × D + D + U`. |
 
 Optional traveler semantic review adds up to `2 × n × D` base calls. Output repairs require additional allowance. A 100-day default manager-only configuration has 103 base calls; this is a schedule calculation, not observed API usage.
 
-At the manuscript's 11,793 targets and 100 days, the base traveler workload is **2,358,600 calls**; Joint adds 103 base manager calls, for **2,358,703 before retries and repairs**. The manuscript records 2,362,964 calls for Traveler, 109 for Manager, and 2,364,090 for Joint. These observed totals differ from base budget estimates; see the [audit and workload](assets/data/seed268/seed268-experiments.md#execution-validation-and-model-call-scope).
-
 `--max-requests` is a shared client-call budget. It includes output repairs and optional reviews, while HTTP-layer recovery can produce additional requests. It is neither a token budget nor a billing cap. The startup check rejects a finite budget below the base requirement; actual usage comes from the call records.
-
-## Manuscript measurement and interpretation
-
-The [measurement appendix](../paper/AgenticMobility_arXiv/appendices/app_1.tex) defines distinct populations and event boundaries:
-
-| Measure | Scope and aggregation |
-| :--- | :--- |
-| Total daily car time | All car-departure-to-car-arrival durations, including waiting before network entry; complete total is undefined if any planned car leg is incomplete |
-| Mean daily car time per person | `60 × total car person-hours / 16,822`, in minutes/person |
-| Mean target-trip car time | Completed controlled target trips; 11,793 targets complete each day in the reported runs |
-| Work lateness | Late completed work targets divided by the fixed 11,332-work-target cohort; on-time, late, and noncompleted outcomes exhaust the cohort |
-| Mean daily P95 | Compute each day's target-time 95th percentile, then average those daily values; not a pooled percentile or the mean of the slowest 5% |
-| Mean positive early arrival | Average `max(deadline − arrival, 0)` across all work targets, including zeros |
-| Individual time savings | Compare each target person's mean time over the same labeled window; not independent run replications |
-| Completed-link delay | Aggregate original link intervals to full days; excludes waiting before network entry and differs from full-trip time |
-
-Choice changes use **selected actions**, with realized departures retained separately. Route switching compares complete ordered link sequences, not candidate labels. Overall rates use all 11,793 targets; candidate-based multi-route rates use 9,013 targets and exclude the 2,780 single-route cases. Departure adjustment compares selected departure times. Both rates average the **99 adjacent-day transitions** ending on log Days1–99. Departure offsets remain anchored to the original plan, not yesterday's choice.
-
-Aggregate route-flow turnover is `sum(abs(n[o,r,d] − n[o,r,d−1])) / (2 × 11,793)`, where counts group targets by OD and complete route. Offsetting individual switches can leave route counts unchanged, so switching and net flow turnover measure different changes. The native innovation cutoff is log Day90; cutoff diagnostics treat Day90 separately and use Days91–99 for the post-cutoff window. It does not disable LLM or MNL target choices.
-
-Outcome summaries use arithmetic daily means over Days0–99; relative changes are ratios of unrounded window means minus one, and lateness differences are percentage points. Time-series smoothing uses trailing seven-day means. Target/other-trip and waiting/post-entry decompositions each recover the same all-car total and must not be added together. Target payments and full-day personal payments also have different trip scopes.
-
-One run per configuration, different executable builds, and uncalibrated MNL coefficients limit the comparison to recorded outputs. Pre-charging differences prevent attributing the Joint–Traveler contrast to the manager alone. Earlier departures and arrivals are not monetized welfare gains. Current action validation and sampled information-access checks do not establish semantic correctness of all reasons/memories, behavioral validity, or causal mechanisms. The [100-day audit](assets/data/seed268/seed268-experiments.md#execution-validation-and-model-call-scope) records these scopes separately.
 
 ## Run records
 
@@ -299,12 +226,11 @@ The application prints the reserved output path. Repeated names receive a numeri
 | Configuration and status | `manifest.json`, `status.json`, `progress.json` | Effective inputs, settings, versions, progress, and completion. |
 | Fixed preparation | `cohort.jsonl.gz`, `profiles.jsonl.gz`, `information-groups.jsonl.gz`, `candidates.jsonl.gz`, `candidate-quality.jsonl.gz` | Identity, control membership, groups, profiles, and frozen actions. |
 | Traveler decisions | `decision-contexts.jsonl.gz`, `attempts.jsonl.gz`, `llm-results.jsonl.gz`, `decisions.jsonl.gz` | Permitted context, raw attempts, legal output, and applied choice. |
-| Joint MNL | `baseline-parameters.json`, `baseline-contexts.jsonl.gz`, `baseline-choices.jsonl.gz` | Explicit parameter provenance, supplied contexts, joint alternatives and seeded choices. |
 | Traveler execution | `executed-route-checks.jsonl.gz`, `trips.jsonl.gz`, `experiences.jsonl.gz` | Plan/action checks, actual trips, and personal feedback. |
 | Traveler memory | `memory-contexts.jsonl.gz`, `memory-attempts.jsonl.gz`, `memory-updates.jsonl.gz`, `memory-final.jsonl.gz` | Reflection inputs, responses, and committed summaries. |
 | Policy execution | `policies.jsonl.gz`, `policy-applications.jsonl.gz`, `toll-payments.jsonl.gz` | Complete policies, daily effective policy, and actual charges. |
 | Manager tasks | `manager-contexts.jsonl.gz`, `manager-attempts.jsonl.gz`, `manager-decisions.jsonl.gz`, `manager-memory-*.jsonl.gz`, `manager-fallbacks.jsonl.gz` | Policy/reflective inputs, responses, updates, and fallbacks. |
-| Public traffic archives | `metrics.jsonl.gz`, `link-hours.jsonl.gz` | Saved daily and road-level traffic summaries; see [measurement and interpretation](#manuscript-measurement-and-interpretation) for event boundaries and aggregation. |
+| Public traffic archives | `metrics.jsonl.gz`, `link-hours.jsonl.gz` | Saved daily and road-level traffic summaries. Interpretation is deferred with the evaluation protocol. |
 | Optional review and usage | `semantic-reviews.jsonl.gz`, `api-usage.json` | Review evidence/status and recorded client/service usage. |
 
 Before treating a traffic run as complete, check `status.json` for `complete=true` and the expected `daysCompleted`, together with exit status and logs. Preparation-only runs instead record `validated=true`, `simulationRun=false`, and `apiCalls=0`.
@@ -312,8 +238,6 @@ Before treating a traffic run as complete, check `status.json` for `complete=tru
 Keep `day`, `tripId`, and `personId` when relating choices, memory, and execution. Use `policyId`, `policyVersion`, and `policyFingerprint` to relate effective policies to traffic days. Do not collapse multiple target trips into a person-only key or assume that a new version changes prices.
 
 Missing token or cache usage is unknown, not zero. Full archives and final memories are not a complete MATSim checkpoint; automatic continuation of all simulation state from an interrupted run is not supported.
-
-`scripts/analyze_morning_choices.py` requires a completed status, manifest, and the traveler streams required by the recorded role; missing or incomplete streams fail rather than being counted as zero. Its cost-information groups distinguish known-value changes from changes in whether a value is known. If token usage is missing for any inspected call, the overall token total is `null`; reported subtotals and missing-usage counts remain available.
 
 ## Run-configuration template
 

@@ -21,11 +21,11 @@ final class MorningMnlPolicy implements MorningRoutePolicy {
 
     @Override public Decision choose(Context context) {
         MorningPromptRenderer.validate(context);
-        if (context.departureOptions().isEmpty()) throw new IllegalArgumentException("mnl-joint requires joint departure options");
+        if (context.departureOptions().isEmpty()) throw new IllegalArgumentException("MNL requires joint departure options");
         // Defensive filtering: even a hand-written/replayed context cannot supply older archive facts.
         var history = MorningPromptRenderer.recentFacts(context.history(), context.day(), false, historyDays);
         var actions = new ArrayList<Map<String, Object>>();
-        for (var departure : context.departureOptions()) {
+        for (var departure : context.departureOptions().stream().sorted(Comparator.comparingDouble(DepartureOption::departureSeconds)).toList()) {
             var routes = departure.routes().stream().sorted(Comparator.comparing(Option::routeId)).toList();
             for (var route : routes) actions.add(evaluate(context, departure.departureSeconds(), route, history));
         }
@@ -66,24 +66,10 @@ final class MorningMnlPolicy implements MorningRoutePolicy {
         double lateMinutes = context.latestArrivalSeconds() == null ? 0 : Math.max(0, arrival - context.latestArrivalSeconds()) / 60;
         var knowledge = route.pricingKnowledge();
         double baseCost = knowledge.baseMonetaryCost();
-        double toll;
-        String tollSource;
-        List<Integer> paymentDays = List.of();
-        if (route.estimatedToll() != null) {
-            toll = route.estimatedToll(); tollSource = knowledge.source();
-        } else {
-            if (parameters.unknownTollMode.equals("reject")) throw new IllegalArgumentException(
-                    "mnl-joint encountered unknown tolls: use no pricing, an informed cohort, or explicitly configure personal-with-prior in --mnl-parameters");
-            var payments = completed.stream().filter(e -> e.tollPaid() != null).toList();
-            if (payments.isEmpty()) {
-                toll = parameters.unknownTollPriorPerLink * route.links().size();
-                tollSource = "explicit_per_link_prior";
-            } else {
-                toll = payments.stream().mapToDouble(MorningMemory.Experience::tollPaid).average().orElseThrow();
-                tollSource = "recent_own_route_payments_not_current_tariff";
-                paymentDays = payments.stream().map(MorningMemory.Experience::day).toList();
-            }
-        }
+        if (route.estimatedToll() == null) throw new IllegalArgumentException("MNL requires the shared current/own-observation toll estimate");
+        double toll = route.estimatedToll();
+        String tollSource = knowledge.source();
+        List<Integer> paymentDays = knowledge.observations().stream().map(TollObservation::day).toList();
         double money = baseCost + toll;
         double shiftMinutes = Math.abs(departure - context.plannedDepartureSeconds()) / 60;
         var terms = new LinkedHashMap<String, Double>();
@@ -101,7 +87,9 @@ final class MorningMnlPolicy implements MorningRoutePolicy {
         row.put("predictedLateMinutes", lateMinutes); row.put("departureShiftMinutes", shiftMinutes);
         row.put("distanceMeters", route.distanceMeters()); row.put("baseMonetaryCost", baseCost);
         row.put("estimatedToll", toll); row.put("estimatedTotalCost", money); row.put("tollEstimateSource", tollSource);
-        row.put("currentTollUnknown", route.estimatedToll() == null); row.put("paymentExperienceDays", paymentDays);
+        row.put("currentTollUnknown", !context.information().currentAnnouncementVisible());
+        row.put("unobservedTollLinks", knowledge.unknownLinks());
+        row.put("tollObservations", knowledge.observations()); row.put("paymentExperienceDays", paymentDays);
         row.put("timeEstimateSource", completed.isEmpty() ? "static_free_flow" : "free_flow_blended_with_recent_own_same_route_and_bin");
         row.put("timeExperienceDays", completed.stream().map(MorningMemory.Experience::day).toList());
         row.put("timeExperienceCarSeconds", completed.stream().map(MorningMemory.Experience::carSeconds).toList());

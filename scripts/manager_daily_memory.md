@@ -1,6 +1,6 @@
 # 每日 Manager 记忆与周期收费政策
 
-当前入口：`org.matsim.agentic.MorningExperiment`。政策模板 `morning-pricing-v10-daily-memory`，反思模板 `morning-manager-memory-v1-daily`，manifest schemaVersion=23。basic 与 controlled 均使用此记忆流程。
+当前入口：`org.matsim.agentic.MorningExperiment`。政策模板 `morning-pricing-v11-full-day-car`，反思模板 `morning-manager-memory-v2-full-day-car`，manifest schemaVersion=23。basic 与 controlled 均使用此记忆流程。
 
 ## 每日流程
 
@@ -47,3 +47,13 @@
 | policy-applications.jsonl.gz | 每日实际生效的政策 ID、版本、指纹及自动回退事实 |
 
 manifest 保存独立的 `managerMemorySettings`、`managerMemoryLifecycle` 和 `minimumManagerMemoryCalls`；原 `minimumManagerCalls` 仍表示预定政策调用数。API 使用记录另列政策/管理反思调用数及总预算计数。模型记忆无法代替完整执行档案。
+
+## DeepSeek JSON 模式与 HPC 兼容
+
+使用 DeepSeek 的 `--response-format json_object` 时，Manager 政策和每日反思会在原系统提示词后追加 `morning-json-object-v1` 输出约束：明确要求一个完整 JSON 对象，给出本次调用的字段 schema，禁止把 `type`、`response_format` 等包装信息当成额外输出，保留原有枚举和字符/词数限制。这满足服务端要求提示词明确包含 JSON 的前置条件；JSON 模式本身不保证业务字段合法，程序仍严格校验，不自动删改模型回答或强制收费。
+
+追加后的实际 system/user、字符数和 requestHash 都写入 attempts 日志。该适配在请求发送前完成，不在 HTTP 层偷偷改写提示词。
+
+只有实际请求使用 `json_object` 才追加约束。HPC/vLLM 常用的 `json_schema` 和 `omit` 保持原系统提示词及生成参数；不自动切换模型、地址、thinking 模式或 response format。现有 Slurm 脚本无需修改，继续使用该服务支持的原参数。修复后需重新构建并将新 JAR 同步至实际运行主机；仅上传 Java 源码不会更新正在使用的 JAR。
+
+本地无外部 API 回归覆盖 JSON 模式下跨日记忆传递、政策读取旧记忆、全天规则、真实 HTTP 请求与日志一致性，以及 basic/controlled 的 json_schema/omit 请求兼容。真实模型仍可能产生不合格输出，沿用原有限重试和失败审计机制。

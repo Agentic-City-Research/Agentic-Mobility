@@ -43,7 +43,7 @@ class MorningExperimentTest {
         var options = List.of(new MorningRoutePolicy.Option("c0", List.of("origin", "end"), 100, 28000, 1000, .4, "free_flow", 0, 0));
         var context = new MorningRoutePolicy.Context(0, "p/0", "p", "home", "work", 27900, 32400.0, Map.of(), Map.of(), options, List.of());
         assertThrows(IllegalArgumentException.class, () -> MorningRoutePolicy.validate(context, new MorningRoutePolicy.Decision("other", "invented")));
-        assertEquals("c0", MorningRoutePolicy.validate(context, MorningRoutePolicy.baseline("mnl", 1, .3).choose(context)).routeId());
+        assertEquals("c0", MorningRoutePolicy.validate(context, MorningRoutePolicy.baseline("shortest").choose(context)).routeId());
     }
 
     @Test void matsimCandidatesAreOdSpecificAndHandleZeroLengthOrigin() {
@@ -141,15 +141,16 @@ class MorningExperimentTest {
         home.setEndTime(28000); cohort.restorePlannedTimes(); assertEquals(25200, home.getEndTime().seconds());
     }
 
-    @Test void publicConfigAndBothModesRunWithoutApiAndDoNotOverwrite() throws Exception {
+    @Test void hybridNativeAndControlledRunWithoutApiAndDoNotOverwrite() throws Exception {
         Path config = Path.of("scenarios/SiouxFalls-public/config.xml").toAbsolutePath();
         var scoring = ConfigUtils.loadConfig(config.toString()).scoring();
         assertEquals(32400, scoring.getActivityParams("work").getLatestStartTime().seconds());
         assertTrue(scoring.getActivityParams("work").isScoringThisActivityAtAll());
-        for (String mode : List.of("fixed-routes", "reference")) {
-            Path output = directory.resolve(mode);
-            int exit = new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", mode,
-                    "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", output.toString());
+        for (String group : List.of("controlled", "native")) {
+            String agents = group.equals("controlled") ? "all" : "0";
+            Path output = directory.resolve(group);
+            int exit = new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", "hybrid", "--llm-agents", agents,
+                    "--policy", "shortest", "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", output.toString());
             assertEquals(0, exit);
             var rows = readLines(output.resolve("morning/metrics.jsonl.gz")); assertEquals(2, rows.size());
             var first = Json.readTree(rows.getFirst()); var last = Json.readTree(rows.getLast());
@@ -173,7 +174,7 @@ class MorningExperimentTest {
             assertEquals(readLines(output.resolve("morning/candidates.jsonl.gz")).size(),
                     readLines(output.resolve("morning/candidate-quality.jsonl.gz")).size());
             assertFalse(Files.exists(output.resolve("morning/trips.jsonl")));
-            if (mode.equals("fixed-routes")) {
+            if (group.equals("controlled")) {
                 var contexts = readLines(output.resolve("morning/context-samples.jsonl.gz"));
                 assertTrue(Json.readTree(contexts.getLast()).get("history").size() > 0);
                 assertFalse(contexts.getFirst().contains("matsimScore"));
@@ -215,23 +216,33 @@ class MorningExperimentTest {
                 }
             }
             String originalStatus = Files.readString(output.resolve("morning/status.json"));
-            assertEquals(0, new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", mode,
-                    "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", output.toString(), "--validate-only"));
+            assertEquals(0, new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", "hybrid", "--llm-agents", agents,
+                    "--policy", "shortest", "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", output.toString(), "--validate-only"));
             Path repeated = output.resolveSibling(output.getFileName() + "-2");
             var repeatedManifest = Json.readTree(Files.readString(repeated.resolve("morning/manifest.json")));
             assertEquals(2, repeatedManifest.get("outputNaming").get("repetition").asInt());
             assertEquals(repeated.getFileName().toString(), repeatedManifest.get("runName").asText());
             assertEquals(originalStatus, Files.readString(output.resolve("morning/status.json")), "Repeat must preserve the original simulation");
-            if (mode.equals("fixed-routes")) {
+            if (group.equals("controlled")) {
                 Path reused = directory.resolve("reused");
-                assertEquals(0, new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", mode,
-                        "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", reused.toString(),
+                assertEquals(0, new CommandLine(new MorningExperiment()).execute("--config", config.toString(), "--mode", "hybrid", "--llm-agents", agents,
+                        "--policy", "shortest", "--demand", "100", "--sample-persons", "40", "--days", "2", "--seed", "4711", "--output", reused.toString(),
                         "--candidate-file", output.resolve("morning/candidates.jsonl.gz").toString(), "--validate-only"));
                 assertEquals(readLines(output.resolve("morning/candidates.jsonl.gz")), readLines(reused.resolve("morning/candidates.jsonl.gz")));
                 assertTrue(Json.readTree(Files.readString(reused.resolve("morning/manifest.json"))).has("candidateFileHash"));
                 assertEquals("frozen-file-validation-v1", Json.readTree(Files.readString(reused.resolve("morning/manifest.json")))
                         .get("candidateSelectionVersion").asText());
             }
+        }
+    }
+
+    @Test void removedModesFailBeforeCreatingOutput() {
+        for (String mode : List.of("reference", "fixed-routes")) {
+            Path output = directory.resolve("rejected-" + mode);
+            int exit = new CommandLine(new MorningExperiment()).execute("--mode", mode, "--policy", "shortest",
+                    "--config", "missing-config.xml", "--output", output.toString());
+            assertNotEquals(0, exit);
+            assertFalse(Files.exists(output));
         }
     }
 

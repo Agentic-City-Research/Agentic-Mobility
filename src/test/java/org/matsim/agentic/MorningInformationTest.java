@@ -174,12 +174,12 @@ class MorningInformationTest {
             var context = Json.MAPPER.treeToValue(row, MorningRoutePolicy.Context.class); String prompt = new MorningPromptRenderer().render(context);
             if (hidden) {
                 assertTrue(option.get("tollPolicyId").isNull()); assertEquals(0, option.get("tollPolicyVersion").asInt());
-                assertTrue(option.get("estimatedMonetaryCost").isNull()); assertTrue(option.get("estimatedToll").isNull());
+                assertTrue(option.get("estimatedMonetaryCost").isNumber());
+                assertEquals(day <= 20 ? 0 : day <= 50 ? 2.125 : 98.876543, option.get("estimatedToll").asDouble(), 1e-9);
                 assertFalse(prompt.contains("pricing-v"));
                 if (day <= 50) assertFalse(prompt.contains("98.876543"), "New price must not appear before this person's actual payment");
-                assertEquals(0, option.get("pricingKnowledge").get("knownTollSubtotal").asDouble());
-                assertEquals("bounded_personal_memory", option.get("pricingKnowledge").get("source").asText());
-                assertTrue(row.get("information").get("personalPayments").isEmpty());
+                assertEquals("personal_history_zero_prior", option.get("pricingKnowledge").get("source").asText());
+                assertTrue(row.get("information").get("currentNetworkTolls").isEmpty());
             } else assertEquals(day < 20 ? 0 : day < 50 ? 2.125 : 98.876543, option.get("estimatedToll").asDouble(), 1e-9);
         }
         var experiences = rows(out.resolve("morning/experiences.jsonl.gz")); assertEquals(104, experiences.size());

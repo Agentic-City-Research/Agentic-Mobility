@@ -4,13 +4,13 @@ import java.util.*;
 
 /** Factual public aggregates are independent of the manager's self-written notes. */
 final class MorningManagerFeedback {
-    static final String VERSION = "morning-public-policy-feedback-v5-daily-memory";
+    static final String VERSION = "morning-public-policy-feedback-v6-full-day-car";
     private static final List<String> METRICS = List.of("totalLinkDelaySeconds", "totalLinkTravelSeconds",
             "enteredFullLinkTraversals", "completedFullLinkTraversals", "abortedFullLinkTraversals",
             "unfinishedFullLinkTraversals", "partialLinkTraversals");
     private record Sample(int day, MorningTollSystem.State state, Map<String, Double> metrics,
                           Map<String,Map<String,Double>> spatial, Map<String,Object> carTrips,
-                          List<Map<String,Object>> linkRows, Double revenue) {}
+                          List<Map<String,Object>> linkRows, Double revenue, Map<String,Object> fullDayCarTravel) {}
     private final List<Sample> samples = new ArrayList<>();
     private final int populationSize;
 
@@ -34,8 +34,40 @@ final class MorningManagerFeedback {
         var carTrips = (Map<String,Object>)publicDaily.getOrDefault("publicCarTrips",Map.of());
         Double revenue = publicDaily.get("tollRevenue") instanceof Number n ? n.doubleValue() : null;
         if(revenue != null && (!Double.isFinite(revenue) || revenue < 0)) throw new IllegalArgumentException("Invalid public toll revenue");
+        var carTravel = publicDaily.get("fullDayCarTravel") instanceof Map<?,?> m ? sanitizeCarTravel(m) : null;
         samples.add(new Sample(day, state, Collections.unmodifiableMap(clean),spatial,carTrips,
-                rows == null ? null : rows.stream().map(r -> Collections.unmodifiableMap(new LinkedHashMap<>(r))).toList(), revenue));
+                rows == null ? null : rows.stream().map(r -> Collections.unmodifiableMap(new LinkedHashMap<>(r))).toList(), revenue, carTravel));
+    }
+
+    /** Whitelist strictly public aggregate fields; never accept individual rows or policy details. */
+    static Map<String,Object> sanitizeCarTravel(Map<?,?> input) {
+        var out = new LinkedHashMap<String,Object>();
+        for (String key : List.of("expectedCarLegs", "departedCarLegs", "completedCarLegs", "abortedCarLegs",
+                "unfinishedCarLegs", "notStartedCarLegs", "completedCarLegsWithTrafficEntry")) {
+            Object raw=input.get(key);
+            if (!(raw instanceof Number n) || !Double.isFinite(n.doubleValue()) || n.doubleValue()<0 || n.doubleValue()!=Math.rint(n.doubleValue()))
+                throw new IllegalArgumentException("Invalid aggregate car leg count: " + key);
+            out.put(key, n.longValue());
+        }
+        if (!(input.get("allPlannedCarLegsCompleted") instanceof Boolean complete))
+            throw new IllegalArgumentException("Missing aggregate car completion indicator");
+        out.put("allPlannedCarLegsCompleted",complete);
+        for (String key : List.of("carPersonHours", "completedCarPersonHours", "completedPreTrafficWaitPersonHours", "observedCarPersonHoursLowerBound")) {
+            Object raw=input.get(key);
+            if (key.equals("carPersonHours") && !complete && raw == null) { out.put(key, null); continue; }
+            if (!(raw instanceof Number n) || !Double.isFinite(n.doubleValue()) || n.doubleValue()<0)
+                throw new IllegalArgumentException("Invalid aggregate car time: " + key);
+            out.put(key,n.doubleValue());
+        }
+        long expected=(long)out.get("expectedCarLegs"), completed=(long)out.get("completedCarLegs");
+        long departed=(long)out.get("departedCarLegs"), aborted=(long)out.get("abortedCarLegs"), unfinished=(long)out.get("unfinishedCarLegs"), notStarted=(long)out.get("notStartedCarLegs");
+        if (completed>departed || complete != (expected==completed && expected==departed && aborted==0 && unfinished==0 && notStarted==0)
+                || !complete && out.get("carPersonHours")!=null || (long)out.get("completedCarLegsWithTrafficEntry")>completed)
+            throw new IllegalArgumentException("Inconsistent aggregate completion or total car time");
+        out.put("accountingExceedsPlanned",departed>expected || completed>expected);
+        out.put("completionFractionAll",expected==0 || departed>expected || completed>expected?null:(double)completed/expected);
+        out.put("scope", "All planned car legs, including non-target and background. If departures exceed the planned count, completionFractionAll is unavailable. Full carPersonHours is null unless all planned legs completed. Completed pre-traffic waiting is only for completed legs with observed traffic entry; not a complete network total.");
+        return Collections.unmodifiableMap(out);
     }
 
     int observationsThroughDay() { return samples.isEmpty() ? -1 : samples.getLast().day(); }
@@ -319,12 +351,35 @@ final class MorningManagerFeedback {
         tripStats.put("completionRateAmongStartedCarTrips",started==0?null:trips.get("carTripsCompleted")/started);
         tripStats.put("scope","All started car legs including background traffic; not a cohort or the completion rate of all planned OD trips.");
         result.put("publicCarTrips",tripStats);
+        result.put("fullDayCarTravel", fullDayStatistics(period));
         var revenue=new LinkedHashMap<String,Object>();
         boolean available=period.stream().allMatch(s -> s.revenue()!=null);
         revenue.put("total",available?period.stream().mapToDouble(Sample::revenue).sum():null);
         revenue.put("meanDaily",available?period.stream().mapToDouble(Sample::revenue).sum()/period.size():null);
         result.put("tollRevenue",revenue);
         return result;
+    }
+
+    private static Map<String,Object> fullDayStatistics(List<Sample> period) {
+        var out=new LinkedHashMap<String,Object>();
+        boolean available=period.stream().allMatch(s -> s.fullDayCarTravel()!=null);
+        out.put("available",available); out.put("observedDays",period.size());
+        if (!available) { out.put("reason","Full-day aggregate unavailable for at least one day; do not treat as zero."); return out; }
+        var totals=new LinkedHashMap<String,Object>();
+        for(String key:List.of("expectedCarLegs","departedCarLegs","completedCarLegs","abortedCarLegs","unfinishedCarLegs","notStartedCarLegs","completedCarLegsWithTrafficEntry"))
+            totals.put(key,period.stream().mapToLong(s -> ((Number)s.fullDayCarTravel().get(key)).longValue()).sum());
+        for(String key:List.of("completedCarPersonHours","completedPreTrafficWaitPersonHours","observedCarPersonHoursLowerBound"))
+            totals.put(key,period.stream().mapToDouble(s -> ((Number)s.fullDayCarTravel().get(key)).doubleValue()).sum());
+        boolean complete=period.stream().allMatch(s -> Boolean.TRUE.equals(s.fullDayCarTravel().get("allPlannedCarLegsCompleted")));
+        double expected=((Number)totals.get("expectedCarLegs")).doubleValue();
+        totals.put("carPersonHours",complete?period.stream().mapToDouble(s -> ((Number)s.fullDayCarTravel().get("carPersonHours")).doubleValue()).sum():null);
+        out.put("allDaysComplete",complete); out.put("totals",totals);
+        boolean accountingMismatch=period.stream().anyMatch(s -> Boolean.TRUE.equals(s.fullDayCarTravel().get("accountingExceedsPlanned")));
+        out.put("accountingExceedsPlanned",accountingMismatch);
+        out.put("completionFractionAll",expected==0 || accountingMismatch?null:((Number)totals.get("completedCarLegs")).doubleValue()/expected);
+        out.put("meanDailyCarPersonHours",complete?((Number)totals.get("carPersonHours")).doubleValue()/period.size():null);
+        out.put("scope","Full car person-hours include pre-traffic wait and are null when any planned leg is incomplete. Completed pre-traffic wait covers completed legs with observed entry only. The observed total is a lower bound, not a failure penalty. Counts include all planned car legs and background.");
+        return out;
     }
 
     private static Map<String, Object> changes(Map<String, Object> current, Map<String, Object> reference) {

@@ -58,6 +58,17 @@ final class MorningOutputContract {
         return result;
     }
 
+    /** JSON-object providers require an explicit JSON instruction and do not enforce the output schema. */
+    static String jsonObjectSystem(String system, Map<String, Object> settings, Map<String, Object> schema) {
+        var generation = Json.MAPPER.valueToTree(settings).path("generation");
+        if (!"json_object".equals(generation.path("response_format").path("type").asText())) return system;
+        return system + "\nJSON output contract (morning-json-object-v1): Return exactly one complete JSON object. "
+                + "Return the data object described by the schema below, not the schema itself. "
+                + "Use only the declared fields and obey nested field, enum and text-length constraints. "
+                + "Do not add a type or response_format wrapper, Markdown fences, or text outside the JSON object.\n"
+                + "Output data schema: " + Json.write(schema);
+    }
+
     static void responseMetadata(Map<String, Object> log, LlmResponse response) {
         log.put("promptCacheUsageReported",response.promptCacheUsageReported());
         log.put("finishReason", response.finishReason());

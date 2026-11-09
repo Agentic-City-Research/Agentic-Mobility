@@ -35,7 +35,7 @@ One manuscript display needs a precision note: Joint's source-derived mean targe
 
 Day0 has no previous-day comparison, so change-count and change-rate fields are blank. They are not zero observations. Run summaries average available daily values: outcomes and offsets use 100 days, while change rates and turnover use 99 transitions. A blank multi-route rate in Native or Manager means the fixed-candidate restriction does not apply. Summary column names prefix the corresponding daily field with `mean_`; workload columns are recorded totals rather than daily means.
 
-Full-population time and waiting come from `metrics.jsonl.gz`. Target means are reconciled against `trips.jsonl.gz`; selected routes, departures, and OD counts are recomputed from those target records. Route identity uses the complete ordered-link fingerprint, not the local `c0`/`c1` label. Relative differences are ratios of unrounded window means; lateness differences use percentage points. See the manuscript's [measurement appendix](../../../paper/AgenticMobility_arXiv/appendices/app_1.tex).
+Full-population time and waiting come from `metrics.jsonl.gz`. Target means are reconciled against `trips.jsonl.gz`; selected routes, departures, and OD counts are recomputed from those target records. Route identity uses the complete ordered-link fingerprint, not the local `c0`/`c1` label. Relative differences are ratios of unrounded window means; lateness differences use percentage points. The manuscript's measurement appendix is not included in this repository.
 
 ## Audit scope
 
@@ -45,10 +45,10 @@ Information checks use **2,000 sampled contexts from Traveler and 2,000 from Joi
 
 ## Source location and regeneration
 
-The raw archive supplied for this documentation update is stored locally at:
+The raw archive supplied for this documentation update is an external local directory. For example:
 
 ```text
-D:\PersonalHub\01_Projects\AgenticCity\data\arxiv-v1-data
+<local-path-to-arxiv-v1-data>
 ```
 
 The source paths in `run-metadata.json` are relative to that archive, allowing it to be moved. This local path is not a public download location. Raw personal contexts, model responses, and complete simulation files remain in the external archive; the documentation contains aggregate exports, audit summaries, and the separately published case excerpts.
@@ -56,7 +56,7 @@ The source paths in `run-metadata.json` are relative to that archive, allowing i
 Run the [exporter](../../../scripts/export_arxiv_documentation_data.py) from the repository root:
 
 ```powershell
-python scripts/export_arxiv_documentation_data.py --source 'D:\PersonalHub\01_Projects\AgenticCity\data\arxiv-v1-data'
+python scripts/export_arxiv_documentation_data.py --source '<local-path-to-arxiv-v1-data>'
 ```
 
 On another machine, pass that machine's archive path to `--source`. The exporter reads source records, validates all five 100-day windows, recomputes the Joint audit, checks manuscript values, and writes these documentation exports. It performs no simulation or model calls. It records source stability and hashes; the source archive is read-only during export. The archived JAR hashes identify historical runtime builds. Exact simulation reruns additionally require the corresponding executable or verified source revision, original prompts, full inputs, and model-service setup; an export script is not a pinned release-to-run mapping.

@@ -2,7 +2,7 @@
 
 [Project overview](../README.md#experiments) · [Documentation](README.md) · [Configuration templates](experiments-and-evaluation.md)
 
-This page documents the five-configuration, 100-day demonstration in the current [arXiv manuscript](../paper/AgenticMobility_arXiv/main.tex). The [execution-validation section](../paper/AgenticMobility_arXiv/sections/experiment.tex) and [active appendix](../paper/AgenticMobility_arXiv/appendices/app_1.tex) are the source for the settings, outcomes, and audit results below. Earlier seed-9261 comparisons are retained under [the historical archive](history/2026-10-18/README.md).
+This page documents the five-configuration, 100-day demonstration described in the manuscript's execution-validation section and appendix. The manuscript source is not included in this repository; the linked experiment records and aggregate exports below are the available evidence. Earlier seed-9261 comparisons are retained under [the historical archive](history/2026-10-18/README.md).
 
 ## Current manuscript: comparison settings
 
@@ -65,7 +65,7 @@ The [available seed-268 records](assets/data/seed268/seed268-experiments.md#avai
 
 The [export-package guide](data/seed268/README.md) documents measurement fields, audit scope, the source archive location, and the command to regenerate these exports from the original records.
 
-Exact reruns additionally require the corresponding executable or code revision, complete inputs and candidate files, original prompts, final configuration, and model-service settings. The current repository revision and a traffic seed alone do not identify the historical executable or fix remote model responses. See [Implementation and reproducibility](../paper/AgenticMobility_arXiv/sections/implement.tex).
+Exact reruns additionally require the corresponding executable or code revision, complete inputs and candidate files, original prompts, final configuration, and model-service settings. The current repository revision and a traffic seed alone do not identify the historical executable or fix remote model responses. The manuscript's implementation source is not included in this repository.
 
 ## Historical experiments
 

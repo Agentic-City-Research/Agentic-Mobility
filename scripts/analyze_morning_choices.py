@@ -37,9 +37,16 @@ def validate_input(folder):
     first, last = manifest.get("firstIteration"), manifest.get("lastIteration")
     if not isinstance(first, int) or not isinstance(last, int) or last < first or status.get("daysCompleted") != last - first + 1:
         raise ValueError("Completed days do not match the manifest's iteration window")
+    # Runs preceding the periodic-reflection protocol reflected daily.
+    interval = manifest.get("travelerReflectionInterval", 1)
+    if type(interval) is not int or interval not in (1, 5):
+        raise ValueError("Invalid travelerReflectionInterval in manifest")
+    reflection_days = (last - first + 1) // interval
     required = ["choice-transitions"]
     if manifest["llmPersons"]:
-        required += ["llm-results", "attempts", "memory-updates", "memory-attempts"]
+        required += ["llm-results", "attempts"]
+        if reflection_days:
+            required += ["memory-updates", "memory-attempts"]
         review = manifest.get("travelerSemanticReview")
         if not isinstance(review, dict) or not isinstance(review.get("enabled"), bool):
             raise ValueError("Manifest does not establish whether traveler semantic review was enabled")
@@ -147,13 +154,15 @@ def analyze(folder):
             review_prompt += usage["promptTokens"]
             review_completion += usage["completionTokens"]
     if manifest["llmPersons"]:
-        expected = manifest["controlledTrips"] * (manifest["lastIteration"] - manifest["firstIteration"] + 1)
-        if transitions != expected or successful != expected or memory_updates != expected:
-            raise ValueError(f"Incomplete traveler records: expected {expected} transitions, decisions and committed memories; "
+        days = manifest["lastIteration"] - manifest["firstIteration"] + 1
+        expected = manifest["controlledTrips"] * days
+        expected_memories = manifest["controlledTrips"] * (days // manifest.get("travelerReflectionInterval", 1))
+        if transitions != expected or successful != expected or memory_updates != expected_memories:
+            raise ValueError(f"Incomplete traveler records: expected {expected} transitions and decisions and {expected_memories} committed memories; "
                              f"found {transitions}, {successful} and {memory_updates}")
         if calls < successful or memory_calls < memory_updates:
             raise ValueError("Attempt streams contain fewer calls than finalized traveler records")
-        if manifest["travelerSemanticReview"]["enabled"] and sum(review_statuses.values()) != 2 * expected:
+        if manifest["travelerSemanticReview"]["enabled"] and sum(review_statuses.values()) != expected + expected_memories:
             raise ValueError("Incomplete semantic-review records for finalized choices and memories")
     return {
         "interpretation": "Descriptive association only; groups overlap, no causal or human-habit inference. Cost availability changes (unknown vs known) are distinct from changes between two known values; unknown is never treated as zero. Display-position totals must also be interpreted against available candidate counts and order conditions.",

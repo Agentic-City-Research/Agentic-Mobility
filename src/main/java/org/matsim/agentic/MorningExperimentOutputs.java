@@ -34,8 +34,7 @@ final class MorningExperimentOutputs {
                 parts.add("tm" + decimal(strategy.getWeight()));
             }
         }
-        if (controlledPersons > 0 && options.policyName.equals("mnl")) parts.add("beta" + decimal(options.beta));
-        if (controlledPersons > 0 && options.jointMnl()) parts.add("mnl-joint");
+        if (controlledPersons > 0 && options.policyName.equals("mnl")) parts.add("mnl-joint");
         if (llmPersons > 0) parts.add("mem-llm");
         if ((options.pricingEnabled() || llmPersons > 0) && (controlledPersons > 0 || options.informationScope.equals("all")))
             parts.add("info-" + options.informationScope + percent(options.informedShare) + "pct");

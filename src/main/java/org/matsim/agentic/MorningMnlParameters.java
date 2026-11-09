@@ -14,15 +14,13 @@ import java.util.*;
 
 /** Explicit, unit-checked assumptions; never inferred from qualitative profiles or LLM outcomes. */
 final class MorningMnlParameters {
-    static final String VERSION = "morning-joint-mnl-v1";
+    static final String VERSION = "morning-joint-mnl-v2-personal-toll";
     private static final Map<String, String> UNITS = Map.of(
             "timeWeight", "utility/minute", "moneyWeight", "utility/scenario-money-unit",
             "lateWeight", "utility/minute", "departureShiftWeight", "utility/minute",
-            "experienceWeight", "fraction", "experienceBinSeconds", "seconds",
-            "unknownTollPriorPerLink", "scenario-money-unit/link", "unknownTollMode", "category");
-    final double timeWeight, moneyWeight, lateWeight, departureShiftWeight, experienceWeight, unknownTollPriorPerLink;
+            "experienceWeight", "fraction", "experienceBinSeconds", "seconds");
+    final double timeWeight, moneyWeight, lateWeight, departureShiftWeight, experienceWeight;
     final int experienceBinSeconds;
-    final String unknownTollMode;
     private final JsonNode document;
     private final Map<String, Object> source;
 
@@ -47,10 +45,6 @@ final class MorningMnlParameters {
         if (!bin.isIntegralNumber() || !bin.canConvertToInt() || bin.asInt() < 1 || bin.asInt() > 86400)
             throw invalid("experienceBinSeconds must be an integer in [1,86400]");
         experienceBinSeconds = bin.asInt();
-        unknownTollPriorPerLink = number(p, "unknownTollPriorPerLink");
-        unknownTollMode = text(p.get("unknownTollMode"), "value");
-        if (!Set.of("reject", "personal-with-prior").contains(unknownTollMode))
-            throw invalid("unknownTollMode must be reject or personal-with-prior");
         document = doc.deepCopy();
         try {
             source = Map.of("path", file.toAbsolutePath().normalize().toString(), "bytes", bytes.length,
@@ -74,8 +68,8 @@ final class MorningMnlParameters {
         report.put("choiceSeedDerivation", "SHA-256(version, seed, simulation day, tripId), first 64 bits; local Java Random; canonical departure/route order");
         report.put("utility", "-timeWeight*expectedCarMinutes-moneyWeight*estimatedMoney-lateWeight*predictedLateMinutes-departureShiftWeight*absoluteOriginalDepartureShiftMinutes");
         report.put("scale", "Softmax scale fixed at 1; no additional logit-beta multiplier");
-        report.put("experienceUpdate", "Recomputed before each choice from supplied recent own facts only: blend free-flow with mean completed car time for the same route and selected-departure bin. No matched fact: free-flow. Failed/stuck trips are retained in audit but excluded from duration/payment means.");
-        report.put("tollBelief", "Current announced/disabled costs take precedence. Unknown costs remain null in shared context; personal-with-prior uses mean completed same-route/same-selected-departure-bin recent own total payments, otherwise explicit per-link prior times route link count. Historical payments are beliefs, not current prices.");
+        report.put("experienceUpdate", "Recomputed before each choice from supplied recent own facts only: blend free-flow with mean completed car time for the same route and selected-departure bin. No matched fact: free-flow. Failed/stuck trips are excluded from complete-duration estimates; actual link-entry toll observations are retained even if a trip later fails.");
+        report.put("tollBelief", "Informed use the current announced network tariff; uninformed use latest own actual link/time-bin charges, including zero, and an explicitly uncertain zero prior for unobserved entries. No current policy is revealed.");
         report.put("profileMapping", "None; homogeneous coefficients, no numeric preference inferred from qualitative profiles");
         report.put("memorySummaryUsed", false); report.put("networkTrafficUsed", false);
         report.put("outputs", List.of("morning/baseline-parameters.json", "morning/baseline-contexts.jsonl.gz", "morning/baseline-choices.jsonl.gz", "morning/experiences.jsonl.gz"));

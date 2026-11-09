@@ -212,7 +212,7 @@ class MorningSamplingTest {
         }
     }
 
-    private Path writeSmallScenario() throws java.io.IOException {
+    private Path writeSmallScenario() {
         var config = ConfigUtils.createConfig();
         Path net = directory.resolve("network.xml"), pop = directory.resolve("population.xml"), facilities = directory.resolve("facilities.xml"), cfg = directory.resolve("config.xml");
         config.network().setInputFile(net.toString()); config.plans().setInputFile(pop.toString()); config.facilities().setInputFile(facilities.toString());
@@ -246,8 +246,6 @@ class MorningSamplingTest {
         }
         new NetworkWriter(network).write(net.toString()); new PopulationWriter(scenario.getPopulation()).write(pop.toString());
         new FacilitiesWriter(scenario.getActivityFacilities()).write(facilities.toString());
-        new ConfigWriter(config).write(cfg.toString());
-        for (Path file : List.of(net, pop, facilities, cfg)) MorningJointTestSupport.useBundledDtd(file);
-        return cfg;
+        new ConfigWriter(config).write(cfg.toString()); return cfg;
     }
 }

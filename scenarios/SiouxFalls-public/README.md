@@ -277,21 +277,11 @@ v4 的完整归档与模型中的压缩历史不是同一对象，`includedInMan
 | 输入 | informed | uninformed |
 |---|---|---|
 | 基础路径 | 固定候选、距离、静态自由流时间、固定日程 | 完全相同的信息规则 |
-| 当前收费 | 当前候选相关路段的公告时窗、金额、政策版本，计入预计路线费用 | 不提供公告、当前政策 ID/版本或当前报价；不能通过合计费用间接获取 |
+| 当前收费 | 全路网当前收费规则（未列出的路段与时窗收费为零）、政策版本，计入预计路线费用 | 不提供公告、当前政策 ID/版本或当前报价；不能通过合计费用间接获取 |
 | 历史支付 | 本人实际支付事件 | 仅本人实际支付事件；不会从他人、研究日志或政策表补全 |
 | 全网历史/实时路况 | 不提供 | 不提供 |
 
-uninformed 的收费记忆按 **personId + linkId + 时间分箱** 保存最近一次实际正支付。
-默认 `-TollHistoryBinSeconds 3600`（同一仿真日时刻的小时区间），可配置；
-历史事件只证明该次进入的支付，不推出公告的收费时窗，不能保证今天仍收同样金额。
-日末收费进入个人经历与反思；其他行程的本人支付也可用于次日同路段同时间分箱的估计。
-没有实际正支付的路段保持未知，即使此前未扣款也不会被自动标记为当前免费。
-未完全观察的路线 `estimatedToll` 和 `estimatedMonetaryCost` 为 **null**，
-另提供 `baseMonetaryCost`、`knownTollSubtotal` 及未知路段名单，让已有历史收费进入费用的可见小计。
-已覆盖全部路段时给出历史费用估计，仍明确当前收费未知。未启用 Manager 的运行明确标注 charging_disabled。
-
-原生路由的数值成本接口不能表示未知金额；uninformed 的非受控行程只加入已观察的历史收费分量，
-无观察部分不加入该数值成本。这是计算上的缺省处理，不在 Traveler 输入或记忆中生成零价事实。
+uninformed 的收费记忆按 **personId + linkId + 时间分箱** 保存最近一次本人实际进入路段的收费观察，包括零支付。默认分箱为 3600 秒。本人从未观察过的路段/时段在路线收费估计中暂按零计算；这是不确定的初始假设，不是当前免费事实。实际进入时按当前政策收费，次日个人估计使用最近一次实际观察。政策更新不会自动告知 uninformed，历史观察可能过时。信息框架在 Traveler-only 与 Manager 的共同免费期一致；更多细节见 [运行协议](../../docs/traveler-v2-periodic.md)。
 
 例如在已有运行命令后添加：
 
@@ -441,19 +431,13 @@ manifest 记录候选文件 SHA-256，便于确认对照组使用相同候选。
 .\scripts\run_public_experiment.ps1 -Mode reference -Demand 100 -Days 500 -InnovationStopDay 450 -Seed 4711
 ```
 
-冻结背景的辅助离线对照，固定出发、每个 OD 内按预计汽车耗时做 MNL 路线选择，无 API：
+联合路线和出发时间 MNL 对照（无 Traveler 模型调用；仅目标出行人群由 MNL 控制）：
 
 ```powershell
-.\scripts\run_public_experiment.ps1 -Mode fixed-routes -Policy mnl -Demand 100 -Days 100 -Seed 4711
+.\scripts\run_public_experiment.ps1 -Mode hybrid -Policy mnl -LlmAgents all -Demand 100 -SampleRate 0.2 -Days 100 -Seed 4711
 ```
 
-`-Policy shortest` 是最小预计时间规则；`-Policy mock` 是保留已选择最多的路线，
-用于测试接口，不是 LLM 实验，也不是有真实人类偏好参数的模型。
-MNL beta 默认 0.3/min 是显式研究参数，不宣称来自公开场景校准或文章最优设置。
-直接 Java 可通过 `--logit-beta` 修改。历史记忆不使用 EWMA，`--ewma-alpha` 已移除。
-MNL/shortest 的目标是预计汽车耗时，费用、到达目标和习惯不会自动进入选择概率。
-fixed-routes 的 MATSim score 用于报告；KeepLastSelected 不按 score 重新选路。
-因此改变 lateArrival 不会自动改变此离线策略的行为。后续对比 LLM 时应明确双方的信息与偏好条件。
+MNL 将旅行时间、货币费用（包括收费预期）、预计迟到及偏离计划出发时间纳入效用，并由近期本人出行经历更新旅行时间估计；默认参数只是未经校准的示例。`-LlmAgents 0` 表示没有受控 MNL 旅客、运行 MATSim 原生基线。相同路线/时间候选及知情/不知情收费规则的详情、参数和审计输出见 [MNL 实验说明](../../docs/mnl-joint.md)。`fixed-routes` 不支持联合 MNL；`shortest` 和 `mock` 是独立的辅助策略。
 
 ## 输出目录命名
 

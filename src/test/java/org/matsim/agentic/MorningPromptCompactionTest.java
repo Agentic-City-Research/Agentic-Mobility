@@ -85,7 +85,7 @@ class MorningPromptCompactionTest {
         assertEquals(2,tableRows(x,"RECENT ACTUAL EXPERIENCES").getFirst().get(11).size());
         assertFalse(x.contains("pricing-v")); assertFalse(x.contains("SECRET_CURRENT_ROAD"));
         assertEquals(240,MorningMemoryUpdater.TARGET_CHARACTERS); assertEquals(500,MorningMemoryUpdater.MAX_CHARACTERS);
-        assertEquals(3,MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT);
+        assertEquals(5,MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT);
     }
 
     @Test void differentOriginalReferenceEstimateIsRetainedWithoutAddingAnAction() {

@@ -15,7 +15,7 @@ class MorningMnlPolicyTest {
     @TempDir Path directory;
 
     @Test void explicitSourcesUnitsAndStrictJsonAreRequiredAndLoadedValuesAreFrozen() throws Exception {
-        Path file = parameters("reject");
+        Path file = parameters();
         var loaded = MorningMnlParameters.load(file);
         var report = Json.MAPPER.valueToTree(loaded.report(7, 3));
         assertFalse(report.at("/document/calibrated").asBoolean());
@@ -39,10 +39,7 @@ class MorningMnlPolicyTest {
         }
         assertEquals(.3, loaded.timeWeight);
         assertEquals(report, Json.MAPPER.valueToTree(loaded.report(7, 3)));
-        var settings = new MorningExperiment();
-        var cli = new CommandLine(settings);
-        cli.parseArgs("--policy", "mnl-joint", "--llm-agents", "1", "--config", "missing.xml");
-        assertTrue(assertThrows(IllegalArgumentException.class, settings::call).getMessage().contains("--mnl-parameters"));
+
     }
 
     @Test void costsUseOnlyRecentMatchingPersonalFactsAndPreserveAllJointActions() throws Exception {
@@ -51,7 +48,7 @@ class MorningMnlPolicyTest {
                 experience(4, 26100, 3000d, false, 3d));
         var context = context(5, history, false);
         try (var out = new OutputWriter(directory.resolve("costs"))) {
-            var policy = new MorningMnlPolicy(MorningMnlParameters.load(parameters("reject")), 5, 3, out);
+            var policy = new MorningMnlPolicy(MorningMnlParameters.load(parameters()), 5, 3, out);
             MorningRoutePolicy.validate(context, policy.choose(context));
         }
         var audit = first(directory.resolve("costs/baseline-choices.jsonl"));
@@ -74,7 +71,7 @@ class MorningMnlPolicyTest {
     @Test void seededChoicesIgnoreDisplayOrderOtherCallsAndQualitativeProfileOrSummaryChanges() throws Exception {
         var context = context(0, List.of(), false);
         try (var out = new OutputWriter(directory.resolve("seeds"))) {
-            var policy = new MorningMnlPolicy(MorningMnlParameters.load(parameters("reject")), 6021, 3, out);
+            var policy = new MorningMnlPolicy(MorningMnlParameters.load(parameters()), 6021, 3, out);
             var first = policy.choose(context);
             var nextDay = context(1, List.of(), false);
             var nextChoice = policy.choose(nextDay);
@@ -92,25 +89,13 @@ class MorningMnlPolicyTest {
         assertNotEquals(MorningMnlPolicy.localSeed(6021, 0, "p/0"), MorningMnlPolicy.localSeed(6021, 0, "p/1"));
     }
 
-    @Test void unknownPricesRequireAnExplicitBeliefAndNeverMutateTheSharedContext() throws Exception {
-        try (var out = new OutputWriter(directory.resolve("prices"))) {
-            var rejecting = new MorningMnlPolicy(MorningMnlParameters.load(parameters("reject")), 3, 3, out);
-            assertThrows(IllegalArgumentException.class, () -> rejecting.choose(context(0, List.of(), true)));
-            var believing = new MorningMnlPolicy(MorningMnlParameters.load(parameters("personal-with-prior")), 3, 3, out);
-            believing.choose(context(0, List.of(), true));
-            var experienced = context(5, List.of(experience(4, 25200, 1200d, false, 2.5)), true);
-            believing.choose(experienced);
-            assertNull(experienced.candidates().getFirst().estimatedToll());
-            assertTrue(experienced.information().personalPayments().isEmpty());
+    @Test void fiveDayHistoryIncludesFifthPriorDayButExcludesOlderDays() throws Exception {
+        var history = List.of(experience(0,25200,1000d,false,0d), experience(1,25200,1200d,false,0d),
+                experience(2,25200,1400d,false,0d), experience(5,25200,1600d,false,0d));
+        try (var out = new OutputWriter(directory.resolve("five-day"))) {
+            new MorningMnlPolicy(MorningMnlParameters.load(parameters()),5,5,out).choose(context(6,history,false));
         }
-        var audits = JsonlTestSupport.readLines(directory.resolve("prices/baseline-choices.jsonl")).stream().map(Json::readTree).toList();
-        assertEquals(.2, action(audits.getFirst(), "c0", 25200).get("estimatedToll").asDouble(), 1e-12);
-        var learned = action(audits.getLast(), "c0", 25200);
-        assertEquals(2.5, learned.get("estimatedToll").asDouble());
-        assertTrue(learned.get("currentTollUnknown").asBoolean());
-        assertEquals("recent_own_route_payments_not_current_tariff", learned.get("tollEstimateSource").asText());
-        assertEquals(List.of(4), ints(learned.get("paymentExperienceDays")));
-        assertEquals("explicit_per_link_prior", action(audits.getLast(), "c1", 25200).get("tollEstimateSource").asText());
+        assertEquals(List.of(1,2,5), ints(first(directory.resolve("five-day/baseline-choices.jsonl")).get("historyDaysUsed")));
     }
 
     @Test void qsimExecutesJointBaselineWithoutAnyModelAndStartsFromTheSameLlmContext() throws Exception {
@@ -118,10 +103,10 @@ class MorningMnlPolicyTest {
         Path config = fixture.writeScenario(), baseline = directory.resolve("baseline"), llm = directory.resolve("llm");
         var settings = new MorningExperiment(); settings.llmConfig.apiKey = null;
         settings.clientFactory = (c,u) -> { throw new AssertionError("Baseline must not create a model client"); };
-        assertEquals(0, run(settings, config, baseline, "--policy", "mnl-joint", "--mnl-parameters", parameters("reject").toString(), "--days", "4"));
+        assertEquals(0, run(settings, config, baseline, "--policy", "mnl", "--mnl-parameters", parameters().toString(), "--days", "4"));
         var audits = JsonlTestSupport.readLines(baseline.resolve("morning/baseline-choices.jsonl.gz"));
         assertEquals(4, audits.size());
-        assertEquals(9, Json.readTree(audits.getFirst()).get("actions").size(), "One route still has nine time options");
+        assertEquals(6, Json.readTree(audits.getFirst()).get("actions").size(), "One route retains six default departure options");
         assertTrue(Json.readTree(audits.get(1)).get("historyDaysUsed").size() > 0);
         var status = Json.readTree(Files.readString(baseline.resolve("morning/status.json")));
         assertTrue(status.get("complete").asBoolean()); assertEquals(0, status.get("apiCalls").asInt());
@@ -137,22 +122,11 @@ class MorningMnlPolicyTest {
         var llmContext = first(llm.resolve("morning/decision-contexts.jsonl.gz"));
         assertEquals(llmContext, baselineContext, "Day-zero information/action context must be identical to LLM");
         var manifest = Json.readTree(Files.readString(baseline.resolve("morning/manifest.json")));
-        assertEquals("structured-recent-experience", manifest.get("memoryMode").asText());
+        assertEquals("structured-recent-experience-and-personal-toll-observations", manifest.get("memoryMode").asText());
         assertTrue(manifest.get("memoryTemplate").isNull());
         assertTrue(manifest.get("memoryReflectionInputs").isEmpty());
         assertTrue(manifest.get("singleCandidateTreatment").asText().contains("every legal departure-time option"));
-        assertTrue(manifest.at("/departureProtocol/enabledForBaselineTargetTrips").asBoolean());
-    }
-
-    @Test void pricingRejectionHappensBeforeFreeDaysOrOutputAndValidationExportsProvenance() throws Exception {
-        var fixture = new MorningPricingTest(); fixture.directory = directory;
-        Path config = fixture.writeScenario(), out = directory.resolve("reject-early");
-        Path toll = directory.resolve("toll.json"); Files.writeString(toll, "{\"rules\":[{\"link_id\":\"road\",\"start\":0,\"end\":108000,\"amount\":2}]}");
-        assertNotEquals(0, run(new MorningExperiment(), config, out, "--policy", "mnl-joint", "--days", "1", "--mnl-parameters", parameters("reject").toString(), "--fixed-toll-policy", toll.toString()));
-        assertFalse(Files.exists(out));
-        Path valid = directory.resolve("validate");
-        assertEquals(0, run(new MorningExperiment(), config, valid, "--policy", "mnl-joint", "--days", "1", "--mnl-parameters", parameters("reject").toString(), "--validate-only"));
-        assertTrue(Files.isRegularFile(valid.resolve("morning/baseline-parameters.json")));
+        assertTrue(manifest.at("/departureProtocol/enabledForMnlTargetTrips").asBoolean());
     }
 
     @Test void managerCanObserveTheJointBaselineWithoutCallingATravelerModel() throws Exception {
@@ -166,62 +140,106 @@ class MorningMnlPolicyTest {
             return new LlmResponse("{\"memory\":\"Observe the public traffic results under the effective policy.\"}",0,0,0,0);
         };
         assertEquals(0, new CommandLine(settings).execute("--config",config.toString(),"--output",out.toString(),
-                "--policy","mnl-joint","--llm-agents","all","--mnl-parameters",parameters("reject").toString(),
+                "--policy","mnl","--llm-agents","all","--mnl-parameters",parameters().toString(),
                 "--manager","--informed-share","1","--days","2","--concurrency","2","--seed","9261"));
         assertEquals(2, calls.get());
         assertEquals(2, JsonlTestSupport.readLines(out.resolve("morning/baseline-choices.jsonl.gz")).size());
         var publicContext = Json.readTree(Files.readString(out.resolve("morning/manager-public-environment.json")));
-        assertTrue(publicContext.at("/publicEnvironment/travelerResponse/baselineJointDepartureAndRouteChoiceEnabled").asBoolean());
+        assertTrue(publicContext.at("/publicEnvironment/travelerResponse/mnlJointDepartureAndRouteChoiceEnabled").asBoolean());
         assertFalse(publicContext.at("/publicEnvironment/travelerResponse/llmJointDepartureAndRouteChoiceEnabled").asBoolean());
     }
 
-    @Test void legacyMnlAndManagerUseStableCohortOrderInsteadOfManagerWorkers() throws Exception {
-        var fixture = new MorningPricingTest(); fixture.directory = directory;
-        Path config = fixture.writeScenario();
-        var scenario = org.matsim.core.scenario.ScenarioUtils.loadScenario(
-                org.matsim.core.config.ConfigUtils.loadConfig(config.toString()));
-        var network = scenario.getNetwork();
-        var road = network.getLinks().get(org.matsim.api.core.v01.Id.createLinkId("road"));
-        var alternative = network.getFactory().createLink(org.matsim.api.core.v01.Id.createLinkId("alternative"), road.getFromNode(), road.getToNode());
-        alternative.setLength(120); alternative.setFreespeed(10); alternative.setCapacity(1000);
-        alternative.setNumberOfLanes(1); alternative.setAllowedModes(Set.of("car")); network.addLink(alternative);
-        var population = scenario.getPopulation(); var factory = population.getFactory();
-        var original = population.getPersons().values().iterator().next();
-        for (int i = 0; i < 31; i++) {
-            var person = factory.createPerson(org.matsim.api.core.v01.Id.createPersonId("copy-" + i));
-            var plan = factory.createPlan();
-            org.matsim.core.population.PopulationUtils.copyFromTo(original.getSelectedPlan(), plan);
-            person.addPlan(plan); population.addPerson(person);
+    @Test void fixedTollActuallyChargesBothGroupsWhileOnlyInformedKnowItInitially() throws Exception {
+        var fixture = new MorningInformationTest(); fixture.directory=directory;
+        Path config=fixture.writeScenario(), output=directory.resolve("fixed-toll-mnl"), toll=directory.resolve("fixed-toll.json");
+        Files.writeString(toll,"{\"rules\":[{\"link_id\":\"road\",\"start\":0,\"end\":108000,\"amount\":2}]}");
+        var settings=new MorningExperiment(); settings.llmConfig.apiKey=null;
+        settings.clientFactory=(c,u)->{throw new AssertionError("Fixed-toll MNL must not call a model");};
+        assertEquals(0,new CommandLine(settings).execute("--config",config.toString(),"--output",output.toString(),
+                "--policy","mnl","--llm-agents","all","--fixed-toll-policy",toll.toString(),"--fixed-toll-free-days","0",
+                "--informed-share","0.5","--days","3","--seed","268","--max-requests","0"));
+        var audits=JsonlTestSupport.readLines(output.resolve("morning/baseline-choices.jsonl.gz")).stream().map(Json::readTree).toList();
+        assertEquals(6,audits.size());
+        for(var a:audits) if(a.path("day").asInt()==0) {
+            boolean informed=a.path("informationGroup").asText().equals("informed");
+            for(var option:a.path("actions")) assertEquals(informed ? 2d : 0d,option.path("estimatedToll").asDouble());
         }
-        new org.matsim.core.network.io.NetworkWriter(network).write(directory.resolve("network.xml").toString());
-        new org.matsim.core.population.io.PopulationWriter(population).write(directory.resolve("population.xml").toString());
-        MorningJointTestSupport.useBundledDtd(directory.resolve("network.xml"));
-        MorningJointTestSupport.useBundledDtd(directory.resolve("population.xml"));
-        Map<String, String> first = null;
-        for (int repetition = 0; repetition < 2; repetition++) {
-            var settings = new MorningExperiment(); settings.llmConfig.apiKey = "offline-manager-only";
-            settings.clientFactory = (c,u) -> (role,system,user) -> {
-                assertEquals("manager-memory", role);
-                return new LlmResponse("{\"memory\":\"Observe the public traffic results.\"}",0,0,0,0);
-            };
-            var baseline = MorningRoutePolicy.baseline("mnl", 268, .3);
-            var threads = Collections.synchronizedList(new ArrayList<String>());
-            settings.policyOverride = context -> {
-                threads.add(Thread.currentThread().getName());
-                return baseline.choose(context);
-            };
-            Path out = directory.resolve("legacy-manager-" + repetition);
-            assertEquals(0, new CommandLine(settings).execute("--config", config.toString(), "--output", out.toString(),
-                    "--policy", "mnl", "--llm-agents", "all", "--manager", "--days", "1", "--concurrency", "8", "--seed", "268"));
-            var choices = new TreeMap<String, String>();
-            for (String line : JsonlTestSupport.readLines(out.resolve("morning/decisions.jsonl.gz"))) {
-                var row = Json.readTree(line); choices.put(row.get("tripId").asText(), row.get("routeId").asText());
-            }
-            assertEquals(32, choices.size()); assertEquals(32, threads.size());
-            assertEquals(2, new HashSet<>(choices.values()).size(), "Fixture should exercise random route selection");
-            assertTrue(threads.stream().noneMatch(name -> name.startsWith("morning-llm")), "Offline choices must not share the manager worker pool");
-            if (first == null) first = choices; else assertEquals(first, choices, "Same seed and context must assign the same choices");
+        var trips=JsonlTestSupport.readLines(output.resolve("morning/trips.jsonl.gz")).stream().map(Json::readTree).toList();
+        assertEquals(6,trips.size());
+        assertTrue(trips.stream().allMatch(t -> t.path("tollPaid").asDouble()==2d));
+        assertEquals(0,Json.readTree(Files.readString(output.resolve("morning/status.json"))).path("apiCalls").asInt());
+    }
+
+    @Test void tollBeliefsAffectUtilityButUninformedNeverSeeTheNewPolicy() throws Exception {
+        var network = org.matsim.core.network.NetworkUtils.createNetwork();
+        var tolls = new MorningTollSystem(network, org.matsim.core.events.EventsUtils.createEventsManager(), null);
+        var hidden = new MorningTravelerInformation(List.of("p"), 0, 1, 3600);
+        var informed = new MorningTravelerInformation(List.of("p"), 1, 1, 3600);
+        tolls.setPolicy(tollPolicy(0, 2), 1);
+        Path folder = directory.resolve("toll-beliefs");
+        try (var out = new OutputWriter(folder)) {
+            var policy = new MorningMnlPolicy(MorningMnlParameters.load(parameters()), 3, 3, out);
+            policy.choose(tollContext(hidden,tolls,0));
+            hidden.observe(0,"p",new MorningTollSystem.Receipt("road",25200,2,"policy",1));
+            tolls.setPolicy(tollPolicy(1,9),2);
+            policy.choose(tollContext(hidden,tolls,1));
+            policy.choose(tollContext(informed,tolls,1));
+            hidden.observe(1,"p",new MorningTollSystem.Receipt("road",25200,9,"policy",2));
+            policy.choose(tollContext(hidden,tolls,2));
+            hidden.observe(2,"p",new MorningTollSystem.Receipt("road",25200,0,"policy",3));
+            policy.choose(tollContext(hidden,tolls,3));
         }
+        var audits=JsonlTestSupport.readLines(folder.resolve("baseline-choices.jsonl")).stream().map(Json::readTree).toList();
+        double[] tollsExpected={0,2,9,9,0};
+        for(int i=0;i<tollsExpected.length;i++) {
+            var a=action(audits.get(i),"c0",25200);
+            assertEquals(tollsExpected[i],a.path("estimatedToll").asDouble());
+            assertEquals(-.3*(1+tollsExpected[i]),a.at("/utilityComponents/money").asDouble(),1e-12);
+            assertEquals(i!=2,a.path("currentTollUnknown").asBoolean());
+        }
+        assertEquals(1,action(audits.getFirst(),"c0",25200).path("unobservedTollLinks").size());
+        assertTrue(action(audits.get(1),"c0",25200).path("unobservedTollLinks").isEmpty());
+    }
+
+    @Test void priceChangesChoiceProbabilitiesUnderIdenticalTravelTimes() throws Exception {
+        var tolls=new MorningTollSystem(org.matsim.core.network.NetworkUtils.createNetwork(),org.matsim.core.events.EventsUtils.createEventsManager(),null);
+        tolls.setPolicy(tollPolicy(0,2),1);
+        var informed=new MorningTravelerInformation(List.of("p"),1,1,3600);
+        var hidden=new MorningTravelerInformation(List.of("p"),0,1,3600);
+        Path folder=directory.resolve("price-choice");
+        try(var out=new OutputWriter(folder)) {
+            var policy=new MorningMnlPolicy(MorningMnlParameters.load(parameters()),3,3,out);
+            policy.choose(twoRouteContext(informed,tolls)); policy.choose(twoRouteContext(hidden,tolls));
+        }
+        var a=JsonlTestSupport.readLines(folder.resolve("baseline-choices.jsonl")).stream().map(Json::readTree).toList();
+        double awarePriced=action(a.get(0),"c0",25200).path("probability").asDouble();
+        double awareFree=action(a.get(0),"c1",25200).path("probability").asDouble();
+        assertTrue(awarePriced < awareFree);
+        assertEquals(.5,action(a.get(1),"c0",25200).path("probability").asDouble(),1e-12);
+    }
+
+    private static TollPolicy tollPolicy(int day,double amount) {
+        return new TollPolicy(List.of(new TollPolicy.TollRule(org.matsim.api.core.v01.Id.createLinkId("road"),0,108000,amount)),day);
+    }
+    private MorningRoutePolicy.Context tollContext(MorningTravelerInformation info, MorningTollSystem tolls, int day) {
+        var knowledge=info.pricingForLlm("p",List.of("road"),List.of(25200d),1,tolls,day);
+        double estimated=knowledge.knownTollSubtotal();
+        var option=new MorningRoutePolicy.Option("c0",List.of("road"),600,25800,1000,1+estimated,"static_free_flow",0,0,
+                null,null,estimated,info.informed("p")?tolls.state().policyId():null,info.informed("p")?tolls.state().version():0,knowledge);
+        var departures=List.of(new MorningRoutePolicy.DepartureOption(25200,List.of(option)));
+        return new MorningRoutePolicy.Context(day,"p/0","p","home","work",25200,26000d,Map.of(),Map.of(),
+                List.of(option),List.of(),null,"",null,info.visibleForLlm("p",day,tolls),departures);
+    }
+    private MorningRoutePolicy.Context twoRouteContext(MorningTravelerInformation info, MorningTollSystem tolls) {
+        var options=new ArrayList<MorningRoutePolicy.Option>();
+        for(String[] pair:List.of(new String[]{"c0","road"},new String[]{"c1","free"})) {
+            var k=info.pricingForLlm("p",List.of(pair[1]),List.of(25200d),1,tolls,0);
+            double estimate=k.knownTollSubtotal();
+            options.add(new MorningRoutePolicy.Option(pair[0],List.of(pair[1]),600,25800,1000,1+estimate,"static_free_flow",0,0,
+                    null,null,estimate,info.informed("p")?tolls.state().policyId():null,info.informed("p")?tolls.state().version():0,k));
+        }
+        return new MorningRoutePolicy.Context(0,"p/0","p","home","work",25200,26000d,Map.of(),Map.of(),options,List.of(),null,"",null,
+                info.visibleForLlm("p",0,tolls),List.of(new MorningRoutePolicy.DepartureOption(25200,options)));
     }
 
     private int run(MorningExperiment settings, Path config, Path out, String... extra) {
@@ -229,10 +247,10 @@ class MorningMnlPolicyTest {
                 "--seed","9261","--population-seed","6021","--informed-share","0","--concurrency","1"));
         args.addAll(Arrays.asList(extra)); return new CommandLine(settings).execute(args.toArray(String[]::new));
     }
-    private Path parameters(String mode) throws Exception {
-        var doc = (ObjectNode)Json.readTree(Files.readString(Path.of("config/baselines/mnl-joint.example.json")));
-        ((ObjectNode)doc.at("/parameters/unknownTollMode")).put("value", mode);
-        Path file = directory.resolve("parameters-" + mode + ".json"); Files.writeString(file, doc.toPrettyString()); return file;
+    private Path parameters() throws Exception {
+        Path file = directory.resolve("parameters.json");
+        if (!Files.exists(file)) Files.copy(Path.of("config/baselines/mnl-joint.example.json"), file);
+        return file;
     }
     private MorningRoutePolicy.Context context(int day, List<MorningMemory.Experience> history, boolean unknown) {
         var departures = List.of(24300d, 25200d).stream().map(d -> new MorningRoutePolicy.DepartureOption(d,

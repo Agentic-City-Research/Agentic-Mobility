@@ -35,16 +35,20 @@ exploring AI agents and interconnected urban systems.
 
 Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Agents interact through shared network conditions: their decisions affect the environment experienced by other agents.
 
-The current implementation uses MATSim to execute mobility decisions and generate feedback. The experiments below compare LLM-controlled travelers and an LLM pricing agent both separately and together.
+The current implementation uses MATSim to execute mobility decisions and generate feedback. It supports native, joint route-and-departure MNL, and LLM-controlled travelers, with optional fixed tolls or an LLM pricing manager.
 
 ![AgenticMobility framework](docs/assets/agenticmobility_framework_siouxfalls.svg)
 
 
 ### Daily simulation cycle
 
-Each day follows a decide–execute–reflect cycle: traveler agents select routes and departure times, enabled pricing policies are applied, and MATSim executes the full-day traffic simulation. Each role then receives its permitted feedback and updates its own experience record. Pricing updates occur on scheduled review days.
+Each day follows a decide–execute–observe cycle: enabled pricing policies are applied, controlled travelers select routes and departure times, and MATSim executes full-day traffic. Each role receives its permitted feedback. LLM travelers reflect every five days by default; the manager reflects daily and updates pricing on scheduled review days.
 
 LLMs control selected target trips; other trips follow native simulation behavior. Model weights remain fixed during the simulation. See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
+
+The main workflow combines one traveler condition (native, MNL, or LLM) with one pricing condition (no toll, fixed toll, or LLM manager). The default `--policy mnl --llm-agents 0` is a **native baseline**: set `--llm-agents all` or a positive count to enable MNL control. MNL itself makes no model API calls; an enabled manager still requires a model service. Fixed tolls and the manager are mutually exclusive.
+
+Controlled MNL and LLM travelers choose from fixed route candidates and a 15-minute departure grid, by default from 60 minutes before to 30 minutes after the original planned departure, subject to schedule constraints. The default decision history and traveler reflection period are five days; uninformed travelers estimate tolls from their own actual link/time-bin observations, including zero charges. Informed travelers can see the current toll announcement. The manager's first possible policy update is simulation day 21 by default, after 20 free observation days; daily manager reflection also runs during that free period.
 
 <br>
 
@@ -73,7 +77,9 @@ Configuration templates are provided in the [experiment guide](docs/experiments-
 The traveler case traces available information, selected actions, and realized outcomes. 
 The time series and corridor comparisons show how aggregate outcomes vary over time and across the network.
 
-### Five configurations, 100 completed days
+### Historical experiment: five configurations, 100 completed days
+
+**Historical results:** the figures and numbers below describe previously completed experiments with their recorded settings and executable builds. The current implementation changes the MNL interface, traveler history and reflection windows, and other protocol details. These results are retained as a historical record; do not assume that rebuilding the current code reproduces them. Consult the linked experiment record and original build identifiers before making comparisons.
 
 We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. 
 
@@ -85,7 +91,7 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | Manager | MATSim replanning | Enabled; tolls from simulation Day 21 (log Day20) |
 | Joint | LLM route–departure choices | Enabled; tolls from simulation Day 51 (log Day50) |
 
-The recovered joint baseline uses `--policy mnl-joint` with an explicit parameter file; the older `--policy mnl` is route-only. See [joint MNL setup and provenance](docs/joint-mnl-baseline.md).
+For the historical recovered baseline, `--policy mnl-joint` was used with an explicit parameter file; that older build's `--policy mnl` was route-only. See [historical joint MNL setup and provenance](docs/joint-mnl-baseline.md). The current code instead uses `--policy mnl` for the joint route-and-departure model; see [current MNL setup](docs/mnl-joint.md).
 
 ### Simulation Videos
 
@@ -288,20 +294,21 @@ Open `<output-directory>/morning/status.json` and check that it contains:
 ```json
 {
   "complete": true,
-  "daysCompleted": 2
+  "daysCompleted": 2,
+  "integrityVerified": true
 }
 ```
 
 The status file also contains additional run information.
 
-This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
+This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity). To run controlled joint MNL instead, use `--policy mnl --llm-agents all`; the default parameter file is an uncalibrated engineering example, not an empirical estimate. See [MNL setup](docs/mnl-joint.md).
 
 ### 4. Optional: run an LLM traveler experiment
 
 1. Follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to set `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY` for a Chat Completions-compatible service.
 2. Follow the [first LLM traveler experiment](docs/getting-started.md#start-with-a-small-traveler-run) to run seven simulation days with three LLM-controlled travelers in a 10% population sample. Bash and Windows PowerShell examples are provided.
 
-MATSim runs on CPU; the model service can be hosted on another machine. Once configured, the platform calls the service automatically during enabled LLM stages. The same API setup is required for an LLM pricing agent.
+MATSim runs on CPU; the model service can be hosted on another machine. Once configured, the platform calls the service automatically during enabled LLM stages. The same API setup is required for an LLM pricing agent. For a single Slurm job that starts both a local vLLM service and MATSim, see the [HPC single-job guide](docs/HPC单作业运行.md); its cluster-specific defaults must be checked before submission.
 
 For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
 
@@ -316,8 +323,9 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 | Install and run my first simulation | [Getting started](docs/getting-started.md) | Requirements, diagnostic baseline, model API setup, and troubleshooting |
 | Choose data and set the simulation scale | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, population sampling, and road capacity |
 | Understand how the agents work | [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, decisions, memory, and pricing |
+| Inspect agent prompts | [Agent prompts (Chinese)](docs/agent-prompts.zh.md) | System prompts, dynamic inputs, and request logs |
 | Design and evaluate an experiment | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Configuration templates, baselines, request budgets, and run records |
-| Inspect the reported results | [Reported experiments](docs/reported-experiments.md) | Completed comparisons, model settings, build identifiers, metrics, and aggregate data |
+| Inspect earlier exploratory results | [Reported experiments](docs/reported-experiments.md) | Separate earlier comparisons, model settings, and aggregate data |
 | Find detailed operating instructions | [Operating guide](docs/usage-guide.md) | Execution options, deployment, outputs, and troubleshooting |
 
 Browse the [documentation index](docs/README.md) for all guides.

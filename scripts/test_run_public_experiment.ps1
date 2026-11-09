@@ -78,7 +78,7 @@ foreach ($taskRate in @(0.1, 0.25, 1.0)) {
 [IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
 & $taskRunner -Java $taskFakeJava -Days 1 -Manager | Out-Null
 $taskBasicArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
-foreach ($taskPair in @(@('--manager-profile','basic'),@('--history-window','3'),@('--reason-max-chars','120'),@('--max-output-tokens','1024'),@('--manager-memory-max-output-tokens','2048'),@('--departure-before-seconds','5400'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
+foreach ($taskPair in @(@('--manager-profile','basic'),@('--history-window','5'),@('--traveler-reflection-interval','5'),@('--reason-max-chars','120'),@('--max-output-tokens','1024'),@('--manager-memory-max-output-tokens','2048'),@('--departure-before-seconds','3600'),@('--departure-after-seconds','1800'),@('--departure-step-seconds','900'))) {
     $taskIndex = [Array]::IndexOf($taskBasicArguments, $taskPair[0])
     if ($taskIndex -lt 0 -or $taskBasicArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Basic protocol was not forwarded: ' + $taskPair[0]) }
 }
@@ -99,12 +99,17 @@ foreach ($taskPair in @(@('--manager-max-corridor-minutes','4.5'),@('--manager-m
     if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('Manager control was not forwarded: ' + $taskPair[0]) }
 }
 [IO.File]::WriteAllText($taskSourceJar, 'original-build')
-& $taskRunner -Java $taskFakeJava -Days 1 -Policy llm -LlmAgents 1 -TravelerSemanticReview -SemanticReviewMaxOutputTokens 1536 | Out-Null
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy llm -LlmAgents 1 -TravelerReflectionInterval 1 -TravelerSemanticReview -SemanticReviewMaxOutputTokens 1536 | Out-Null
 $taskReviewArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
 if ($taskReviewArguments -notcontains '--traveler-semantic-review' -or
-    $taskReviewArguments[[Array]::IndexOf($taskReviewArguments, '--semantic-review-max-output-tokens') + 1] -ne '1536') {
+    $taskReviewArguments[[Array]::IndexOf($taskReviewArguments, '--semantic-review-max-output-tokens') + 1] -ne '1536' -or
+    $taskReviewArguments[[Array]::IndexOf($taskReviewArguments, '--history-window') + 1] -ne '1') {
     throw 'Optional traveler semantic review was not forwarded'
 }
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+& $taskRunner -Java $taskFakeJava -Days 1 -TravelerReflectionInterval 1 -HistoryWindow 5 | Out-Null
+$taskCustomHistory = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+if ($taskCustomHistory[[Array]::IndexOf($taskCustomHistory, '--history-window') + 1] -ne '5') { throw 'Explicit history override not forwarded' }
 $taskFixedFile = Join-Path $taskTestRoot 'fixed.json'
 [IO.File]::WriteAllText($taskFixedFile, '{"rules":[]}')
 [IO.File]::WriteAllText($taskSourceJar, 'original-build')
@@ -138,25 +143,15 @@ foreach ($taskEntry in $taskCandidateExpected.GetEnumerator()) {
         throw "Candidate option not forwarded: $($taskEntry.Key)"
     }
 }
-$taskMnlParameters = Join-Path $taskTestRoot 'mnl-parameters.json'
-[IO.File]::WriteAllText($taskMnlParameters, '{}')
-[IO.File]::WriteAllText($taskSourceJar, 'original-build')
-[IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
-& $taskRunner -Java $taskFakeJava -Days 1 -Policy mnl-joint -LlmAgents all -MnlParameters $taskMnlParameters -MnlChoiceSeed 0 | Out-Null
-$taskCapturedArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
-foreach ($taskExpected in @(@('--policy', 'mnl-joint'), @('--mnl-parameters', $taskMnlParameters), @('--mnl-choice-seed', '0'))) {
-    $taskIndex = [Array]::IndexOf($taskCapturedArguments, $taskExpected[0])
-    if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskExpected[1]) { throw "Joint MNL option not forwarded: $($taskExpected[0])" }
-}
-
 foreach ($taskOptions in @(
-    @{ MemoryMode = 'none' }, @{ Policy = 'mnl-joint'; LlmAgents = 'all' }, @{ Policy = 'mnl'; MnlParameters = $taskMnlParameters },
+    @{ MemoryMode = 'none' },
+    @{ HistoryWindow = 0 }, @{ HistoryWindow = 6 }, @{ TravelerReflectionInterval = 2 },
     @{ CohortSelection = 'actual-arrival' }, @{ PlannedArrivalBefore = 0 },
     @{ SampleRate = 0 }, @{ SampleRate = -0.1 }, @{ SampleRate = 1.1 },
     @{ SampleRate = [double]::NaN }, @{ SampleRate = [double]::PositiveInfinity },
     @{ SampleRate = 0.1; SamplePersons = 2 }, @{ Manager = $true; ManagerUpdateInterval = 0 },
     @{ Manager = $true; FixedTollPolicy = $taskFixedFile }, @{ FixedTollPolicy = $taskFixedFile; FixedTollFreeDays = -1 },
-    @{ FixedTollPolicy = $taskFixedFile; Mode = 'reference' }, @{ FixedTollPolicy = (Join-Path $taskTestRoot 'missing.json') }
+    @{ Mode = 'reference' }, @{ Mode = 'fixed-routes' }, @{ FixedTollPolicy = (Join-Path $taskTestRoot 'missing.json') }
     @{ CandidatePoolSize = 3 }, @{ CandidateSearchLimit = 0 },
     @{ CandidateMaxTimeRatio = [double]::NaN }, @{ CandidateMaxDistanceRatio = 0.9 },
     @{ CandidateTimeSlackSeconds = -1 }, @{ CandidateTimeSlackSeconds = [double]::PositiveInfinity },
@@ -178,4 +173,36 @@ foreach ($taskDisableMutation in @($false, $true)) {
         throw 'Native time-mutation switch was not forwarded correctly'
     }
 }
-Write-Output "PASS: private JAR isolation, console capture, exit codes and cleanup; sampling/manager/fixed-pricing/candidate/time-mutation forwarding, llm-only memory and invalid-option rejection. Fixtures: $taskTestRoot"
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+[IO.File]::WriteAllText((Join-Path $taskTestRoot 'exit-code.txt'), '0')
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy llm -LlmAgents 1 -Manager `
+    -Model qwen-fixture -BaseUrl 'http://qwen.internal:8002/v1' -ResponseFormat json_schema `
+    -GenerationParams '{"chat_template_kwargs":{"enable_thinking":false}}' `
+    -ManagerModel deepseek-fixture -ManagerBaseUrl 'https://manager.example/v1' `
+    -ManagerThinking disabled -ManagerResponseFormat json_object -ManagerGenerationParams '{}' `
+    -ManagerTokenLimitField max_tokens -ManagerTimeoutSeconds 180 -ManagerTemperature 0.2 `
+    -ManagerTopP 0.9 -ManagerGenerationSeed 9261 | Out-Null
+$taskRoleArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+foreach ($taskPair in @(
+    @('--model','qwen-fixture'), @('--base-url','http://qwen.internal:8002/v1'), @('--response-format','json_schema'),
+    @('--generation-params','{"chat_template_kwargs":{"enable_thinking":false}}'),
+    @('--manager-model','deepseek-fixture'), @('--manager-base-url','https://manager.example/v1'),
+    @('--manager-thinking','disabled'), @('--manager-response-format','json_object'), @('--manager-generation-params','{}'),
+    @('--manager-token-limit-field','max_tokens'), @('--manager-timeout-seconds','180'),
+    @('--manager-temperature','0.2'), @('--manager-top-p','0.9'), @('--manager-generation-seed','9261')
+)) {
+    $taskIndex = [Array]::IndexOf($taskRoleArguments, $taskPair[0])
+    if ($taskIndex -lt 0 -or $taskRoleArguments[$taskIndex + 1] -ne $taskPair[1]) {
+        throw ('Independent role model option was not forwarded: ' + $taskPair[0])
+    }
+}
+$taskMnlParameters = Join-Path $taskTestRoot 'mnl-parameters.json'
+[IO.File]::WriteAllText($taskMnlParameters, '{}')
+[IO.File]::WriteAllText($taskSourceJar, 'original-build')
+& $taskRunner -Java $taskFakeJava -Days 1 -Policy mnl -LlmAgents all -MnlParameters $taskMnlParameters -MnlChoiceSeed 137 | Out-Null
+$taskCapturedArguments = Get-Content -LiteralPath (Join-Path $taskTestRoot 'arguments.json') -Raw | ConvertFrom-Json
+foreach ($taskPair in @(@('--mnl-parameters',$taskMnlParameters),@('--mnl-choice-seed','137'))) {
+    $taskIndex = [Array]::IndexOf($taskCapturedArguments, $taskPair[0])
+    if ($taskIndex -lt 0 -or $taskCapturedArguments[$taskIndex + 1] -ne $taskPair[1]) { throw ('MNL option was not forwarded: ' + $taskPair[0]) }
+}
+Write-Output "PASS: private JAR isolation, console capture, exit codes and cleanup; role model, MNL, sampling, manager, fixed-pricing and candidate forwarding. Fixtures: $taskTestRoot"

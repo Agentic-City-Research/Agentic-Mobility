@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('hybrid', 'reference', 'fixed-routes')][string]$Mode = 'hybrid',
-    [ValidateSet('llm', 'mnl-joint', 'mnl', 'shortest', 'mock')][string]$Policy = 'mnl',
+    [ValidateSet('hybrid')][string]$Mode = 'hybrid',
+    [ValidateSet('llm', 'mnl', 'shortest', 'mock')][string]$Policy = 'mnl',
     [ValidatePattern('^(all|[0-9]+)$')][string]$LlmAgents = '0',
     [switch]$Manager,
     [string]$FixedTollPolicy,
@@ -9,6 +9,16 @@ param(
     [ValidateRange(1, 2147483647)][int]$ManagerUpdateInterval = 30,
     [int]$ManagerMaxOutputTokens = 8192,
     [ValidateRange(1, 2147483647)][int]$ManagerMemoryMaxOutputTokens = 2048,
+    [string]$ManagerModel,
+    [string]$ManagerBaseUrl,
+    [ValidateSet('auto', 'omit', 'enabled', 'disabled')][string]$ManagerThinking,
+    [ValidateSet('omit', 'json_object', 'json_schema')][string]$ManagerResponseFormat,
+    [ValidateSet('max_tokens', 'max_completion_tokens')][string]$ManagerTokenLimitField,
+    [string]$ManagerGenerationParams,
+    [Nullable[double]]$ManagerTemperature,
+    [Nullable[double]]$ManagerTopP,
+    [Nullable[int]]$ManagerGenerationSeed,
+    [ValidateRange(0, 2147483647)][int]$ManagerTimeoutSeconds = 0,
     [ValidateSet('basic', 'controlled')][string]$ManagerProfile = 'basic',
     [double]$ManagerMaxCorridorMinutes = 5,
     [double]$ManagerMaxStepMinutes = 2,
@@ -42,7 +52,8 @@ param(
     [ValidateSet('max_tokens', 'max_completion_tokens')][string]$TokenLimitField,
     [ValidateSet('omit', 'json_object', 'json_schema')][string]$ResponseFormat,
     [string]$GenerationParams,
-    [ValidateRange(1, 3)][int]$HistoryWindow = 3,
+    [ValidateRange(1, 5)][Nullable[int]]$HistoryWindow,
+    [ValidateSet(1, 5)][int]$TravelerReflectionInterval = 5,
     [switch]$TravelerSemanticReview,
     [ValidateRange(1, 2147483647)][int]$SemanticReviewMaxOutputTokens = 2048,
     [ValidateSet('llm')][string]$MemoryMode = 'llm',
@@ -60,7 +71,7 @@ param(
     [string]$Output,
     [ValidateSet('planned-arrival', 'planned-departure')][string]$CohortSelection = 'planned-arrival',
     [ValidateRange(1, 2147483647)][int]$PlannedArrivalBefore = 32400,
-    [ValidateRange(0, 86400)][int]$DepartureBeforeSeconds = 5400,
+    [ValidateRange(0, 86400)][int]$DepartureBeforeSeconds = 3600,
     [ValidateRange(0, 86400)][int]$DepartureAfterSeconds = 1800,
     [ValidateRange(1, 86400)][int]$DepartureStepSeconds = 900,
     [int]$PeakStart = 25200,
@@ -93,10 +104,8 @@ $taskRoot = Split-Path -Parent $PSScriptRoot
 $taskJar = Join-Path $taskRoot 'matsim-example-project-0.0.1-SNAPSHOT.jar'
 if (-not (Test-Path -LiteralPath $taskJar)) { throw 'Run mvn package first to build the jar in the project root.' }
 $taskConfig = Join-Path $taskRoot 'scenarios/SiouxFalls-public/config.xml'
+$taskHistoryWindow = if ($null -eq $HistoryWindow) { $TravelerReflectionInterval } else { $HistoryWindow }
 if ($Manager -and $FixedTollPolicy) { throw 'Choose either -Manager or -FixedTollPolicy, not both.' }
-if ($FixedTollPolicy -and $Mode -ne 'hybrid') { throw '-FixedTollPolicy requires -Mode hybrid.' }
-if ($Policy -eq 'mnl-joint' -and -not $MnlParameters) { throw '-Policy mnl-joint requires -MnlParameters.' }
-if ($Policy -ne 'mnl-joint' -and ($MnlParameters -or $PSBoundParameters.ContainsKey('MnlChoiceSeed'))) { throw '-MnlParameters and -MnlChoiceSeed require -Policy mnl-joint.' }
 $taskSamplingSummary = $null
 if ($PSBoundParameters.ContainsKey('SampleRate')) {
     if ($SamplePersons -ne 0) { throw 'Choose either -SampleRate or -SamplePersons, not both.' }
@@ -106,7 +115,7 @@ $taskArguments = @("-Xmx$Heap", '-cp', $taskJar, 'org.matsim.agentic.MorningExpe
     '--config', $taskConfig,
     '--mode', $Mode, '--policy', $Policy, '--llm-agents', $LlmAgents,
     '--concurrency', "$Concurrency", '--repair-attempts', "$RepairAttempts",
-    '--history-window', "$HistoryWindow", '--reason-max-chars', "$ReasonMaxChars",
+    '--history-window', "$taskHistoryWindow", '--traveler-reflection-interval', "$TravelerReflectionInterval", '--reason-max-chars', "$ReasonMaxChars",
     '--memory-mode', $MemoryMode, '--memory-max-chars', "$MemoryMaxChars", '--memory-max-output-tokens', "$MemoryMaxOutputTokens",
     '--personal-profiles', $PersonalProfiles,
     '--informed-share', $InformedShare.ToString([System.Globalization.CultureInfo]::InvariantCulture),
@@ -158,6 +167,25 @@ if ($MaxOutputTokens -gt 0) { $taskArguments += @('--max-output-tokens', "$MaxOu
 if ($TokenLimitField) { $taskArguments += @('--token-limit-field', $TokenLimitField) }
 if ($ResponseFormat) { $taskArguments += @('--response-format', $ResponseFormat) }
 if ($GenerationParams) { $taskArguments += @('--generation-params', $GenerationParams) }
+foreach ($taskManagerEntry in @{
+    Model=$ManagerModel; BaseUrl=$ManagerBaseUrl; Thinking=$ManagerThinking;
+    ResponseFormat=$ManagerResponseFormat; TokenLimitField=$ManagerTokenLimitField;
+    GenerationParams=$ManagerGenerationParams
+}.GetEnumerator()) {
+    if ($taskManagerEntry.Value) {
+        $taskManagerFlag = '--manager-' + ($taskManagerEntry.Key -creplace '([a-z])([A-Z])', '$1-$2').ToLowerInvariant()
+        $taskArguments += @($taskManagerFlag, $taskManagerEntry.Value)
+    }
+}
+foreach ($taskManagerNumber in @{
+    Temperature=$ManagerTemperature; TopP=$ManagerTopP; GenerationSeed=$ManagerGenerationSeed
+}.GetEnumerator()) {
+    if ($null -ne $taskManagerNumber.Value) {
+        $taskManagerFlag = '--manager-' + ($taskManagerNumber.Key -creplace '([a-z])([A-Z])', '$1-$2').ToLowerInvariant()
+        $taskArguments += @($taskManagerFlag, ([string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $taskManagerNumber.Value)))
+    }
+}
+if ($ManagerTimeoutSeconds -gt 0) { $taskArguments += @('--manager-timeout-seconds', "$ManagerTimeoutSeconds") }
 if ($Output) { $taskArguments += @('--output', $Output) }
 if ($RunDate) { $taskArguments += @('--run-date', $RunDate) }
 if ($CandidateFile) { $taskArguments += @('--candidate-file', (Resolve-Path -LiteralPath $CandidateFile).Path) }

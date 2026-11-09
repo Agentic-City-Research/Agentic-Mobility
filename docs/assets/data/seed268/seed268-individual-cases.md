@@ -4,7 +4,7 @@
 
 These are purposeful examples from nine multi-route work trips with sampled decision contexts, selected to illustrate route choice, schedule changes, and an explanation inconsistency. They are not a random sample and do not estimate the frequency of these behaviors. All cases use simulation seed 268. The published excerpts contain 18 date/trip records, while the current manuscript's five-configuration comparison covers **Days0–99**. The same `qwen3.5-9b` model ID is recorded for the three featured outputs; this identifies those records, not the service settings of every run.
 
-The [manuscript's execution-validation section](../../../../paper/AgenticMobility_arXiv/sections/experiment.tex) uses case 2 (`10010_2`, Day60) for the interaction trace and case 3 (`10042_2`, Day61) for the explanation inconsistency. Case 1 is an additional archived example. Completing the later run does not change these recorded case facts; the 18 published date/trip records are a selected subset, not the full 100-day audit.
+The manuscript's execution-validation section, whose source is not included in this repository, uses case 2 (`10010_2`, Day60) for the interaction trace and case 3 (`10042_2`, Day61) for the explanation inconsistency. Case 1 is an additional archived example. Completing the later run does not change these recorded case facts; the 18 published date/trip records are a selected subset, not the full 100-day audit.
 
 ## 1. LLM traveler agent 1005_1: route switch at an unchanged departure time
 

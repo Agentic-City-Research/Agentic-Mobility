@@ -41,7 +41,6 @@ class MorningHybridTest {
         assertEquals(originalCarScore, config.scoring().getModes().get("car").getMarginalUtilityOfTraveling());
         assertEquals(originalLateScore, config.scoring().getLateArrival_utils_hr());
         assertFalse(settings.fixesTimes());
-        assertTrue(settings.overlaysChoices());
         var fixedTimeSettings = new MorningExperiment();
         new CommandLine(fixedTimeSettings).parseArgs("--no-native-time-mutation");
         fixedTimeSettings.configureReplanning(config);

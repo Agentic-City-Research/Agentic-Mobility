@@ -11,6 +11,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -107,6 +108,33 @@ class MorningManagerAllDayTest {
             try (var output = new OutputWriter(directory.resolve(profile))) {
                 var rejected = manager(profile, 108000, output, (r,s,u) -> response(split), 1).update(20, 0, initial());
                 assertFalse(rejected.accepted()); assertTrue(rejected.policy().rules().isEmpty());
+            }
+        }
+    }
+
+    @Test void managerPolicyAndReflectionSeeFullDayCompletionAndWaitWithoutIndividualData() throws Exception {
+        for (String profile : List.of("basic", "controlled")) {
+            var sent = new AtomicReference<String>();
+            try (var output = new OutputWriter(directory.resolve("full-day-" + profile))) {
+                var manager = manager(profile, 108000, output, (r,s,u) -> { sent.set(u); return response(policy(0,108000,"test")); }, 1);
+                var facts = new LinkedHashMap<String,Object>();
+                facts.put("expectedCarLegs", 3); facts.put("departedCarLegs", 3); facts.put("completedCarLegs", 2);
+                facts.put("abortedCarLegs", 1); facts.put("unfinishedCarLegs", 0); facts.put("notStartedCarLegs", 0);
+                facts.put("completedCarLegsWithTrafficEntry", 2); facts.put("allPlannedCarLegsCompleted", false);
+                facts.put("carPersonHours", null); facts.put("completedCarPersonHours", 2.0);
+                facts.put("completedPreTrafficWaitPersonHours", .5); facts.put("observedCarPersonHoursLowerBound", 2.5);
+                facts.put("personId", "private-should-not-leak");
+                var trips = Map.<String,Object>of("carTripsStarted",3,"carTripsCompleted",2,"carTripsAborted",1,"carTripsUnfinished",0);
+                manager.observe(0, List.of(), initial(), trips, 0.0, facts);
+                var reflection = Json.readTree(Json.write(manager.memoryContext(0,0,initial())));
+                var travel = reflection.get("feedback").get("today").get("fullDayCarTravel");
+                assertTrue(travel.get("available").asBoolean());
+                assertEquals(.5, travel.get("totals").get("completedPreTrafficWaitPersonHours").asDouble());
+                assertTrue(travel.get("totals").get("carPersonHours").isNull());
+                manager.update(20,0,initial());
+                assertTrue(sent.get().contains("fullDayCarTravel"));
+                assertTrue(sent.get().contains("completedPreTrafficWaitPersonHours"));
+                assertFalse(sent.get().contains("private-should-not-leak"));
             }
         }
     }

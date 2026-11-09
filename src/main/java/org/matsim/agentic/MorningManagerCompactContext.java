@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Deterministic public-input compression; full observations remain in the research archive. */
 final class MorningManagerCompactContext {
-    static final String VERSION = "morning-manager-compact-v2-prefix";
+    static final String VERSION = "morning-manager-compact-v3-full-day-car";
     static final int TOP_DELAY_LINKS = 20, TOP_FAILURE_LINKS = 10, TOP_DELAY_BINS = 20, TOP_FAILURE_BINS = 10;
     static final List<String> NETWORK_COLUMNS = List.of("linkId", "fromNode", "toNode", "lengthType", "roadType");
     static final List<String> ROAD_TYPE_COLUMNS = List.of("freeSpeedMetersPerSecond", "numberOfLanes", "rawCapacity");
@@ -96,6 +96,7 @@ final class MorningManagerCompactContext {
         result.put("pricingSpatialTotals", spatial);
         var trips = (Map<String, Object>) full.getOrDefault("publicCarTrips", Map.of());
         result.put("publicCarTrips", trips.getOrDefault("totals", Map.of()));
+        if (full.containsKey("fullDayCarTravel")) result.put("fullDayCarTravel", full.get("fullDayCarTravel"));
         return result;
     }
 

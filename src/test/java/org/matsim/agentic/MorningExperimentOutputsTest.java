@@ -65,7 +65,6 @@ class MorningExperimentOutputsTest {
         assertEquals(noManager, fullUnscaled);
         assertEquals(noManager, fullScaled);
         parameters.demand = 200;
-        parameters.mode = "reference";
         config.replanning().getStrategySettings().iterator().next().setDisableAfter(2900);
         assertEquals(fullScaled, MorningExperimentOutputs.parameterName(parameters, config, 0));
     }
@@ -78,7 +77,7 @@ class MorningExperimentOutputsTest {
         llm.llmConfig.model = "other-model";
         assertEquals(actual, MorningExperimentOutputs.parameterName(llm, config(), 50));
         String offline = MorningExperimentOutputs.parameterName(options("--llm-agents", "50"), config(), 50);
-        assertTrue(offline.contains("_llm0_ctrl50_noMgr_")); assertTrue(offline.contains("_beta0.3_"));
+        assertTrue(offline.contains("_llm0_ctrl50_noMgr_")); assertTrue(offline.contains("_mnl-joint_"));
     }
 
     @Test void validationRemainsVisibleWhileDiagnosticSamplingIsHidden() {

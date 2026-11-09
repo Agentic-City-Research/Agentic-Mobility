@@ -60,7 +60,6 @@ class MorningFixedTollTest {
 
     @Test void fixedAndManagerModesAreMutuallyExclusiveAndInvalidOptionsDoNotReserveOutput() {
         for (String[] bad : List.of(new String[]{"--manager", "--fixed-toll-policy", "missing.json"},
-                new String[]{"--mode", "reference", "--fixed-toll-policy", "missing.json"},
                 new String[]{"--fixed-toll-free-days", "-1"})) {
             Path out = directory.resolve("not-created");
             var args = new ArrayList<>(List.of("--config", "missing-config.xml", "--output", out.toString()));

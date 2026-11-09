@@ -22,15 +22,18 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     private final LlmUsageTracker usage;
     private final MorningRequestBudget budget;
     private MorningMemoryUpdater memoryUpdater;
+    private PythonTravelerBridge pythonBridge;
     private MorningSemanticReview semanticReview;
     private MorningManager manager;
     private final MorningTollSystem tolls;
     private ExecutorService pool;
+    private ScheduledExecutorService managerReflectionPool;
     private final MorningObservations observations;
     private final TravelTimeCalculator travelTimes;
     private final Map<String, Object> manifest;
     private OutputWriter output;
     private int daysCompleted;
+    private long totalPersonalTollObservations;
     private boolean prepared;
     private int preparedDay = -1;
 
@@ -57,8 +60,41 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     @Override public void notifyStartup(StartupEvent event) {
         try { output = new OutputWriter(Path.of(scenario.getConfig().controller().getOutputDirectory(), "morning"), true); }
         catch (java.io.IOException e) { throw new IllegalStateException(e); }
+        if (settings.pythonAgentUrl != null) {
+            pythonBridge = new PythonTravelerBridge(settings.pythonAgentUrl, settings.timeoutSeconds, settings.llmConfig.reasonMaxChars);
+            var service = pythonBridge.describe();
+            String expected = switch (settings.pythonBackend) {
+                case "baseline" -> "first_legal_action_baseline";
+                case "v9" -> "v9_java_renderer";
+                case "concordia" -> settings.pythonEmbedding.equals("semantic")
+                        ? "concordia-2.2.0-basic-semantic-minilm-v1" : "concordia-2.2.0-basic-token-hash-256-v1";
+                default -> throw new IllegalStateException("Unknown Python backend");
+            };
+            if (!expected.equals(service.path("backend").asText())) throw new IllegalStateException("Python backend does not match --python-backend");
+            if (!service.path("model_request_limit").isIntegralNumber()) throw new IllegalStateException("Python service did not report its model budget");
+            int remoteLimit = service.path("model_request_limit").asInt();
+            if (!settings.pythonBackend.equals("baseline") && settings.maxRequests > 0 && (remoteLimit == 0 || remoteLimit > settings.maxRequests))
+                throw new IllegalStateException("Python --max-model-requests must be positive and no larger than Java --max-requests");
+            for (String key : List.of("personalMemory", "selfWrittenMemoryEnabled", "memoryTemplate", "memoryTargetChars",
+                    "memoryDistortionPolicy", "memoryReflectionInputs", "memoryReflectionExperienceLimit", "memoryFailurePolicy",
+                    "memoryRouteReferenceGuard", "travelerOutputAttempts", "llmCallsPerControlledTripDay", "promptTemplate",
+                    "outputContractVersion", "outputValidation", "llmSettings", "memoryModelSettings", "memoryMaxChars",
+                    "dayToDayDesignReference", "memoryRetention", "memoryUpdateTiming", "initialMemory", "designChanges",
+                    "singleCandidateTreatment", "memorySemanticCorrectionEnabled", "promptEncoding")) manifest.remove(key);
+            manifest.put("pythonAgentConfiguration", service);
+            manifest.put("memoryMode", "Python backend: " + expected);
+            manifest.put("personalMemory", "Python backend state from traveler-visible observations; Java factual records are analysis data");
+            manifest.put("memoryRetention", "Python backend retains its own state; Java factual archive is separate");
+            manifest.put("designChanges", "Native MATSim replanning followed by Python proposals, Java validation, QSim, and post-QSim feedback");
+            manifest.put("singleCandidateTreatment", "Keep traffic and backend decisions; only the sole route is legal");
+            if (settings.pythonBackend.equals("v9")) manifest.put("pythonV9MemoryMaxChars", settings.memoryMaxChars);
+            manifest.put("baselineObjective", "Python traveler backend proposes actions; Java validates and executes them");
+            manifest.put("pythonAgentRunId", pythonBridge.runId());
+            manifest.put("travelerBackend", "python-http");
+            manifest.put("apiCallsScope", "Java-side calls only; Python model calls are recorded in Python request responses");
+        }
         writePreparation(output, cohort, manifest);
-        if (settings.jointMnl()) {
+        if (settings.policyName.equals("mnl") && !cohort.controlledPersons.isEmpty()) {
             long choiceSeed = settings.mnlChoiceSeed == null ? scenario.getConfig().global().getRandomSeed() : settings.mnlChoiceSeed;
             output.writeDoc("baseline-parameters.json", settings.mnlParameters.report(choiceSeed, settings.historyDays));
             if (policy == null) policy = new MorningMnlPolicy(settings.mnlParameters, choiceSeed, settings.historyDays, output);
@@ -70,7 +106,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         if (settings.fixedTollsEnabled()) output.writeDoc("fixed-toll-policy.json", settings.fixedTollPolicy.inputJson());
         if (settings.managerEnabled) {
             if (tolls == null) throw new IllegalStateException("Manager pricing needs a registered toll event handler");
-            var managerConfig = settings.llmConfig.withOutputLimit(settings.managerMaxOutputTokens);
+            var managerConfig = settings.managerModelConfig(settings.managerMaxOutputTokens);
             var environment = MorningManagerEnvironment.from(scenario, settings, manifest);
             var publicEnvironment=new LinkedHashMap<>(environment.context(scenario.getConfig().controller().getFirstIteration(),tolls.state().policy(),settings.managerControls.basic()));
             publicEnvironment.put("pricingControls",settings.managerControls.context(environment,scenario.getConfig().qsim().getEndTime().seconds()));
@@ -79,15 +115,17 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                     environment,
                     settings.clientFactory.apply(managerConfig, usage), output, budget, settings.repairAttempts, managerConfig.publicModelSettings(),
                     settings.managerUpdateInterval, scenario.getConfig().controller().getLastIteration(),settings.managerControls);
-            var managerMemoryConfig=settings.llmConfig.withOutputLimit(settings.managerMemoryMaxOutputTokens);
+            var managerMemoryConfig=settings.managerModelConfig(settings.managerMemoryMaxOutputTokens);
             manager.setMemoryClient(settings.clientFactory.apply(managerMemoryConfig,usage),managerMemoryConfig.publicModelSettings());
         }
-        if (settings.policyName.equals("llm") && !cohort.controlledPersons.isEmpty()) {
+        if (settings.policyName.equals("llm") && pythonBridge == null && !cohort.controlledPersons.isEmpty()) {
             if (policy == null) policy = new MorningLlmPolicy(settings.clientFactory.apply(settings.llmConfig, usage), output,
                     settings.repairAttempts, settings.llmConfig.reasonMaxChars, settings.llmConfig.publicModelSettings(), budget);
             var memoryConfig = settings.llmConfig.withOutputLimit(settings.memoryMaxOutputTokens);
             memoryUpdater = new MorningMemoryUpdater(settings.clientFactory.apply(memoryConfig, usage), output,
                     settings.repairAttempts, settings.memoryMaxChars, memoryConfig.publicModelSettings(), budget);
+            memoryUpdater.setMemoryVariant(settings.travelerMemoryVariant);
+            memoryUpdater.setReflectionInterval(settings.travelerReflectionInterval);
             if(settings.travelerSemanticReview) {
                 var reviewConfig=settings.llmConfig.withOutputLimit(settings.semanticReviewMaxOutputTokens);
                 semanticReview=new MorningSemanticReview(settings.clientFactory.apply(reviewConfig,usage),output,budget,reviewConfig.publicModelSettings());
@@ -100,6 +138,9 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                 Thread thread = new Thread(task, "morning-llm"); thread.setDaemon(true); return thread;
             });
         }
+        if (manager != null && settings.parallelRoleReflection) managerReflectionPool = Executors.newScheduledThreadPool(2, task -> {
+            Thread thread = new Thread(task, "morning-manager-reflection"); thread.setDaemon(true); return thread;
+        });
     }
 
     static void writePreparation(OutputWriter output, MorningCohort cohort, Map<String, Object> manifest) {
@@ -171,7 +212,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             output.flush();
         }
         // The first iteration has no ReplanningEvent. PrepareForSim has already routed it.
-        if (settings.overlaysChoices() && event.getIteration() == scenario.getConfig().controller().getFirstIteration())
+        if (event.getIteration() == scenario.getConfig().controller().getFirstIteration())
             prepareForDay(event.getIteration());
     }
 
@@ -179,11 +220,10 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         // Native core PlansReplanningImpl runs before ordinary ReplanningListeners.
         // This overlay therefore follows both selection and ReRoute, but precedes
         // the core BeforeMobsim plans dump. Listener priority cannot cross core/ordinary lists.
-        if (settings.overlaysChoices()) prepareForDay(event.getIteration());
+        prepareForDay(event.getIteration());
     }
 
     @Override public void notifyBeforeMobsim(BeforeMobsimEvent event) {
-        if (!settings.overlaysChoices()) prepareForDay(event.getIteration());
         if (!prepared || preparedDay != event.getIteration()) throw new IllegalStateException("Day routes were not prepared");
         // EventsHandling resets observers after replanning; capture the complete planned denominator here.
         observations.carTravel.expectCarLegs(scenario.getPopulation().getPersons().values().stream()
@@ -222,9 +262,9 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         }
         var controlled = new ArrayList<>(contexts.keySet());
         List<MorningRoutePolicy.Decision> decisions;
-        // A manager also creates this pool. Keep offline policies in cohort order so
-        // a shared legacy MNL random stream is not assigned by thread scheduling.
-        if (pool != null && settings.policyName.equals("llm")) {
+        if (pythonBridge != null) {
+            decisions = pythonBridge.decide(controlled.stream().map(contexts::get).toList());
+        } else if (pool != null) {
             var tasks = controlled.stream().<Callable<MorningRoutePolicy.Decision>>map(m -> () -> policy.choose(contexts.get(m))).toList();
             decisions = LlmDecisionBatch.run(pool, tasks, controlled.stream().map(m -> m.key).toList(),
                     Duration.ofSeconds(settings.stallSeconds), day, "morning_routes", count -> {
@@ -327,9 +367,12 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                 Map.of("activities", member.originalSchedule, "deadlineIsHardConstraint", false,
                         "personalPreferencesSource", member.profile == null ? "input attributes only" : "input attributes plus fixed synthetic legacy profile; no numeric tolerance/value-of-time inferred",
                         "costUnits", "scenario monetary units, not an asserted real-world currency"),
-                options, MorningPromptRenderer.recentFacts(member.memory.recent(),day,false,settings.historyDays), member.profile, member.memory.summary(), member.memory.summaryDay(),
-                settings.jointTravelerContext() ? cohort.information.visibleForLlm(member.person.getId().toString())
-                        : cohort.information.visible(member.person.getId().toString(), day), departures);
+                options, settings.policyName.equals("llm")
+                        ? MorningPromptRenderer.decisionFacts(member.memory, day, settings.historyDays, settings.travelerReflectionInterval)
+                        : MorningPromptRenderer.recentFacts(member.memory.recent(),day,false,settings.historyDays), member.profile, member.memory.summary(), member.memory.summaryDay(),
+                settings.jointTravelerContext() ? cohort.information.visibleForLlm(member.person.getId().toString(), day, tolls)
+                        : cohort.information.visible(member.person.getId().toString(), day), departures,
+                settings.travelerMemoryVariant.equals("ledger") ? MorningFactLedger.build(member.memory.all(), day-1) : null);
     }
 
     private List<MorningRoutePolicy.Option> optionsForDeparture(int day, MorningCohort.Member member, double departure) {
@@ -356,7 +399,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
             var knowledge = settings.jointTravelerContext() ? cohort.information.pricingForLlm(member.person.getId().toString(), links, entryTimes,
                     -monetaryRate * distance(candidate), tolls, day) : cohort.information.pricing(member.person.getId().toString(), links, entryTimes,
                     -monetaryRate * distance(candidate), tolls, day);
-            Double estimatedToll = knowledge.unknownLinks().isEmpty() ? knowledge.knownTollSubtotal() : null;
+            Double estimatedToll = knowledge.unknownLinks().isEmpty() || knowledge.source().equals("personal_history_zero_prior") ? knowledge.knownTollSubtotal() : null;
             Double estimatedCost = estimatedToll == null ? null : knowledge.baseMonetaryCost() + estimatedToll;
             boolean announcement = tolls != null && cohort.information.informed(member.person.getId().toString());
             options.add(new MorningRoutePolicy.Option(candidate.id(), links,
@@ -476,7 +519,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         }
         // All factual outcomes are stored before any reflection worker is dispatched.
         output.flush();
-        updateMemories(day);
+        if (!settings.parallelRoleReflection) updateMemories(day);
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("day", day); metrics.put("cohortTrips", cohort.members.size()); metrics.put("departedTrips", departed);
         metrics.put("actualDeparturesInPeak", actuallyInPeak); metrics.put("completedCarTrips", completedCar);
@@ -522,35 +565,59 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                 "uninformed", groupMetrics(null, "uninformed")));
         metrics.put("groups", groups); metrics.put("apiCalls", usage.requests());
         if (tolls != null) {
-            metrics.put("pricing", tolls.summary()); metrics.put("policyId", tolls.state().policyId());
+            var pricing = tolls.summary();
+            totalPersonalTollObservations = Math.addExact(totalPersonalTollObservations,
+                    ((Number) pricing.get("personalObservationEntries")).longValue());
+            metrics.put("pricing", pricing); metrics.put("policyId", tolls.state().policyId());
             metrics.put("policyVersion", tolls.state().version()); tolls.writePersonalTotals();
         }
         metrics.put("publicCarTrips",observations.publicCarTrips());
-        metrics.put("fullDayCarTravel", observations.carTravel.summary(scenario.getConfig().qsim().getEndTime().seconds()));
+        var fullDayCarTravel = observations.carTravel.summary(scenario.getConfig().qsim().getEndTime().seconds());
+        metrics.put("fullDayCarTravel", fullDayCarTravel);
         var linkHours = observations.links.snapshot();
         metrics.put("fullDayLinkTraffic", MorningManager.dailyTraffic(day, linkHours));
         output.metric(metrics);
         if(manager!=null && daysCompleted==0) manager.captureReferenceDemand(scenario,day,tolls.state());
         if (manager != null) manager.observe(day, linkHours, tolls.state(),observations.publicCarTrips(),
-                ((Number)tolls.summary().get("totalPaid")).doubleValue());
+                ((Number)tolls.summary().get("totalPaid")).doubleValue(), fullDayCarTravel);
         for (var link : linkHours) {
             Map<String, Object> row = new LinkedHashMap<>(link); row.put("day", day);
             output.appendLine("link-hours.jsonl", row);
         }
+        if (settings.parallelRoleReflection) {
+            // Independent manager executor prevents manager delays from starving traveler workers.
+            var context = manager == null ? null : manager.memoryContext(day,scenario.getConfig().controller().getFirstIteration(),tolls.state());
+            long callsBefore = manager == null ? 0 : manager.attemptedCalls();
+            Future<MorningManagerMemory.Update> pending = manager == null ? null : managerReflectionPool.submit(() -> manager.reflect(context));
+            Future<?> timeout = pending == null ? null : managerReflectionPool.schedule(() -> pending.cancel(true), settings.stallSeconds, TimeUnit.SECONDS);
+            try {
+                updateMemories(day);
+                if (pending != null) finishManagerMemory(day, context, callsBefore, pending);
+            } catch (RuntimeException failure) {
+                if (pending != null) pending.cancel(true);
+                throw failure;
+            } finally {
+                if (timeout != null) timeout.cancel(false);
+            }
+        } else if(manager!=null) updateManagerMemory(day);
+        // A day is complete only after its required reflections have finished.
         daysCompleted++;
-        if(manager!=null) updateManagerMemory(day);
     }
 
     private void updateManagerMemory(int day) {
         var context=manager.memoryContext(day,scenario.getConfig().controller().getFirstIteration(),tolls.state());
         long callsBefore=manager.attemptedCalls();
         var future=pool.submit(() -> manager.reflect(context));
+        finishManagerMemory(day, context, callsBefore, future);
+    }
+
+    private void finishManagerMemory(int day, Map<String,Object> context, long callsBefore, Future<MorningManagerMemory.Update> future) {
         MorningManagerMemory.Update update;
         try {
             update=future.get(settings.stallSeconds,TimeUnit.SECONDS);
         } catch(InterruptedException interrupted) {
             future.cancel(true); Thread.currentThread().interrupt(); throw new LlmException("Interrupted during manager reflection",interrupted);
-        } catch(TimeoutException | ExecutionException failure) {
+        } catch(TimeoutException | ExecutionException | CancellationException failure) {
             future.cancel(true);
             update=new MorningManagerMemory.Update(false,null,failure.toString(),(int)(manager.attemptedCalls()-callsBefore),MorningPromptRenderer.hash(Json.write(context)));
         }
@@ -561,14 +628,31 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
     }
 
     private void updateMemories(int day) {
+        if (pythonBridge != null) {
+            for (var member : cohort.members.values()) if (member.controlled) {
+                var facts = member.memory.all();
+                if (facts.isEmpty() || facts.getLast().day() != day) throw new IllegalStateException("Missing executed trip feedback");
+                String memory = pythonBridge.feedback(day, member, facts.getLast(), settings.memoryMaxChars);
+                if (memory != null) {
+                    member.memory.updateSummary(day, memory);
+                    output.appendLine("memory-updates.jsonl", Map.of("day", day, "tripId", member.key,
+                            "personId", member.person.getId().toString(), "memory", memory,
+                            "version", member.memory.summaryVersion(), "committed", true, "backend", "python-http"));
+                }
+            }
+            return;
+        }
         if (memoryUpdater == null) return;
+        int first = scenario.getConfig().controller().getFirstIteration();
+        if ((day - first + 1) % settings.travelerReflectionInterval != 0) return;
         var controlled = cohort.members.values().stream().filter(m -> m.controlled).toList();
-        for(var member:controlled) if(member.memory.summaryVersion()>0 && !Objects.equals(member.memory.summaryDay(),day-1))
-            throw new IllegalStateException("Every subsequent reflection requires yesterday's summary: "+member.key);
+        for(var member:controlled) if(member.memory.summaryVersion()>0 && !Objects.equals(member.memory.summaryDay(),day-settings.travelerReflectionInterval))
+            throw new IllegalStateException("Previous reflection summary is missing: "+member.key);
+        int window = settings.travelerReflectionInterval;
         var contexts = controlled.stream().map(m -> new MorningMemoryUpdater.Context(day, m.key, m.person.getId().toString(),
                 m.destinationPurpose, m.deadline, m.originalAttributes, m.profile, m.memory.summary(), m.memory.summaryDay(),
-                MorningPromptRenderer.recentFacts(m.memory.recent(MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT),day,true,MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT), m.candidates.stream().map(RouteCandidate::id).toList(),
-                m.informationGroup, List.of())).toList();
+                MorningPromptRenderer.recentFacts(m.memory.recent(window),day,true,window), m.candidates.stream().map(RouteCandidate::id).toList(),
+                m.informationGroup, List.of(), settings.travelerMemoryVariant.equals("ledger") ? MorningFactLedger.build(m.memory.all(), day) : null)).toList();
         var tasks = contexts.stream().<Callable<MorningMemoryUpdater.Update>>map(c -> () -> memoryUpdater.update(c)).toList();
         var updates = LlmDecisionBatch.run(pool, tasks, controlled.stream().map(m -> m.key).toList(),
                 Duration.ofSeconds(settings.stallSeconds), day, "memory_updates", count -> {
@@ -673,13 +757,34 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
                     - scenario.getConfig().controller().getFirstIteration() + 1,
                     "unexpectedShutdown", event.isUnexpected(), "apiCalls", usage.requests()));
             event.getException().ifPresent(error -> status.put("error", error.toString()));
-            output.status(status); output.apiUsage(usageSummary());
+            output.apiUsage(usageSummary());
             manifest.put("apiCalls", usage.requests()); output.manifest(manifest);
+            var expectedRows = new LinkedHashMap<String,Long>();
+            if (Boolean.TRUE.equals(status.get("complete"))) {
+                long completedDays = daysCompleted;
+                long controlledTrips = cohort.members.values().stream().filter(m -> m.controlled).count();
+                long controlledRecords = Math.multiplyExact(completedDays, controlledTrips);
+                expectedRows.put("metrics.jsonl", completedDays);
+                expectedRows.put("experiences.jsonl", Math.multiplyExact(completedDays, (long)cohort.members.size()));
+                expectedRows.put("decisions.jsonl", controlledRecords);
+                expectedRows.put("executed-route-checks.jsonl", controlledRecords);
+                if (tolls != null) expectedRows.put("toll-observations.jsonl", totalPersonalTollObservations);
+                if (policy instanceof MorningMnlPolicy) {
+                    expectedRows.put("baseline-contexts.jsonl", controlledRecords);
+                    expectedRows.put("baseline-choices.jsonl", controlledRecords);
+                } else if (policy instanceof MorningLlmPolicy) {
+                    expectedRows.put("decision-contexts.jsonl", controlledRecords);
+                    expectedRows.put("llm-results.jsonl", controlledRecords);
+                }
+            }
+            output.progress(Map.of("phase", "integrity_verification", "daysCompleted", daysCompleted, "apiCalls", usage.requests()));
+            output.sealAndVerify(status, expectedRows);
         }
         close();
     }
 
     @Override public void close() {
+        if (managerReflectionPool != null) managerReflectionPool.shutdownNow();
         if (pool != null) pool.shutdownNow();
         if (output != null) output.close();
     }
@@ -694,6 +799,7 @@ final class MorningLoop implements StartupListener, IterationStartsListener, Rep
         result.put("attemptedManagerMemoryCalls", manager == null ? 0L : manager.attemptedMemoryCalls());
         result.put("attemptedTotalCalls", budget.attemptedCalls());
         result.put("requestBudgetUnit", "client.complete invocations including output repair/task retry; HTTP-level retries are internal");
+        if (pythonBridge != null) result.put("pythonModelCallsExcluded", true);
         return result;
     }
 }

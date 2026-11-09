@@ -6,15 +6,15 @@ import java.util.*;
 
 /** A versioned, deterministic information interface shared by live runs and replay. */
 public final class MorningPromptRenderer {
-    public static final String VERSION = "morning-information-v9-continuous-memory";
-    static final int RECENT_FACT_DAYS = 3;
+    public static final String VERSION = "morning-information-v12-configurable-history";
+    static final int RECENT_FACT_DAYS = 5;
     static final String FACT_RULES = """
             Use only supplied facts. Missing preferences, numeric income, value of time, lateness tolerance and earlier experiences are unknown; do not invent them.
             Synthetic profiles are fixed experiment assumptions, not measured demographics. Explicit attributes and schedules take precedence over profiles and subjective memory.
             The listed route pool is complete, even if old notes suggest another route. Untried routes have no personally observed outcome.
             Tables are JSON-array rows in their stated column order. Time fields ending in _s are numeric seconds within the day or durations; distances are metres; costs are scenario monetary units, not an asserted real currency.
             null means unknown or not supplied, never zero or free. For unfinished trips, complete duration and arrival are unknown; null lateness can also mean no supplied deadline.
-            Payment rows are [day,linkId,entry_s,amount]: actual historical point observations, not current tariff windows or evidence that other roads are free.
+            Payment rows are [day,linkId,entry_s,amount]: actual historical point observations, including zero, not current tariff windows or proof that other roads are free.
             Recent execution records are factual evidence. Your memory is a personal summary, not an execution log.
             Correct clear contradictions with visible execution facts yourself; do not discard older experience merely because it is outside the factual window.
             """;
@@ -48,6 +48,7 @@ public final class MorningPromptRenderer {
 
     public String render(MorningRoutePolicy.Context c) {
         validate(c);
+        MorningFactLedger.validate(c.ledger(), c.day()-1);
         StringBuilder s = new StringBuilder();
         s.append("YOUR TRIP\nPurpose: ").append(purpose(c.originPurpose())).append(" to ").append(purpose(c.destinationPurpose()))
                 .append(". Travel mode: car. Planned departure: ").append(clock(c.plannedDepartureSeconds())).append(".\n");
@@ -77,21 +78,30 @@ public final class MorningPromptRenderer {
                     .append("No network historical or live traffic is available. Both groups receive the same static route distances and free-flow times; only your own past traffic outcomes are known.\n");
             boolean disabled = c.candidates().stream().allMatch(o -> o.pricingKnowledge().source().equals("charging_disabled"));
             if (disabled) s.append("Charging is explicitly disabled in this run. There is no manager toll announcement and no congestion toll applies.\n");
-            else if (c.information().currentAnnouncementVisible()) s.append("You can read the current manager toll announcement before departure.\n");
+            else if (c.information().currentAnnouncementVisible() && c.information().currentNetworkTolls() != null) {
+                s.append("You can read the current network toll announcement before departure. Unlisted links and time windows have zero toll.\n")
+                        .append("CURRENT NETWORK TOLL RULES\ncolumns=[linkId,start_s,end_s,amount]\n");
+                c.information().currentNetworkTolls().forEach(r -> s.append(Json.write(List.of(r.linkId(),r.startSeconds(),r.endSeconds(),r.amount()))).append('\n'));
+            } else if (c.information().currentAnnouncementVisible()) s.append("You can read the current manager toll announcement before departure.\n");
+            else if (c.candidates().stream().anyMatch(o -> o.pricingKnowledge().source().equals("personal_history_zero_prior")))
+                s.append("You cannot read the current manager toll announcement. Current tolls are unknown. For each road and time bin, estimate from your latest own actual observation; use zero only as an uncertain default where you have no observation. Actual tolls may differ, and historical observations may be outdated.\n");
             else s.append("You cannot read the current manager toll announcement. Current tolls are unknown. Use only your own past actual payments as uncertain historical estimates, never as guaranteed current prices. Unknown does not mean free.\n");
             if (c.departureOptions().isEmpty()) {
                 s.append("YOUR OWN ACTUAL PAYMENT OBSERVATIONS BEFORE TODAY\ncolumns=[day,linkId,entry_s,amount]\n");
                 c.information().personalPayments().forEach(e -> appendPayment(s, e));
-            } else s.append("Past payments are available only in your recent personal experiences and bounded self-written summary. No separate long-term exact-payment table is supplied.\n");
+            } else if (c.candidates().stream().anyMatch(o -> o.pricingKnowledge().source().equals("personal_history_zero_prior")))
+                s.append("Route cost details include relevant own actual observations; other trip outcomes remain in your recent experiences and bounded self-written summary.\n");
+            else s.append("Past payments are available only in your recent personal experiences and bounded self-written summary. No separate long-term exact-payment table is supplied.\n");
         }
         appendChoices(s,c);
         s.append("YOUR SELF-WRITTEN LONG-TERM MEMORY, BEFORE TODAY\n");
         if (c.memorySummary().isBlank()) s.append("No self-written memory yet; no pre-experiment experiences are assumed.\n");
         else s.append("Last updated after simulation day ").append(c.memorySummaryDay()).append(".\n").append(c.memorySummary()).append('\n');
         if(c.day()==0) s.append("No prior execution days exist yet.\n");
-        else s.append("Recent factual window before today's decision: simulation days ").append(Math.max(0,c.day()-RECENT_FACT_DAYS))
-                .append(" through ").append(c.day()-1).append("; read only supplied records. Older experience may persist in your memory.\n");
-        appendExperiences(s,recentFacts(c.history(),c.day(),false,RECENT_FACT_DAYS),"YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST (ACTUAL EXECUTED RESULTS)");
+        else s.append("The factual records below include the recent window and all available executions after the last summary, through simulation day ")
+                .append(c.day()-1).append(". Summary and records may overlap; count each dated execution only once.\n");
+        appendExperiences(s,decisionVisibleFacts(c),"YOUR MOST RECENT PERSONAL EXPERIENCES, OLDEST FIRST (ACTUAL EXECUTED RESULTS)");
+        MorningFactLedger.append(s, c.ledger(), c.day()-1);
         s.append(c.departureOptions().isEmpty() ? "Choose one of these routes for this trip; return routeId and one short reason only.\n"
                 : "Choose one listed departureSeconds and one listed routeId together; return those two fields and one short reason only.\n");
         return s.toString();
@@ -135,7 +145,9 @@ public final class MorningPromptRenderer {
         boolean forecastColumn = c.information()==null;
         if (!sourceColumn) s.append("Cost source: ").append(sources.getFirst()).append('\n');
         if (policyPresent && !policyColumn) s.append("Public policy (id,version) for this estimate table: ").append(Json.write(policies.getFirst())).append('\n');
-        if (sources.contains("own_historical_payments")) s.append("Current toll: unknown. Toll/total estimates use your latest own paid entry on each road in the same ")
+        if (sources.contains("personal_history_zero_prior")) s.append("Current toll: unknown. Estimates use your latest own observed charge in the same ")
+                .append(c.information().tollHistoryBinSeconds()).append("-second time-of-day bin; unobserved entries use an uncertain zero default.\n");
+        else if (sources.contains("own_historical_payments")) s.append("Current toll: unknown. Toll/total estimates use your latest own paid entry on each road in the same ")
                 .append(c.information().tollHistoryBinSeconds()).append("-second time-of-day bin; they may be outdated. Unknown does not mean free.\n");
         var columns = new ArrayList<>(List.of("departure_s","routeId","drive_s","arrival_s","estimatedToll","estimatedTotalCost"));
         if (sourceColumn) columns.add("costSource");
@@ -162,7 +174,7 @@ public final class MorningPromptRenderer {
             var groups = new LinkedHashMap<PricingDetail,List<Double>>();
             for (var d : choices) {
                 var o = d.routes().stream().filter(r -> r.routeId().equals(original.routeId())).findFirst().orElseThrow();
-                var k = o.pricingKnowledge(); boolean history = k!=null && k.source().equals("own_historical_payments");
+                var k = o.pricingKnowledge(); boolean history = k!=null && (k.source().equals("own_historical_payments") || k.source().equals("personal_history_zero_prior"));
                 var detail = new PricingDetail(history?k.knownTollSubtotal():null, history?k.baseMonetaryCost()+k.knownTollSubtotal():null,
                         history?k.unknownLinks():List.of(),history?k.observations():List.of(),k==null?List.of():k.announcement(),
                         k!=null && (original.pricingKnowledge()==null || k.baseMonetaryCost()!=original.pricingKnowledge().baseMonetaryCost())?k.baseMonetaryCost():null,
@@ -240,10 +252,30 @@ public final class MorningPromptRenderer {
         return facts.stream().filter(e -> e.day()>=start && e.day()<=end).toList();
     }
 
+    /** Recent facts plus every fact not yet covered by the last committed summary. */
+    static List<MorningMemory.Experience> decisionFacts(MorningMemory memory, int day, int historyDays, int reflectionInterval) {
+        if (day < 0 || historyDays < 1 || historyDays > RECENT_FACT_DAYS || reflectionInterval < 1)
+            throw new IllegalArgumentException("Invalid decision history bounds");
+        Integer summaryDay = memory.summaryDay();
+        if (summaryDay != null && summaryDay >= day) throw new IllegalArgumentException("Future summary in decision context");
+        long unsummarized = summaryDay == null ? (long) day : (long) day - summaryDay - 1;
+        int count = (int) Math.min(memory.size(), Math.max((long) historyDays, unsummarized));
+        if (count == 0) return List.of();
+        int start = summaryDay == null ? 0 : Math.min(Math.max(0, day-historyDays), summaryDay+1);
+        return memory.recent(count).stream().filter(e -> e.day() >= start && e.day() < day).toList();
+    }
+
+    static List<MorningMemory.Experience> decisionVisibleFacts(MorningRoutePolicy.Context c) {
+        int recentStart = Math.max(0, c.day() - RECENT_FACT_DAYS);
+        int start = c.memorySummaryDay() == null ? 0 : Math.min(recentStart, c.memorySummaryDay() + 1);
+        return c.history().stream().filter(e -> e.day() >= start && e.day() < c.day()).toList();
+    }
+
     static String decisionReviewFacts(MorningRoutePolicy.Context c) {
         String rendered=new MorningPromptRenderer().render(c);
         var facts=new StringBuilder(rendered.substring(0,rendered.indexOf("SIMULATION DAY ")));
-        appendExperiences(facts,recentFacts(c.history(),c.day(),false,RECENT_FACT_DAYS),"RECENT ACTUAL EXECUTION FACTS");
+        appendExperiences(facts,decisionVisibleFacts(c),"RECENT ACTUAL EXECUTION FACTS");
+        MorningFactLedger.append(facts, c.ledger(), c.day()-1);
         facts.append("Current manager announcement visible: ").append(c.information()!=null && c.information().currentAnnouncementVisible()).append('\n');
         return facts.toString();
     }
@@ -263,7 +295,7 @@ public final class MorningPromptRenderer {
 
     static void validatePayment(MorningRoutePolicy.TollObservation e, int beforeDay) {
         if (e.day() < 0 || e.day() >= beforeDay || e.linkId() == null || e.linkId().isBlank()
-                || !Double.isFinite(e.amount()) || e.amount() <= 0) throw new IllegalArgumentException("Invalid/future personal payment");
+                || !Double.isFinite(e.amount()) || e.amount() < 0) throw new IllegalArgumentException("Invalid/future personal toll observation");
         requireTime(e.time());
     }
 
@@ -283,6 +315,14 @@ public final class MorningPromptRenderer {
                     || information.tollHistoryBinSeconds() < 1 || information.personalPayments() == null)
                 throw new IllegalArgumentException("Invalid traveler information boundary");
             information.personalPayments().forEach(e -> validatePayment(e, c.day()));
+            if (!information.currentAnnouncementVisible() && information.currentNetworkTolls() != null && !information.currentNetworkTolls().isEmpty())
+                throw new IllegalArgumentException("Network toll announcement leaked to uninformed traveler");
+            if (information.currentNetworkTolls() != null) information.currentNetworkTolls().forEach(r -> {
+                if (r.linkId() == null || r.linkId().isBlank() || !Double.isFinite(r.amount()) || r.amount() < 0
+                        || !Double.isFinite(r.startSeconds()) || !Double.isFinite(r.endSeconds())
+                        || r.startSeconds() < 0 || r.endSeconds() <= r.startSeconds())
+                    throw new IllegalArgumentException("Invalid network toll announcement");
+            });
         }
         for (var o : c.candidates()) {
             if (o.routeId() == null || !o.routeId().matches("[A-Za-z0-9_-]{1,64}") || !ids.add(o.routeId())
@@ -332,7 +372,7 @@ public final class MorningPromptRenderer {
                 c.plannedDepartureSeconds(), c.latestArrivalSeconds(), c.personAttributes(), c.schedule(), List.copyOf(options), c.history(),
                 c.profile(), c.memorySummary(), c.memorySummaryDay(), c.information(), c.departureOptions().stream()
                 .map(d -> new MorningRoutePolicy.DepartureOption(d.departureSeconds(), options.stream().map(o -> d.routes().stream()
-                        .filter(r -> r.routeId().equals(o.routeId())).findFirst().orElseThrow()).toList())).toList());
+                        .filter(r -> r.routeId().equals(o.routeId())).findFirst().orElseThrow()).toList())).toList(), c.ledger());
     }
 
     private static void validateKnowledge(MorningRoutePolicy.Context c, MorningRoutePolicy.Option o) {
@@ -343,14 +383,14 @@ public final class MorningPromptRenderer {
             return;
         }
         var i = c.information();
-        if (k == null || !k.group().equals(i.group()) || !Set.of("current_announcement", "own_historical_payments", "bounded_personal_memory", "charging_disabled").contains(k.source())
+        if (k == null || !k.group().equals(i.group()) || !Set.of("current_announcement", "own_historical_payments", "personal_history_zero_prior", "bounded_personal_memory", "charging_disabled").contains(k.source())
                 || !Double.isFinite(k.baseMonetaryCost()) || !Double.isFinite(k.knownTollSubtotal()) || k.knownTollSubtotal() < 0
                 || k.unknownLinks() == null || k.observations() == null || k.announcement() == null
                 || !o.links().containsAll(k.unknownLinks()) || o.forecastObservedDay() != null || !o.estimateSource().equals("static_free_flow"))
             throw new IllegalArgumentException("Invalid visible cost/traffic knowledge");
         if (i.group().equals("uninformed") && (o.tollPolicyId() != null || o.tollPolicyVersion() != 0 || !k.announcement().isEmpty()
                 || k.source().equals("current_announcement"))) throw new IllegalArgumentException("Latest policy leaked to uninformed traveler");
-        if (k.source().equals("own_historical_payments") && i.currentAnnouncementVisible()
+        if ((k.source().equals("own_historical_payments") || k.source().equals("personal_history_zero_prior")) && i.currentAnnouncementVisible()
                 || k.source().equals("current_announcement") && !i.currentAnnouncementVisible())
             throw new IllegalArgumentException("Toll source disagrees with information group");
         for (var observation : k.observations()) {
@@ -358,7 +398,7 @@ public final class MorningPromptRenderer {
             if (!o.links().contains(observation.linkId()) || !i.personalPayments().contains(observation))
                 throw new IllegalArgumentException("Toll estimate lacks own actual-payment provenance");
         }
-        if (k.source().equals("own_historical_payments")) {
+        if (k.source().equals("own_historical_payments") || k.source().equals("personal_history_zero_prior")) {
             double observedSubtotal = k.observations().stream().mapToDouble(MorningRoutePolicy.TollObservation::amount).sum();
             var accountedLinks = new ArrayList<>(k.unknownLinks());
             k.observations().forEach(e -> accountedLinks.add(e.linkId()));
@@ -377,7 +417,7 @@ public final class MorningPromptRenderer {
                     || rule.startSeconds() < 0 || rule.endSeconds() <= rule.startSeconds())
                 throw new IllegalArgumentException("Invalid visible announcement");
         }
-        boolean complete = k.unknownLinks().isEmpty();
+        boolean complete = k.unknownLinks().isEmpty() || k.source().equals("personal_history_zero_prior");
         if (complete != (o.estimatedToll() != null) || complete != (o.estimatedMonetaryCost() != null))
             throw new IllegalArgumentException("Unknown tolls must remain null, not zero");
         if (complete && (o.estimatedToll() != k.knownTollSubtotal()

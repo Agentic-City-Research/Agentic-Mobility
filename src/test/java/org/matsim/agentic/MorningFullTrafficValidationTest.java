@@ -35,8 +35,7 @@ class MorningFullTrafficValidationTest {
             else {
                 List<String> ids = MorningJointTestSupport.routeIds(prompt);
                 String selected = ids.get(decisionCalls.getAndIncrement() % ids.size());
-                content = MorningJointTestSupport.withDeparture(
-                        Json.write(Map.of("routeId", selected, "reason", "Loopback validation fixture; not model evidence")), prompt);
+                content = Json.write(Map.of("routeId", selected, "reason", "Loopback validation fixture; not model evidence"));
             }
             byte[] response = Json.write(Map.of("choices", List.of(Map.of("message", Map.of("content",
                     content))),
@@ -57,7 +56,7 @@ class MorningFullTrafficValidationTest {
             assertEquals(0, new CommandLine(settings).execute(args.toArray(String[]::new)));
             var manifest = Json.readTree(Files.readString(output.resolve("morning/manifest.json")));
             assertEquals(84110, manifest.get("simulatedPopulation").asInt());
-            assertEquals(59221, manifest.get("cohortTrips").asInt());
+            assertEquals(58450, manifest.get("cohortTrips").asInt());
             assertFalse(manifest.get("diagnosticSubsample").asBoolean());
             assertEquals(3, manifest.get("controlledPersons").asInt());
             assertEquals(42, calls.get()); assertEquals(21, decisionCalls.get());
@@ -69,7 +68,7 @@ class MorningFullTrafficValidationTest {
             var contexts = readLines(output.resolve("morning/decision-contexts.jsonl.gz")).stream().map(Json::readTree).toList();
             assertEquals(21, contexts.size());
             for (var c : contexts) {
-                int day = c.get("day").asInt(); assertEquals(Math.min(day, 3), c.get("history").size());
+                int day = c.get("day").asInt(); assertEquals(Math.min(day, 5), c.get("history").size());
                 for (var e : c.get("history")) assertTrue(e.get("day").asInt() < day);
                 assertEquals(day, java.util.stream.StreamSupport.stream(c.get("candidates").spliterator(), false)
                         .mapToInt(o -> o.get("chosenCount").asInt()).sum());
@@ -81,7 +80,7 @@ class MorningFullTrafficValidationTest {
                     var row = Json.readTree(line); total++;
                     if (row.get("controlled").asBoolean()) counts.merge(row.get("tripId").asText(), 1, Integer::sum);
                 }
-                assertEquals(7L * 59221, total); assertEquals(3, counts.size());
+                assertEquals(7L * 58450, total); assertEquals(3, counts.size());
                 assertTrue(counts.values().stream().allMatch(n -> n == 7));
             }
             var use = readLines(output.resolve("morning/route-use.jsonl.gz")).stream().map(Json::readTree).toList();

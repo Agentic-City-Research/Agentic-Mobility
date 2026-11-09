@@ -4,8 +4,6 @@
 
 Commands run from the repository root unless stated otherwise. This guide contains the detailed experiment, deployment, output, and troubleshooting instructions.
 
-For paper results, use [Reported experiments](reported-experiments.md). The manuscript evaluates five configurations at simulation seed **268** over **100 days (log Days0–99)**, with population seed **6021** and a **20% sample of demand 100**. The commands below include smaller installation/integration examples; their seeds, population sizes, and request budgets are not historical reproduction settings. See the [configuration mapping](experiments-and-evaluation.md#manuscript-configuration-mapping), [data inventory](data/README.md), and [figure inventory](assets/README.md).
-
 **A research platform for LLM travelers and congestion-pricing managers in MATSim.**
 
 [![Java](https://img.shields.io/badge/Java-25-orange)](../pom.xml)
@@ -19,7 +17,7 @@ AgenticMobility connects language-model decisions to an executable transport sim
 
 The included Sioux Falls scenario retains full-day activity chains and native MATSim background traffic. Decisions, executed trips, policies, memories, and reproducibility records make it possible to compare intended actions with actual outcomes.
 
-The current `MorningExperiment` interface uses **Traveler v9**: continuous private summaries, three-day execution facts, strict bounded JSON output, and optional single-call semantic review. The manager reflects daily and revises all-day toll policies on scheduled update days. These mechanisms are recorded in manifest schema **23**; traveler and manager protocol versions are tracked separately.
+The current `MorningExperiment` interface uses continuous private summaries, five-day execution facts and reflections by default, strict bounded JSON output, and optional single-call semantic review with daily reflection. The manager reflects daily and revises all-day toll policies on scheduled update days. These mechanisms are recorded in manifest schema **23**; traveler and manager protocol versions are tracked separately.
 
 ## When to use AgenticMobility
 
@@ -44,15 +42,13 @@ The simulation separates daily observation and memory from periodic policy inter
 | Execute | Run full-day traffic and charge actual entries into priced car links. | MATSim QSim, [`MorningTollSystem`](../src/main/java/org/matsim/agentic/MorningTollSystem.java) |
 | Observe and reflect | Record personal experiences and public aggregates; update memories after the completed day. | [`MorningObservations`](../src/main/java/org/matsim/agentic/MorningObservations.java), [`MorningMemoryUpdater`](../src/main/java/org/matsim/agentic/MorningMemoryUpdater.java), [`MorningManagerMemory`](../src/main/java/org/matsim/agentic/MorningManagerMemory.java) |
 
-**Traveler actions.** Eligible target trips are selected from original plans, by default with a planned destination activity start before 09:00. Controlled trips have up to four frozen route candidates. The default departure grid spans 90 minutes before to 30 minutes after the original departure, in 15-minute steps, subject to activity and simulation boundaries. Profiles, schedules, visible prices, and personal history enter the prompt. Other trips retain native behavior in the main `hybrid` mode.
+**Traveler actions.** Eligible target trips are selected from original plans, by default with a planned destination activity start before 09:00. Controlled trips have up to four frozen route candidates. The default departure grid spans 60 minutes before to 30 minutes after the original departure, in 15-minute steps, subject to activity and simulation boundaries. Profiles, schedules, visible prices, and personal history enter the prompt. Other trips retain native behavior in the `hybrid` workflow.
 
-**Traveler memory and information.** LLM travelers replace their summaries after each day: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences cover three days and are provided separately. Each reflection receives the previous summary to retain selected older experiences and interpretations beyond that window. Informed travelers see relevant current announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
+**Traveler memory and information.** LLM travelers replace their summaries every five days by default: a 500 Unicode-character limit, with a prompt target of 240 characters. Recent factual experiences cover the preceding five days by default and are provided separately alongside unsummarized facts. Each reflection receives the previous summary to carry useful longer-term experience beyond that window. Informed travelers see current network toll announcements; uninformed travelers retain unknown current prices and use their own experiences. The default information split applies to controlled people; `--information-scope all` extends it to background people.
 
 **Manager actions.** The default `basic` manager returns a complete policy with at most 40 rules, one per existing directed car link. Each rule sets a finite nonnegative amount per entry throughout `[0, QSim endTime)`. The supplied public scenario ends at 30:00, so its all-day window is `[0,108000)`, including trips after midnight. Each traversal is charged separately. An accepted policy replaces the previous policy; an empty policy withdraws all tolls.
 
 **Two timescales.** The first 20 simulation days are free. Policy decisions occur on days **21, 51, 81, ...** by default. Manager memory updates **every completed day**, including the free period, targeting 400–600 English words with a 1,000-word hard limit. Reflection cannot change tolls. Failed or timed-out reflection retains old memory; the next input includes missed observations. Holding an identical price function does not restart its observation period. The optional `controlled` profile adds legacy pricing restrictions, daily safety withdrawal, and cooldown behavior.
-
-The policy days above are one-based simulation days, corresponding to log Days20, 50, and 80. A review can hold an empty policy. In the manuscript, positive charging begins on log Day20 for Manager and Day50 for Joint; Joint retains its Day50 prices at Day80. Semantic review is disabled in the reported runs, and the `controlled` manager is an additional configuration outside the five-condition demonstration.
 
 ## Installation
 
@@ -120,7 +116,7 @@ Run a small, two-day traffic simulation with no model calls:
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
   --config scenarios/SiouxFalls-public/config.xml \
   --mode hybrid --policy mnl --llm-agents 0 \
-  --demand 100 --sample-persons 100 --days 2 --population-seed 4711 --seed 4711 \
+  --demand 100 --sample-persons 100 --days 2 --seed 4711 \
   --output output/quickstart
 ```
 
@@ -130,7 +126,7 @@ Windows PowerShell:
 java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
   --config scenarios/SiouxFalls-public/config.xml `
   --mode hybrid --policy mnl --llm-agents 0 `
-  --demand 100 --sample-persons 100 --days 2 --population-seed 4711 --seed 4711 `
+  --demand 100 --sample-persons 100 --days 2 --seed 4711 `
   --output output/quickstart
 ```
 
@@ -138,7 +134,7 @@ java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 
 ## Experiments
 
-These integration examples share 10% population sampling, population seed 4711, and MATSim seed 4711. They select 8,411 people from the original-demand input. The paper instead uses demand 100 at 20% (16,822 people), population seed 6021, simulation seed 268, and 11,793 targets; use the [paper configuration table](experiments-and-evaluation.md#manuscript-configuration-mapping) when preparing a related study. Exact reruns additionally need the archived executable, candidates/profiles, prompts, final configuration, and model-service settings.
+These examples share 10% population sampling, a fixed population seed, and a fixed MATSim seed.
 
 ### Bash: common configuration
 
@@ -160,18 +156,6 @@ java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
 
 This mode needs no model service. With zero controlled travelers, `--policy mnl` does not replace native MATSim route choices.
 
-### Constrained MNL
-
-For a small offline integration check with the same target-control count as the traveler examples:
-
-```bash
-java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
-  --policy mnl-joint --llm-agents 3 \
-  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
-```
-
-The joint policy chooses target route/departure actions from fixed sets without traveler LLM calls. The paper's MNL condition controls all 11,793 eligible targets and uses uncalibrated homogeneous coefficients. The separate `--policy mnl` selects a route only and keeps the original planned departure. For parameter provenance, seeded choices, and unknown-toll handling, see [joint MNL](joint-mnl-baseline.md).
-
 ### Connect a model service
 
 Configure these variables in the same terminal before any LLM experiment:
@@ -190,7 +174,7 @@ Use the exact served model name and a reachable endpoint. The client sends reque
 java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
   --policy llm --llm-agents 3 --concurrency 3 \
   --thinking omit --response-format omit \
-  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --history-window 5 --max-output-tokens 1024 --reason-max-chars 120 \
   --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
   --max-requests 1000 \
   --output output/llm-travelers
@@ -217,7 +201,7 @@ The model controls the manager only. A 100-day run has 100 daily reflections and
 java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
   --policy llm --llm-agents 3 --concurrency 3 --manager --manager-profile basic \
   --thinking omit --response-format omit \
-  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --history-window 5 --max-output-tokens 1024 --reason-max-chars 120 \
   --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
   --manager-update-interval 30 --manager-max-output-tokens 8192 \
   --manager-memory-max-output-tokens 2048 --max-requests 2000 \
@@ -251,10 +235,6 @@ $Common = @('--config', 'scenarios/SiouxFalls-public/config.xml', '--mode', 'hyb
 # Native baseline
 java -Xmx8g -cp $Jar $App @Common --policy mnl --llm-agents 0 --output output/baseline
 
-# Small constrained-MNL integration check
-java -Xmx8g -cp $Jar $App @Common --policy mnl-joint --llm-agents 3 `
-  --mnl-parameters config/baselines/mnl-joint.example.json --output output/mnl-targets
-
 # Configure the existing model service before either LLM command
 $env:AGENTIC_API_KEY = 'YOUR_MODEL_API_KEY'
 $env:AGENTIC_MODEL = 'YOUR_SERVED_MODEL_NAME'
@@ -262,7 +242,7 @@ $env:AGENTIC_BASE_URL = 'http://127.0.0.1:8001/v1'
 
 # LLM travelers
 java -Xmx8g -cp $Jar $App @Common --policy llm --llm-agents 3 --concurrency 3 `
-  --thinking omit --response-format omit --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 `
+  --thinking omit --response-format omit --history-window 5 --max-output-tokens 1024 --reason-max-chars 120 `
   --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 `
   --max-requests 1000 --output output/llm-travelers
 
@@ -304,8 +284,8 @@ Use `QWEN_JOB_ID` if multiple running jobs share the same service name. The Qwen
 | Template variable | Current default / behavior |
 | --- | --- |
 | `MAX_OUTPUT_TOKENS`, `REASON_MAX_CHARS` | 1024 tokens / 120 Unicode characters for traveler choices |
-| `HISTORY_WINDOW` | 3 pre-choice factual days; reflection always uses three days including today |
-| `TRAVELER_SEMANTIC_REVIEW` | 0; set to 1 for one review of each valid traveler choice and memory |
+| `HISTORY_WINDOW` | Pre-choice factual days; default 5. Reflection uses its own configured period. |
+| `TRAVELER_SEMANTIC_REVIEW` | 0; set to 1 for one review of each valid traveler choice and memory, and set `TRAVELER_REFLECTION_INTERVAL=1` |
 | `SEMANTIC_REVIEW_MAX_OUTPUT_TOKENS` | 2048; increase the request budget when enabling reviews |
 | `ENABLE_MANAGER` | 0; set to 1 to enable daily manager reflection and scheduled policy decisions |
 | `MANAGER_MAX_OUTPUT_TOKENS`, `MANAGER_MEMORY_MAX_OUTPUT_TOKENS` | 8192 policy tokens / 2048 reflection tokens |
@@ -323,8 +303,6 @@ $$
 $$
 
 These factors apply to the original road network. For `--demand 100`, `k=0.1` selects 8,411 of 84,110 people; storage capacity is approximately 0.177828. `--demand 200` selects doubled-demand input before sampling.
-
-The manuscript uses `--demand 100 --sample-rate 0.2`: 16,822 people, flow factor 0.2, and storage factor approximately 0.299070. Demand 200 at 10% also yields 16,822 people but selects from a different population with different capacity factors, so it does not reproduce the manuscript scenario.
 
 `--population-seed` fixes sampling independently of `--seed`, which controls MATSim randomness. Keep input files, demand, sample rate, and population seed identical across comparison groups. Reuse candidates and profiles with `--candidate-file` and `--profile-file`. Model generation seeds are separate; recorded requests and responses are still needed to reproduce LLM experiments.
 
@@ -346,11 +324,11 @@ For `n` LLM-controlled target trips over `D` days, plan the following client cal
 
 | Enabled stage | Planned calls |
 | --- | --- |
-| Traveler choices and daily reflection | `2 × n × D` |
-| Optional traveler semantic review | An additional `2 × n × D` |
+| Traveler choices and five-day reflection | `n × (D + floor(D / 5))` |
+| Optional traveler semantic review | Requires daily reflection; approximately `2 × n × D` additional calls for reviews |
 | Manager daily reflection and policy | `D + P`, where `P` is the number of scheduled policy opportunities |
 
-With the default 20 free days and 30-day policy interval, `P=0` for `D<=20`, otherwise `P=1+floor((D-21)/30)`. For three controlled trips over 100 days, the base traveler count is 600; review raises it to 1,200. Enabling the manager adds 103, for a combined 1,303 before repairs.
+With the default 20 free days and 30-day policy interval, `P=0` for `D<=20`, otherwise `P=1+floor((D-21)/30)`. For three controlled trips over 100 days, default five-day reflections require 360 traveler calls. Daily reflection with semantic review requires approximately 1,200 traveler calls. The manager adds 103 calls, before repairs.
 
 `--max-requests` caps shared client dispatches including structural repair/task retries; HTTP-level retries are internal to the client. Preflight includes semantic review and both manager stages. Set a budget above the planned count and inspect dispatch counters separately from successful-response token usage in `api-usage.json`.
 
@@ -360,12 +338,12 @@ The traveler maintains one continuous summary alongside a bounded window of exac
 
 | Phase on day D | Input and result |
 | --- | --- |
-| Choose | Fixed personal facts, legal route/time candidates, previous private summary, and actual results from D-3 through D-1 by default |
+| Choose | Fixed personal facts, legal route/time candidates, previous private summary, and actual results from D-5 through D-1 by default, plus unsummarized facts |
 | Execute | Record actual route, departure/arrival, travel time, lateness, completion, and payments |
-| Reflect | Integrate the previous summary with actual results from D-2 through D, including today, to create the next summary |
+| Reflect | Every fifth day by default, integrate the previous summary with actual results from D-4 through D, including today |
 | Next day | Carry the accepted summary into both choice and reflection |
 
-Initial reflection starts with empty memory; later live reflections receive the preceding day's summary. Fewer facts are supplied on initial days. `--history-window` accepts 1..3 for choice; reflection uses three days including today. The summary carries useful older experience beyond that factual window, within its text limit. The complete execution archive remains separate and is not retrieved to restore forgotten personal knowledge.
+Initial reflection starts with empty memory; later reflections receive the prior scheduled summary. Fewer facts are supplied on initial days. `--history-window` accepts 1..5 for choice and defaults to the configured reflection interval. Default reflection uses five days including today; daily reflection uses one day. The summary carries useful older experience beyond that factual window, within its text limit. The complete execution archive remains separate.
 
 Decision reasons default to **120 Unicode characters**, including spaces and punctuation. Private memory targets **240 characters** and is capped at **500**. Both tasks default to **1024 output tokens**. The prompt specifies compact, complete JSON; local validation enforces text, field, and action constraints. Character and token limits measure different things. Explicit CLI settings override environment values; `AGENTIC_MAX_OUTPUT_TOKENS` and `AGENTIC_REASON_MAX_CHARS` can otherwise override the Morning defaults. `.env.example` documents the current traveler defaults; record effective settings for each experiment.
 
@@ -377,15 +355,13 @@ Semantic review is **disabled by default**. Enable it for an LLM-traveler run as
 java -Xmx8g -cp "$JAR" "$APP" "${COMMON[@]}" \
   --policy llm --llm-agents 3 --concurrency 3 \
   --thinking omit --response-format omit \
-  --history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+  --history-window 1 --max-output-tokens 1024 --reason-max-chars 120 \
   --memory-max-output-tokens 1024 --memory-max-chars 500 --repair-attempts 3 \
-  --traveler-semantic-review --semantic-review-max-output-tokens 2048 \
+  --traveler-reflection-interval 1 --traveler-semantic-review --semantic-review-max-output-tokens 2048 \
   --max-requests 2000 --output output/llm-reviewed
 ```
 
-PowerShell uses the same CLI switches; its convenience runner offers `-TravelerSemanticReview`. The Qwen template accepts `TRAVELER_SEMANTIC_REVIEW=1`.
-
-This reviewed example is an optional extension. Semantic review was disabled in the manuscript, whose structural/execution audit does not establish semantic correctness for all reasons or memories.
+PowerShell's convenience runner uses `-TravelerSemanticReview -TravelerReflectionInterval 1`. The Qwen template uses `TRAVELER_SEMANTIC_REVIEW=1 TRAVELER_REFLECTION_INTERVAL=1`.
 
 Each valid choice or memory can receive **at most one additional review call**, outside structural retries. The model checks clear factual contradictions against visible fixed facts and recent executed records, with previous subjective memory supplied separately. Claim/evidence quotes must occur in the original text and factual input. The selected route and numeric departure time are locked: review may revise only the reason or memory.
 
@@ -438,8 +414,6 @@ Report completion and failure counts alongside travel time and delay:
 - Cohort metrics include car and door-to-door travel times, completion, punctuality, P95/slowest-5% completed car times, route distance, and travel-time index.
 - The manager's objective uses full-day delay on completed full-link traversals. Aborted, unfinished, and partial traversals are separate; this scope differs from complete OD journeys.
 
-The manuscript uses fixed denominators of 16,822 people, 11,793 target trips, and 11,332 work targets for mean daily car time per person, target-trip time, and work lateness, respectively. Mean daily car time per person is `60 × total car person-hours / 16,822`. Route changes compare complete ordered link sequences; departure changes compare selected times. The rates average 99 adjacent-day transitions, with multi-route rates restricted to 9,013 targets. Native innovation stops at log Day90; existing-plan selection continues. See [measurement and interpretation](experiments-and-evaluation.md#manuscript-measurement-and-interpretation) for the remaining boundaries.
-
 Missing outcomes are not filled with zero travel time. Compare matched experimental groups and multiple simulation seeds. Changes relative to the initial free period describe observed differences; they do not alone establish causal pricing benefits.
 
 ### Manager input
@@ -484,7 +458,7 @@ This operating guide, the project README, and the Traveler v9 guide are in Engli
 | [Detailed operating guide](../docs/usage-guide.zh.md) | Windows/Linux setup, advanced options, output fields, and replay |
 | [Public scenario](../scenarios/SiouxFalls-public/README.md) | Population, cohort, route/time candidates, and measurement protocol |
 | [Current traveler and basic manager protocol](../scripts/manager_basic_joint.md) | Actions, information boundaries, and all-day pricing |
-| [Traveler v9 protocol](../docs/traveler-v9.md) | Continuous private memory, three-day facts, strict JSON, and optional semantic review |
+| [Traveler protocol](../docs/traveler-v9.md) | Continuous private memory, configurable recent facts, strict JSON, and optional semantic review |
 | [Daily manager memory](../scripts/manager_daily_memory.md) | Timing, context, validation, failures, and audit records |
 | [Controlled manager](../scripts/manager_v5.md) | Restrictions, safety withdrawal, and cooldown |
 | [Fixed toll policies](../scenarios/SiouxFalls-public/fixed-tolls.md) | File schema, activation, and time windows |

@@ -32,7 +32,7 @@ final class MorningTollSystem implements BasicEventHandler {
     private OutputWriter output;
     private MorningTravelerInformation information;
     private int day;
-    private long chargedEntries, duplicateEntries;
+    private long chargedEntries, duplicateEntries, observedEntries, zeroObservedEntries;
 
     MorningTollSystem(Network network, EventsManager events, BiConsumer<String, Receipt> feedback) {
         this.network = network; this.events = events; this.feedback = feedback;
@@ -47,7 +47,7 @@ final class MorningTollSystem implements BasicEventHandler {
 
     @Override public synchronized void reset(int iteration) {
         day = iteration; drivers.clear(); vehicles.clear(); entries.clear(); paid.clear();
-        chargedEntries = duplicateEntries = 0;
+        chargedEntries = duplicateEntries = observedEntries = zeroObservedEntries = 0;
     }
     @Override public synchronized void handleEvent(Event event) {
         if (event instanceof VehicleEntersTrafficEvent e) {
@@ -78,9 +78,28 @@ final class MorningTollSystem implements BasicEventHandler {
         if (entry.equals(entries.put(vehicle, entry))) { duplicateEntries++; return; }
         State active = state;
         double amount = active.policy().amountAt(linkId, time);
-        if (amount == 0) return;
         var receipt = new Receipt(linkId.toString(), time, amount, active.policyId(), active.version());
         if (information != null) information.observe(day, person.toString(), receipt);
+        // Audit only the population whose personal knowledge is actually updated.
+        // This stream is an internal execution ledger, never an input to traveler prompts.
+        Long observationSequence = null;
+        if (information != null && information.participates(person.toString())) {
+            observationSequence = ++observedEntries;
+            if (amount == 0) zeroObservedEntries++;
+            if (output != null) {
+                var observation = new LinkedHashMap<String,Object>();
+                observation.put("day",day); observation.put("observationSequence",observationSequence);
+                observation.put("personId",person.toString()); observation.put("vehicleId",vehicle.toString());
+                observation.put("linkId",linkId.toString()); observation.put("entrySeconds",time);
+                observation.put("amount",amount); observation.put("timeBinSeconds",information.binSeconds());
+                observation.put("timeBin",(long)Math.floor(time / information.binSeconds()));
+                observation.put("informationGroup",information.group(person.toString()));
+                observation.put("policyId",active.policyId()); observation.put("policyVersion",active.version());
+                observation.put("event","car_link_entry");
+                output.tollObservation(observation);
+            }
+        }
+        if (amount == 0) return;
         paid.merge(person.toString(), amount, Double::sum); chargedEntries++;
         if (feedback != null) feedback.accept(person.toString(), receipt);
         if (output != null) {
@@ -88,13 +107,15 @@ final class MorningTollSystem implements BasicEventHandler {
             row.put("day", day); row.put("personId", person.toString()); row.put("vehicleId", vehicle.toString());
             row.put("receipt", receipt); row.put("event", "car_link_entry");
             if (information != null) row.put("informationGroup", information.group(person.toString()));
+            if (observationSequence != null) row.put("observationSequence", observationSequence);
             output.appendLine("toll-payments.jsonl", row);
         }
         events.processEvent(new PersonMoneyEvent(time, person, -amount, PURPOSE, active.policyId(), ""));
     }
     synchronized Map<String, Object> summary() {
         return Map.of("totalPaid", paid.values().stream().mapToDouble(Double::doubleValue).sum(),
-                "chargedEntries", chargedEntries, "payingPersons", paid.size(), "duplicateEntriesIgnored", duplicateEntries);
+                "chargedEntries", chargedEntries, "payingPersons", paid.size(), "duplicateEntriesIgnored", duplicateEntries,
+                "personalObservationEntries", observedEntries, "zeroPersonalObservationEntries", zeroObservedEntries);
     }
     synchronized void writePersonalTotals() {
         if (output != null) paid.forEach((person, amount) -> output.appendLine("person-payments.jsonl",

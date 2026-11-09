@@ -81,7 +81,7 @@ class MorningSummaryTest {
         var profile = new Profile(Profile.Income.LOW, Profile.DecisionStyle.CONSERVATIVE, Profile.WorkTimeliness.MUST_ON_TIME);
         var c = new MorningMemoryUpdater.Context(7, "secret-person/0", "secret-person", "work", 32400.0,
                 Map.of("age", 35, "matsimScore", 999, "internalLink", "secret-link"), profile,
-                memory.summary(), memory.summaryDay(), memory.recent(MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT), List.of("c0", "c1"));
+                memory.summary(), memory.summaryDay(), memory.recent(3), List.of("c0", "c1"));
         String prompt = MorningMemoryUpdater.render(c);
         assertEquals(1, memory.recent().size(), "Choice window remains independently configurable");
         assertEquals(3, c.recentExperiences().size());
@@ -214,7 +214,7 @@ class MorningSummaryTest {
         };
         Path out = directory.resolve("closed-loop");
         assertEquals(0, new CommandLine(settings).execute("--policy", "llm", "--llm-agents", "3", "--demand", "100",
-                "--sample-persons", "40", "--days", "7", "--seed", "4711", "--concurrency", "2", "--max-requests", "100",
+                "--sample-persons", "40", "--days", "7", "--traveler-reflection-interval", "1", "--seed", "4711", "--concurrency", "2", "--max-requests", "100",
                 "--response-format", "json_schema", "--history-window", "2", "--trip-output-interval", "3", "--output", out.toString()));
         var updates = new HashMap<String, String>();
         for (String line : readLines(out.resolve("morning/memory-updates.jsonl.gz"))) {
@@ -243,8 +243,8 @@ class MorningSummaryTest {
             var row = Json.readTree(line); int day = row.get("day").asInt(); String trip = row.get("tripId").asText();
             assertFalse(row.has("routeUsage"));
             var recent = row.get("recentExperiences");
-            assertEquals(Math.min(day + 1, 3), recent.size());
-            assertEquals(Math.max(0, day - 2), recent.get(0).get("day").asInt());
+            assertEquals(1, recent.size());
+            assertEquals(day, recent.get(0).get("day").asInt());
             assertEquals(day, recent.get(recent.size() - 1).get("day").asInt());
             assertEquals(day == 0 ? "" : updates.get((day - 1) + "/" + trip), row.get("previousMemory").asText());
             assertTrue(row.get("availableRouteIds").size() > 0);
@@ -283,7 +283,7 @@ class MorningSummaryTest {
             assertEquals(7, choices, "Cumulative counts remain available for analysis, not model input");
         }
         var manifest = Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
-        assertEquals(3, manifest.get("memoryReflectionExperienceLimit").asInt());
+        assertEquals(1, manifest.get("memoryReflectionExperienceLimit").asInt());
         assertFalse(manifest.get("cumulativeRouteCountsSuppliedToLlm").asBoolean());
         assertEquals(6, manifest.get("memoryReflectionInputs").size());
         assertEquals(240, manifest.get("memoryTargetChars").asInt());
@@ -311,7 +311,7 @@ class MorningSummaryTest {
         };
         Path out = directory.resolve("failed-reflection");
         assertNotEquals(0, new CommandLine(settings).execute("--config",configFile.toString(),"--policy", "llm", "--llm-agents", "2", "--demand", "100",
-                "--days", "2", "--seed", "4711", "--concurrency", "1", "--repair-attempts", "1", "--output", out.toString()));
+                "--days", "2", "--traveler-reflection-interval", "1", "--seed", "4711", "--concurrency", "1", "--repair-attempts", "1", "--output", out.toString()));
         var status = Json.readTree(Files.readString(out.resolve("morning/status.json")));
         assertFalse(status.get("complete").asBoolean()); assertEquals(0, status.get("daysCompleted").asInt());
         assertFalse(Files.exists(out.resolve("morning/memory-updates.jsonl.gz")));
@@ -350,7 +350,7 @@ class MorningSummaryTest {
         };
         Path out = directory.resolve("llm-memory");
         assertEquals(0, new CommandLine(settings).execute("--policy", "llm", "--llm-agents", "1", "--demand", "100",
-                "--sample-persons", "40", "--days", "2", "--seed", "4711", "--memory-mode", "llm", "--output", out.toString()));
+                "--sample-persons", "40", "--days", "2", "--traveler-reflection-interval", "1", "--seed", "4711", "--memory-mode", "llm", "--output", out.toString()));
         assertEquals(2, calls.get()); assertEquals(2, reflections.get());
         assertEquals(2, readLines(out.resolve("morning/memory-updates.jsonl.gz")).size());
         var manifest = Json.readTree(Files.readString(out.resolve("morning/manifest.json")));

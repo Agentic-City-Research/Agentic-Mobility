@@ -23,12 +23,15 @@ import java.util.function.BiFunction;
 
 /** Public-scenario runner; native full-day replanning with an optional morning policy overlay. */
 @Command(name = "morning-experiment", mixinStandardHelpOptions = true,
-        description = "Native full-day MATSim with optional morning LLM choices; reference and frozen-route controls.")
+        description = "Full-day MATSim experiment with optional controlled travelers and congestion pricing.")
 public final class MorningExperiment implements Callable<Integer> {
     static final double STORAGE_CAPACITY_EXPONENT = 0.75;
     @Option(names = "--config", defaultValue = "scenarios/SiouxFalls-public/config.xml") Path configFile;
-    @Option(names = "--mode", defaultValue = "hybrid", description = "hybrid (main experiment) | reference | fixed-routes (auxiliary control)") String mode;
-    @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl-joint | mnl | shortest | mock; llm/mnl-joint require hybrid") String policyName;
+    @Option(names = "--mode", defaultValue = "hybrid", description = "Experiment mode: hybrid") String mode;
+    @Option(names = "--policy", defaultValue = "mnl", description = "Morning overlay: llm | mnl (joint route/departure) | shortest | mock") String policyName;
+    @Option(names = "--python-agent-url", description = "Opt-in Python agent service base URL; requires --policy llm and --mode hybrid") String pythonAgentUrl;
+    @Option(names = "--python-backend", description = "Required with --python-agent-url: baseline | v9 | concordia") String pythonBackend;
+    @Option(names = "--python-embedding", defaultValue = "semantic", description = "Concordia embedding: semantic | lexical (legacy diagnostic)") String pythonEmbedding = "semantic";
     @Option(names = "--llm-agents", defaultValue = "0", description = "Hybrid: 0 for native baseline, all or a person count for morning policy control") String llmAgents;
     @Option(names = "--manager", description = "Enable autonomous all-day per-link congestion pricing in hybrid after 20 free days") boolean managerEnabled;
     @Option(names = "--fixed-toll-policy", description = "JSON rules file for fixed congestion pricing in hybrid, without a manager; mutually exclusive with --manager") Path fixedTollPolicyFile;
@@ -46,6 +49,8 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names="--traveler-semantic-review",description="Optional one-shot model review of traveler reason/memory against visible facts; disabled by default") boolean travelerSemanticReview;
     @Option(names="--semantic-review-max-output-tokens",defaultValue="2048",description="Output limit of the optional one-shot traveler semantic review") int semanticReviewMaxOutputTokens=2048;
     @Mixin MorningModelOptions modelOptions = new MorningModelOptions();
+    @Mixin MorningManagerModelOptions managerModelOptions = new MorningManagerModelOptions();
+    private AgenticConfig managerLlmConfig;
     @Option(names = "--concurrency", defaultValue = "8") int concurrency;
     @Option(names = "--repair-attempts", defaultValue = "3") int repairAttempts;
     @Option(names = "--timeout-seconds") int timeoutSeconds = llmConfig.timeoutSeconds;
@@ -66,14 +71,21 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--population", description = "Explicit population file override") Path populationFile;
     @Option(names = "--cohort-selection", defaultValue = "planned-arrival", description = "planned-arrival (default) | planned-departure; fixed membership from original input plans") String cohortSelection = "planned-arrival";
     @Option(names = "--planned-arrival-before", defaultValue = "32400", description = "Exclusive original destination activity start cutoff, seconds (09:00); no departure-window restriction") double plannedArrivalBefore = 32400;
-    @Option(names = "--departure-before-seconds", defaultValue = "5400", description = "Earlier departure allowance relative to original input departure (90 minutes)") int departureBeforeSeconds = 5400;
+    @Option(names = "--departure-before-seconds", defaultValue = "3600", description = "Earlier departure allowance relative to original input departure (60 minutes)") int departureBeforeSeconds = 3600;
     @Option(names = "--departure-after-seconds", defaultValue = "1800", description = "Later departure allowance relative to original input departure (30 minutes)") int departureAfterSeconds = 1800;
     @Option(names = "--departure-step-seconds", defaultValue = "900", description = "Departure option spacing (15 minutes), anchored to original departure") int departureStepSeconds = 900;
     @Option(names = "--peak-start", defaultValue = "25200", description = "Original planned cohort departure start, seconds (07:00)") double peakStart;
     @Option(names = "--peak-end", defaultValue = "32400", description = "Exclusive cohort departure end, seconds (09:00)") double peakEnd;
     @Option(names = "--analysis-start", defaultValue = "23400", description = "Network observation start, seconds (06:30)") double analysisStart;
     @Option(names = "--analysis-end", defaultValue = "39600", description = "Network observation end, seconds (11:00)") double analysisEnd;
-    @Option(names = {"--history-days", "--history-window"}, defaultValue = "3", description = "1..3 pre-choice factual days; reflection uses three days including today; continuous summary and full archive retained") int historyDays;
+    int historyDays = 5;
+    private boolean historyDaysExplicit;
+    @Option(names = {"--history-days", "--history-window"}, description = "1..5 pre-choice factual days; default follows traveler reflection interval")
+    void setHistoryDays(int days) { historyDays = days; historyDaysExplicit = true; }
+    @Option(names = "--traveler-memory-variant", defaultValue = "original", description = "original, dedup-prompt, or ledger") String travelerMemoryVariant = "original";
+    @Option(names = "--traveler-reflection-interval", defaultValue = "5", description = "Traveler reflection interval: 1 or 5 simulation days") int travelerReflectionInterval = 5;
+    @Option(names = "--parallel-role-reflection", defaultValue = "true", negatable = true, description = "Run manager and traveler reflections concurrently after public observations are fixed") boolean parallelRoleReflection = true;
+    @Option(names = "--v2", hidden = true, description = "Compatibility alias; standard protocol is already the default") boolean legacyV2Alias;
     @Option(names = "--memory-mode", defaultValue = "llm", description = "Only llm is supported: post-QSim self-written summary") String memoryMode = "llm";
     @Option(names = "--memory-max-chars", defaultValue = "500", description = "Hard summary limit, 1..500 Unicode characters; prompt target 240") int memoryMaxChars = MorningMemoryUpdater.MAX_CHARACTERS;
     @Option(names = "--memory-max-output-tokens", defaultValue = "1024", description = "Reflection response limit; choice uses --max-output-tokens") int memoryMaxOutputTokens = 1024;
@@ -90,9 +102,8 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--candidate-distance-slack-meters", defaultValue = "2000", description = "Allow this extra distance even when the ratio is exceeded; 0 makes the ratio strict") double candidateDistanceSlackMeters;
     @Option(names = "--candidate-max-overlap", defaultValue = "0.85", description = "Max shared directed-link length / shorter route length between any two selected routes; 1 disables") double candidateMaxOverlap;
     @Option(names = "--candidate-file", description = "Reuse candidates.jsonl.gz or legacy candidates.jsonl; missing ODs fail rather than regenerate") Path candidateFile;
-    @Option(names = "--logit-beta", defaultValue = "0.3", description = "Sensitivity per minute, research baseline parameter") double beta;
-    @Option(names = "--mnl-parameters", description = "Required provenance/unit-checked JSON for --policy mnl-joint; no implicit coefficients") Path mnlParametersFile;
-    @Option(names = "--mnl-choice-seed", description = "Independent joint MNL seed; defaults to simulation seed") Long mnlChoiceSeed;
+    @Option(names = "--mnl-parameters", description = "Unit/source-checked joint MNL parameters; defaults to config/baselines/mnl-joint.example.json") Path mnlParametersFile = Path.of("config/baselines/mnl-joint.example.json");
+    @Option(names = "--mnl-choice-seed", description = "Independent MNL choice seed; defaults to simulation seed") Long mnlChoiceSeed;
     MorningMnlParameters mnlParameters;
     @Option(names = "--context-samples", defaultValue = "20", description = "Number of LLM-ready contexts logged per day; 0 disables") int contextSamples;
     @Option(names = "--trip-output-interval", defaultValue = "1") int tripOutputInterval;
@@ -104,20 +115,24 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--sample-rate", description = "Fixed population sample k in (0,1]; absolute QSim factors: flow=k, storage=k^0.75, relative to original network capacities") Double sampleRate;
     @Option(names = "--validate-only", description = "Validate inputs and export cohort/candidates, no QSim") boolean validateOnly;
 
-    boolean fixed() { return mode.equals("fixed-routes"); }
     boolean hybrid() { return mode.equals("hybrid"); }
-    boolean overlaysChoices() { return fixed() || hybrid(); }
-    boolean fixesTimes() { return fixed() || hybrid() && !nativeTimeMutation; }
+    boolean fixesTimes() { return !nativeTimeMutation; }
     boolean reflects() { return policyName.equals("llm"); }
-    boolean jointMnl() { return policyName.equals("mnl-joint"); }
-    boolean jointTravelerContext() { return policyName.equals("llm") || jointMnl(); }
+    boolean jointTravelerContext() { return policyName.equals("llm") || policyName.equals("mnl"); }
     boolean fixedTollsEnabled() { return fixedTollPolicyFile != null; }
     boolean pricingEnabled() { return managerEnabled || fixedTollsEnabled(); }
+    AgenticConfig managerModelConfig(int tokens) {
+        if (managerLlmConfig == null) managerLlmConfig = managerModelOptions.resolve(llmConfig);
+        return managerLlmConfig.withOutputLimit(tokens);
+    }
     String pricingMode() { return managerEnabled ? "manager" : fixedTollsEnabled() ? "fixed" : "none"; }
     public static void main(String[] args) { System.exit(new CommandLine(new MorningExperiment()).execute(args)); }
 
     @Override public Integer call() throws Exception {
         validateOptions();
+        llmConfig.concurrency = concurrency; llmConfig.repairAttempts = repairAttempts;
+        llmConfig.timeoutSeconds = timeoutSeconds; llmConfig.llmStallSeconds = stallSeconds; llmConfig.maxRequests = maxRequests;
+        if (managerEnabled) managerLlmConfig = managerModelOptions.resolve(llmConfig);
         Config config = ConfigUtils.loadConfig(configFile.toAbsolutePath().toString());
         if (seed != null) config.global().setRandomSeed(seed);
         long actualSeed = config.global().getRandomSeed();
@@ -148,10 +163,6 @@ public final class MorningExperiment implements Callable<Integer> {
         int fullPopulation = applySampling(scenario, actualSeed);
         // Fail before route-pool preparation, including validate-only runs.
         config.checkConsistency();
-        if (fixed()) for (var person : scenario.getPopulation().getPersons().values()) {
-            var selected = person.getSelectedPlan();
-            person.getPlans().removeIf(plan -> plan != selected);
-        }
         MatsimRandom.reset(actualSeed);
         System.out.println(candidateFile == null ? "Preparing at most four fixed routes per morning OD using BFS-LE + MATSim Dijkstra ..."
                 : "Validating and reusing fixed per-OD candidate pools from " + candidateFile);
@@ -160,34 +171,32 @@ public final class MorningExperiment implements Callable<Integer> {
                 cohortSelection, plannedArrivalBefore);
         if (cohort.members.isEmpty()) throw new IllegalArgumentException("No car trips match " + cohortSelection
                 + " in [" + cohort.windowStart + "," + cohort.windowEnd + "); planned-arrival requires an original destination activity start time");
-        int controlled = fixed() || hybrid() && llmAgents.equalsIgnoreCase("all") ? cohort.persons.size()
-                : hybrid() ? Integer.parseInt(llmAgents) : 0;
+        int controlled = llmAgents.equalsIgnoreCase("all") ? cohort.persons.size() : Integer.parseInt(llmAgents);
         cohort.selectControlledPeople(controlled, populationSeed);
-        if (jointMnl() && cohort.controlledPersons.isEmpty()) throw new IllegalArgumentException("mnl-joint needs at least one controlled person");
         cohort.configureDepartureOptions(this, config.qsim().getEndTime().seconds());
         var informationPeople = informationScope.equals("all")
                 ? scenario.getPopulation().getPersons().keySet().stream().map(Object::toString).toList()
                 : cohort.controlledPersons;
         cohort.configureInformation(informationPeople, informedShare,
                 informationSeed == null ? populationSeed : informationSeed, tollHistoryBinSeconds);
-        if (jointMnl() && pricingEnabled() && mnlParameters.unknownTollMode.equals("reject")
-                && cohort.controlledPersons.stream().anyMatch(p -> !cohort.information.informed(p)))
-            throw new IllegalArgumentException("mnl-joint with unknownTollMode=reject requires no pricing or all controlled travelers informed; configure an explicit personal-with-prior assumption otherwise");
         cohort.information.beginDay(config.controller().getFirstIteration());
         cohort.assignProfiles(personalProfiles, profileSeed == null ? populationSeed : profileSeed,
                 profileFile == null ? null : MorningProfiles.read(profileFile));
+        long totalDays = config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L;
         long minimumCalls = policyName.equals("llm") ? cohort.members.values().stream().filter(m -> m.controlled).count()
-                * (config.controller().getLastIteration() - config.controller().getFirstIteration() + 1L) * 2L : 0;
+                * (totalDays + totalDays / travelerReflectionInterval) : 0;
         if(travelerSemanticReview) minimumCalls*=2;
+        long minimumTravelerCalls = minimumCalls;
         minimumCalls += managerEnabled ? MorningManager.minimumCalls(config.controller().getFirstIteration(), config.controller().getLastIteration(), managerUpdateInterval) : 0;
         minimumCalls += managerEnabled ? MorningManager.minimumMemoryCalls(config.controller().getFirstIteration(), config.controller().getLastIteration()) : 0;
         if (!validateOnly && minimumCalls > 0) {
-            if (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()) throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler/manager calls; --manager needs daily reflection calls from the first day");
-            if (maxRequests > 0 && minimumCalls > maxRequests) throw new IllegalArgumentException("Minimum LLM calls " + minimumCalls
+            if (minimumTravelerCalls > 0 && pythonAgentUrl == null && (llmConfig.apiKey == null || llmConfig.apiKey.isBlank()))
+                throw new IllegalArgumentException("Set AGENTIC_API_KEY for live LLM traveler calls");
+            if (managerEnabled && (managerLlmConfig.apiKey == null || managerLlmConfig.apiKey.isBlank()))
+                throw new IllegalArgumentException("Set AGENTIC_MANAGER_API_KEY for live manager policy/daily-memory calls; AGENTIC_API_KEY is inherited only when sharing the traveler endpoint");
+            if (pythonAgentUrl == null && maxRequests > 0 && minimumCalls > maxRequests) throw new IllegalArgumentException("Minimum LLM calls " + minimumCalls
                     + " exceed --max-requests " + maxRequests + "; explicitly choose a sufficient request budget");
         }
-        llmConfig.concurrency = concurrency; llmConfig.repairAttempts = repairAttempts;
-        llmConfig.timeoutSeconds = timeoutSeconds; llmConfig.llmStallSeconds = stallSeconds; llmConfig.maxRequests = maxRequests;
         parameterRunName = MorningExperimentOutputs.parameterName(this, config, controlled);
         outputReservation = MorningExperimentOutputs.reserve(outputDirectory != null ? outputDirectory
                 : MorningExperimentOutputs.projectOutputRoot(configFile).resolve(parameterRunName));
@@ -203,7 +212,7 @@ public final class MorningExperiment implements Callable<Integer> {
         if (validateOnly) {
             try (var writer = new OutputWriter(outputPath.resolve("morning"), true)) {
                 MorningLoop.writePreparation(writer, cohort, manifest);
-                if (jointMnl()) writer.writeDoc("baseline-parameters.json", mnlParameters.report(mnlChoiceSeed == null ? actualSeed : mnlChoiceSeed, historyDays));
+                if (mnlParameters != null) writer.writeDoc("baseline-parameters.json", mnlParameters.report(mnlChoiceSeed == null ? actualSeed : mnlChoiceSeed, historyDays));
                 if (fixedTollsEnabled()) writer.writeDoc("fixed-toll-policy.json", fixedTollPolicy.inputJson());
                 if (managerEnabled) {
                     var environment=MorningManagerEnvironment.from(scenario,this,manifest);
@@ -211,7 +220,7 @@ public final class MorningExperiment implements Callable<Integer> {
                     publicEnvironment.put("pricingControls",managerControls.context(environment,config.qsim().getEndTime().seconds()));writer.writeDoc("manager-public-environment.json",publicEnvironment);
                 }
                 new ConfigWriter(config).write(outputPath.resolve("effective-config.xml").toString());
-                writer.status(Map.of("validated", true, "simulationRun", false, "apiCalls", 0));
+                writer.sealAndVerify(Map.of("validated", true, "simulationRun", false, "apiCalls", 0), Map.of());
             }
             return 0;
         }
@@ -221,7 +230,9 @@ public final class MorningExperiment implements Callable<Integer> {
         Controler controller = new Controler(scenario);
         controller.getEvents().addHandler(observations);
         controller.getEvents().addHandler(times);
-        MorningTollSystem tolls = pricingEnabled() ? new MorningTollSystem(scenario.getNetwork(), controller.getEvents(), observations::recordToll) : null;
+        // Traveler-only and managed runs share the same no-toll information interface before intervention.
+        MorningTollSystem tolls = pricingEnabled() || jointTravelerContext() && !cohort.controlledPersons.isEmpty()
+                ? new MorningTollSystem(scenario.getNetwork(), controller.getEvents(), observations::recordToll) : null;
         // PrepareForSim routes the first iteration before IterationStartsListener.
         // With no warmup, the fixed price must already be visible to that router.
         if (fixedTollsEnabled() && fixedTollFreeDays == 0) tolls.setPolicy(fixedTollPolicy.policy(), 1);
@@ -234,7 +245,7 @@ public final class MorningExperiment implements Callable<Integer> {
             });
         }
         var loop = new MorningLoop(scenario, this, cohort, policyOverride != null ? policyOverride
-                : jointTravelerContext() ? null : MorningRoutePolicy.baseline(policyName, actualSeed, beta), observations, times, manifest, tolls);
+                : jointTravelerContext() ? null : MorningRoutePolicy.baseline(policyName), observations, times, manifest, tolls);
         controller.addControlerListener(loop);
         try { controller.run(); }
         finally { loop.close(); OutputDirectoryLogging.closeOutputDirLogging(); }
@@ -273,23 +284,22 @@ public final class MorningExperiment implements Callable<Integer> {
     }
 
     private void validateOptions() {
+        if (!historyDaysExplicit) historyDays = travelerReflectionInterval;
         modelOptions.apply(llmConfig);
         if (!Set.of("original", "reverse", "shuffle").contains(candidateOrder)) throw new IllegalArgumentException("Invalid --candidate-order");
-        if (!mode.equals("reference") && !fixed() && !hybrid()) throw new IllegalArgumentException("--mode must be hybrid, reference or fixed-routes");
-        if (!Set.of("llm", "mnl-joint", "mnl", "shortest", "mock").contains(policyName)) throw new IllegalArgumentException("Unknown --policy");
-        if (jointMnl()) {
-            if (!hybrid() || llmAgents.equals("0")) throw new IllegalArgumentException("--policy mnl-joint requires --mode hybrid and a positive --llm-agents count or all (controlled people, not model calls)");
-            if (mnlParametersFile == null) throw new IllegalArgumentException("--policy mnl-joint requires explicit --mnl-parameters");
-            mnlParameters = MorningMnlParameters.load(mnlParametersFile);
-        } else if (mnlParametersFile != null || mnlChoiceSeed != null) {
-            throw new IllegalArgumentException("--mnl-parameters and --mnl-choice-seed apply only to --policy mnl-joint");
-        }
+        if (!hybrid()) throw new IllegalArgumentException("--mode must be hybrid");
+        if (!Set.of("llm", "mnl", "shortest", "mock").contains(policyName)) throw new IllegalArgumentException("Unknown --policy");
+        if (pythonAgentUrl != null && (!policyName.equals("llm") || managerEnabled || travelerSemanticReview))
+            throw new IllegalArgumentException("Python traveler requires hybrid llm mode without manager or Java semantic review");
+        if ((pythonAgentUrl == null) != (pythonBackend == null) || pythonBackend != null && !Set.of("baseline", "v9", "concordia").contains(pythonBackend))
+            throw new IllegalArgumentException("Specify --python-agent-url and --python-backend baseline|v9|concordia together");
+        if (!Set.of("semantic", "lexical").contains(pythonEmbedding)) throw new IllegalArgumentException("Invalid --python-embedding");
         if (!llmAgents.equalsIgnoreCase("all") && !llmAgents.matches("[0-9]+")) throw new IllegalArgumentException("--llm-agents must be 0, all or a nonnegative person count");
         if (!llmAgents.equalsIgnoreCase("all")) Integer.parseInt(llmAgents);
-        if (!hybrid() && (!llmAgents.equals("0") || policyName.equals("llm"))) throw new IllegalArgumentException("--llm-agents and --policy llm require --mode hybrid");
-        if (managerEnabled && !hybrid()) throw new IllegalArgumentException("--manager requires --mode hybrid");
+        if (policyName.equals("mnl") && (llmAgents.equalsIgnoreCase("all") || Integer.parseInt(llmAgents) > 0))
+            mnlParameters = MorningMnlParameters.load(mnlParametersFile);
+        else if (mnlChoiceSeed != null) throw new IllegalArgumentException("--mnl-choice-seed requires controlled MNL travelers");
         if (managerEnabled && fixedTollsEnabled()) throw new IllegalArgumentException("--manager and --fixed-toll-policy are mutually exclusive");
-        if (fixedTollsEnabled() && !hybrid()) throw new IllegalArgumentException("--fixed-toll-policy requires --mode hybrid");
         if (fixedTollFreeDays < 0) throw new IllegalArgumentException("--fixed-toll-free-days must be nonnegative");
         if (managerMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager output limit");
         if (managerMemoryMaxOutputTokens < 1) throw new IllegalArgumentException("Invalid manager memory output limit");
@@ -306,6 +316,11 @@ public final class MorningExperiment implements Callable<Integer> {
             throw new IllegalArgumentException("Invalid traveler information scope/share/history-bin settings");
         if (concurrency < 1 || repairAttempts < 1 || timeoutSeconds < 1 || stallSeconds < 1 || maxRequests < 0)
             throw new IllegalArgumentException("Invalid LLM concurrency, repair, timeout or request budget");
+        if (travelerReflectionInterval != 1 && travelerReflectionInterval != 5) throw new IllegalArgumentException("Traveler reflection interval must be 1 or 5");
+        if (travelerReflectionInterval != 1 && policyName.equals("llm") && (pythonAgentUrl != null || travelerSemanticReview)) throw new IllegalArgumentException("Five-day reflection requires Java LLM traveler without semantic review");
+        if (!Set.of("original", "dedup-prompt", "ledger").contains(travelerMemoryVariant)) throw new IllegalArgumentException("Invalid traveler memory variant");
+        if (!travelerMemoryVariant.equals("original") && (pythonAgentUrl != null || !policyName.equals("llm"))) throw new IllegalArgumentException("Memory variants require Java LLM traveler");
+        if (!travelerMemoryVariant.equals("original") && travelerSemanticReview) throw new IllegalArgumentException("Memory variants currently require semantic review disabled");
         if (!"llm".equals(memoryMode)) throw new IllegalArgumentException("--memory-mode only supports llm");
         if (memoryMaxChars < 1 || memoryMaxOutputTokens < 1)
             throw new IllegalArgumentException("Invalid self-written memory settings");
@@ -324,36 +339,28 @@ public final class MorningExperiment implements Callable<Integer> {
                 || !Double.isFinite(plannedArrivalBefore) || plannedArrivalBefore <= 0)
             throw new IllegalArgumentException("Invalid cohort selection or planned arrival cutoff");
         if (days != null && days < 1 || samplePersons < 0 || contextSamples < 0 || tripOutputInterval < 1
-                || historyDays < 1 || historyDays > MorningPromptRenderer.RECENT_FACT_DAYS || !(beta >= 0 && Double.isFinite(beta)))
+                || historyDays < 1 || historyDays > MorningPromptRenderer.RECENT_FACT_DAYS)
             throw new IllegalArgumentException("Invalid experiment parameter");
-        if (fixed() && innovationStopDay != null) throw new IllegalArgumentException("No innovation strategy exists in fixed-routes mode");
         candidateSettings();
     }
 
     void configureReplanning(Config config) {
-        if (fixed()) {
-            config.replanning().clearStrategySettings();
+        var nativeStrategies = config.replanning().getStrategySettings().stream()
+                .filter(s -> nativeTimeMutation || !s.getStrategyName().contains("TimeAllocationMutator")).toList();
+        if (nativeStrategies.stream().anyMatch(s -> !Set.of("ReRoute", "ChangeExpBeta", "TimeAllocationMutator").contains(s.getStrategyName())
+                || s.getSubpopulation() != null))
+            throw new IllegalArgumentException("Hybrid supports default-population ReRoute, ChangeExpBeta and TimeAllocationMutator only");
+        if (nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("ReRoute") && s.getWeight() > 0)
+                || nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("ChangeExpBeta")))
+            throw new IllegalArgumentException("Hybrid requires native ReRoute and ChangeExpBeta strategies");
+        if (config.replanning().getMaxAgentPlanMemorySize() == 1)
+            throw new IllegalArgumentException("Hybrid needs multiple native plans, not maxAgentPlanMemorySize=1");
+        config.replanning().clearStrategySettings();
+        nativeStrategies.forEach(config.replanning()::addStrategySettings);
+        if (nativeTimeMutation && nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("TimeAllocationMutator"))) {
             config.replanning().addStrategySettings(new ReplanningConfigGroup.StrategySettings()
-                    .setStrategyName("KeepLastSelected").setWeight(1));
-            config.replanning().setMaxAgentPlanMemorySize(1);
-        } else if (hybrid()) {
-            var nativeStrategies = config.replanning().getStrategySettings().stream()
-                    .filter(s -> nativeTimeMutation || !s.getStrategyName().contains("TimeAllocationMutator")).toList();
-            if (nativeStrategies.stream().anyMatch(s -> !Set.of("ReRoute", "ChangeExpBeta", "TimeAllocationMutator").contains(s.getStrategyName())
-                    || s.getSubpopulation() != null))
-                throw new IllegalArgumentException("Hybrid supports default-population ReRoute, ChangeExpBeta and TimeAllocationMutator only");
-            if (nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("ReRoute") && s.getWeight() > 0)
-                    || nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("ChangeExpBeta")))
-                throw new IllegalArgumentException("Hybrid requires native ReRoute and ChangeExpBeta strategies");
-            if (config.replanning().getMaxAgentPlanMemorySize() == 1)
-                throw new IllegalArgumentException("Hybrid needs multiple native plans, not maxAgentPlanMemorySize=1");
-            config.replanning().clearStrategySettings();
-            nativeStrategies.forEach(config.replanning()::addStrategySettings);
-            if (nativeTimeMutation && nativeStrategies.stream().noneMatch(s -> s.getStrategyName().equals("TimeAllocationMutator"))) {
-                config.replanning().addStrategySettings(new ReplanningConfigGroup.StrategySettings()
-                        .setStrategyName("TimeAllocationMutator").setWeight(.1)
-                        .setDisableAfter(innovationStopDay == null ? 2900 : innovationStopDay));
-            }
+                    .setStrategyName("TimeAllocationMutator").setWeight(.1)
+                    .setDisableAfter(innovationStopDay == null ? 2900 : innovationStopDay));
         }
     }
 
@@ -404,8 +411,11 @@ public final class MorningExperiment implements Callable<Integer> {
             pricing.put("policyLifecycle", "Load and validate once before simulation; changing the source file during a run has no effect");
         }
         result.put("pricing", pricing);
-        if (managerEnabled) result.put("managerSettings", llmConfig.withOutputLimit(managerMaxOutputTokens).publicModelSettings());
-        if (managerEnabled) result.put("managerMemorySettings", llmConfig.withOutputLimit(managerMemoryMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerSettings", managerModelConfig(managerMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerMemorySettings", managerModelConfig(managerMemoryMaxOutputTokens).publicModelSettings());
+        if (managerEnabled) result.put("managerServiceRouting", Map.of("version", "morning-role-models-v1",
+                "settingsSource", managerModelOptions.hasOverrides() ? "manager-overrides" : "traveler-defaults",
+                "separateEndpoint", managerModelOptions.separateEndpoint(llmConfig), "policyAndMemoryShareService", true));
         if (managerEnabled) {
             var managerContext = new LinkedHashMap<String, Object>(Map.of("templateVersion", MorningManager.VERSION,
                     "environmentVersion", MorningManagerEnvironment.VERSION, "feedbackVersion", MorningManagerFeedback.VERSION,
@@ -451,20 +461,15 @@ public final class MorningExperiment implements Callable<Integer> {
                 "uninformedPersons", cohort.information.assignments().values().stream().filter(v -> !v).count(),
                 "assignment", "Fixed seeded person-level split; rounded informed count, all trips of one person share visibility",
                 "networkTrafficVisible", false, "tollHistoryBinSeconds", tollHistoryBinSeconds,
-                "historicalToll", "LLM: recent factual experiences plus bounded 500-character summary only; no separate persistent exact-payment retrieval. Native assigned routing retains own link/bin observations. Unknown current tolls remain null, never assumed free"));
+                "historicalToll", "Uninformed LLM: latest own actual link/time-bin observations, including zero, with zero as an explicitly uncertain prior for unobserved entries. Informed LLM: current network policy; unspecified links/windows have zero toll."));
         result.put("nativeOnlyPersons", scenario.getPopulation().getPersons().size() - cohort.controlledPersons.size());
         result.put("nativeOtherTripsForControlledPersons", hybrid());
         result.put("controlledTrips", cohort.members.values().stream().filter(m -> m.controlled).count());
         result.put("choicePolicy", cohort.controlledPersons.isEmpty() ? "native MATSim strategies" : policyName);
         result.put("controlSelection", "Fixed seeded subset of original schedule-selected cohort persons; only their qualifying cohort trips controlled; other trips retain native routing");
-        result.put("executionOrder", overlaysChoices()
-                ? "Iteration starts: scheduled manager update or one-time fixed toll activation -> native replanning -> "
+        result.put("executionOrder", "Iteration starts: scheduled manager update or one-time fixed toll activation -> native replanning -> "
                 + (fixesTimes() ? "restore original activity ends" : "retain native activity-time choices")
-                + " and apply controlled choices -> native plans dump -> QSim and payments -> factual results and policy-linked observations"
-                + (reflects() && !cohort.controlledPersons.isEmpty() ? " -> personal memory reflection"
-                   : jointMnl() ? " -> retain recent personal facts for the next baseline decision" : "")
-                + ". Automatic strategy intervention only in explicit controlled manager profile."
-                : "Native selection/replanning -> native plans dump -> observation preparation -> QSim; no route overlay");
+                + " and apply controlled joint time/route choices -> native plans dump -> QSim and payments -> factual results and policy-linked observations -> personal memory reflection. Automatic strategy intervention only in explicit controlled manager profile.");
         result.put("seed", config.global().getRandomSeed());
         result.put("selectionSeeds", Map.of("population", populationSeed, "controlledRoster", populationSeed,
                 "profiles", profileSeed == null ? populationSeed : profileSeed,
@@ -521,13 +526,17 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("routingRandomness", config.routing().getRoutingRandomness()); // Native replanning only, not BFS-LE.
         if (candidateFile != null) result.put("candidateFileHash", inputHash(candidateFile.toAbsolutePath()));
         result.put("forecastModel", "Identical static free-flow route time/distance for both information groups on every day; no network historical/live traffic supplied; personal actual experiences remain visible");
-        result.put("personalMemory", "Complete chronological facts and cumulative counts retained for analysis only; LLM prompts use self-written memory and recent experiences, not cumulative route counts; no smoothing or habit weight");
+        result.put("personalMemory", travelerMemoryVariant.equals("ledger") ? "LLM sees private factual ledger, recent facts, and self-written memory; own link/bin toll observations are separate" : "LLM prompts use self-written memory, recent experiences, and own latest link/bin toll observations, not cumulative route counts; no smoothing or habit weight");
+        result.put("travelerMemoryVariant", travelerMemoryVariant);
+        result.put("travelerReflectionInterval", travelerReflectionInterval);
+        result.put("parallelRoleReflection", parallelRoleReflection);
+        result.put("experimentProtocolVersion", "standard");
         result.put("memoryMode", memoryMode); result.put("selfWrittenMemoryEnabled", reflects() && !cohort.controlledPersons.isEmpty());
         result.put("memoryMaxChars", memoryMaxChars); result.put("memoryTemplate", MorningMemoryUpdater.VERSION);
         result.put("memoryTargetChars", MorningMemoryUpdater.TARGET_CHARACTERS);
         result.put("memoryScope", "Private per person and cohort trip; no cross-agent sharing");
         result.put("memorySemanticCorrectionEnabled", travelerSemanticReview);
-        result.put("memoryDistortionPolicy",travelerSemanticReview?"One optional model review against supplied fixed facts and three-day executions; grounded conflict quotes required; unresolved/failed review retains legal output and is audited; no archive retrieval":"Model retains and revises personal notes using old summary and visible recent facts; program does not rewrite notes or retrieve older facts");
+        result.put("memoryDistortionPolicy",travelerSemanticReview?"One optional model review against supplied fixed facts and visible executions; grounded conflict quotes required; unresolved/failed review retains legal output and is audited; no archive retrieval":travelerMemoryVariant.equals("ledger") ? "Model receives deterministic personal historical ledger and recent facts; program does not rewrite notes" : "Model retains and revises personal notes using old summary and visible recent facts; program does not rewrite notes or retrieve older facts");
         result.put("travelerSemanticReview",Map.of("enabled",travelerSemanticReview,"maximumCallsPerLegalOutput",1,
                 "templateVersion",MorningSemanticReview.VERSION,"decisionActionsLocked",true,"judgmentsAreGroundTruth",false,
                 "output","morning/semantic-reviews.jsonl.gz"));
@@ -535,13 +544,14 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("travelerOutputAttempts",Map.of("maximumTotalAttempts",repairAttempts,"maximumRetries",repairAttempts-1,
                 "truncationHandling","Reject without salvaging JSON, truncating memory or inventing actions","lateArrivalIsOutputError",false));
         result.put("memoryRecoveryEnabled", false);
-        result.put("memoryUpdateTiming", "After actual QSim outcomes are recorded, before iteration completion; next day only");
+        result.put("memoryUpdateTiming", travelerReflectionInterval == 1 ? "After actual QSim outcomes are recorded, before iteration completion; next day only" : "After every fifth simulation day; committed before next iteration, previous summary retained on other days");
         result.put("memoryReflectionInputs", List.of("previous self-written summary", "recent actual experiences including today",
                 "personal attributes", "fixed profile", "arrival deadline", "available route identifiers"));
-        result.put("memoryReflectionExperienceLimit", MorningMemoryUpdater.RECENT_EXPERIENCE_LIMIT);
-        result.put("cumulativeRouteCountsSuppliedToLlm", false);
+        result.put("memoryReflectionExperienceLimit", travelerReflectionInterval);
+        result.put("cumulativeRouteCountsSuppliedToLlm", travelerMemoryVariant.equals("ledger"));
         result.put("memoryFailurePolicy", "Fail experiment after bounded repairs/retries; no silent reuse of stale summary");
-        result.put("llmCallsPerControlledTripDay", policyName.equals("llm") ? 2 : 0);
+        result.put("llmCallsPerControlledTripDay", policyName.equals("llm") ? (travelerReflectionInterval == 1 ? 2 : 1) : 0);
+        result.put("travelerCallSchedule", travelerReflectionInterval == 1 ? "choice and reflection daily" : "choice daily; reflection every fifth simulation day");
         result.put("personalProfiles", Map.of("mode", personalProfiles, "source", personalProfiles.equals("input") ? "input attributes only"
                         : profileFile == null ? "seeded synthetic legacy categories" : "imported fixed profiles",
                 "seed", profileSeed == null ? populationSeed : profileSeed,
@@ -551,7 +561,8 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("forecastBinSeconds", config.travelTimeCalculator().getTraveltimeBinSize());
         result.put("baselineObjective", cohort.controlledPersons.isEmpty() ? "native MATSim scoring"
                 : policyName.equals("llm") ? "LLM joint departure-time and route choice from available environment facts and personal memory; no MATSim score supplied"
-                : "offline policy; mnl/shortest use expected car time only, mock uses choice counts");
+                : policyName.equals("mnl") ? "Joint route and departure MNL with own experience and visible toll estimates"
+                : "offline policy; shortest uses expected car time only, mock uses choice counts");
         result.put("candidateCountDistribution", cohort.members.values().stream().collect(java.util.stream.Collectors.groupingBy(m -> m.candidates.size(), java.util.TreeMap::new, java.util.stream.Collectors.counting())));
         result.put("controlledCandidateCountDistribution", cohort.members.values().stream().filter(m -> m.controlled)
                 .collect(java.util.stream.Collectors.groupingBy(m -> m.candidates.size(), java.util.TreeMap::new, java.util.stream.Collectors.counting())));
@@ -559,7 +570,7 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("outputContractVersion", MorningOutputContract.VERSION);
         result.put("outputValidation", "Exact JSON and local route/departure-enum/character validation always; per-request route enum and text length schema when response-format=json_schema; no silent fallback");
         result.put("memoryRouteReferenceGuard", "Diagnostic only: log unavailable reserved cN identifiers without rejecting or rewriting the summary; executable route choices remain restricted to available candidates");
-        result.put("historyDays", historyDays); result.put("logitBetaPerMinute", beta);
+        result.put("historyDays", historyDays);
         result.put("promptTemplate", MorningPromptRenderer.VERSION);
         result.put("candidatePresentation", Map.of("order", candidateOrder, "seed", candidateOrderSeed));
         result.put("memoryRetention", "Complete per-trip chronological facts in MorningMemory and experiences.jsonl.gz for every cohort trip every day, independent of trip-output-interval; recent prompt window only");
@@ -581,7 +592,9 @@ public final class MorningExperiment implements Callable<Integer> {
         result.put("plannedTimesFixed", fixesTimes() && !(jointTravelerContext() && !cohort.controlledPersons.isEmpty()));
         result.put("departureProtocol", Map.of("originalPlanAnchor", true, "earlierSeconds", departureBeforeSeconds,
                 "laterSeconds", departureAfterSeconds, "stepSeconds", departureStepSeconds,
+                "upperBoundExclusive", true,
                 "enabledForLlmTargetTrips", policyName.equals("llm") && !cohort.controlledPersons.isEmpty(),
+                "enabledForMnlTargetTrips", policyName.equals("mnl") && !cohort.controlledPersons.isEmpty(),
                 "boundaryTreatment", "Clip before original origin activity start or day zero and at exclusive QSim end; do not constrain by arrival deadline; retain original departure",
                 "otherActivityEndTimes", fixesTimes() ? "Original plan ends restored; actual times can be delayed by earlier activities or queues"
                         : "Native selected-plan activity ends retained; actual times can be delayed by earlier activities or queues",
@@ -603,41 +616,27 @@ public final class MorningExperiment implements Callable<Integer> {
             if (reflects()) result.put("memoryModelSettings", llmConfig.withOutputLimit(memoryMaxOutputTokens).publicModelSettings());
         }
         result.put("source", "Local enriched Sioux Falls files, public car-only doubled-demand lineage DOI 10.17632/2332kg48c8.3; local hashes identify inputs, not a claim of byte-for-byte download verification");
-        result.put("designChanges", fixed() ? List.of("KeepLastSelected for everyone", "only morning per-OD route choice replaced",
-                "original planned activity end times restored", "return/background initial routes retained; actual timings may be delayed by traffic")
-                : hybrid() ? List.of("native full-day ReRoute and ChangeExpBeta for everyone, including controlled persons' other trips",
+        result.put("designChanges", List.of("native full-day ReRoute and ChangeExpBeta for everyone, including controlled persons' other trips",
                 nativeTimeMutation ? "TimeAllocationMutator retained; native activity end times are not restored; controlled target departures follow their morning policy"
                         : "TimeAllocationMutator disabled; original planned activity end times restored on current selected plans",
-                "only selected persons' cohort actions overwritten after native replanning; LLM chooses departure and route jointly", "native plan memory retained; no global freeze")
-                : List.of("modern MATSim 2026 config/API compatibility", "analysis listener", "explicit access/egress walking", "run-length/seed overrides only if requested"));
+                "only selected persons' cohort actions overwritten after native replanning; LLM and MNL choose departure and route jointly", "native plan memory retained; no global freeze"));
         var inputHashes = new LinkedHashMap<String, Object>();
         inputHashes.put("config", inputHash(configFile.toAbsolutePath()));
         inputHashes.put("network", inputHash(resolveInput(config.network().getInputFile())));
         inputHashes.put("population", inputHash(resolveInput(config.plans().getInputFile())));
         inputHashes.put("facilities", inputHash(resolveInput(config.facilities().getInputFile())));
         if (fixedTollsEnabled()) inputHashes.put("fixedTollPolicy", fixedTollPolicy.source());
-        if (jointMnl()) {
+        if (mnlParameters != null) {
             inputHashes.put("mnlParameters", mnlParameters.source());
             result.put("baselineParameters", mnlParameters.report(mnlChoiceSeed == null ? config.global().getRandomSeed() : mnlChoiceSeed, historyDays));
-            result.put("baselineObjective", "Seeded joint logit over the LLM route/departure grid; explicit time, money, lateness and departure-shift coefficients; own recent experience update");
-            result.put("memoryMode", "structured-recent-experience");
-            result.put("singleCandidateTreatment", "Keep the sole route and every legal departure-time option; no traveler model calls");
-            result.put("personalMemory", "Baseline recomputes estimates from its own recent factual window only; no self-written summary, cumulative counts, exact long-term payment table or other travelers' experience");
-            result.put("memoryTemplate", null); result.put("memoryTargetChars", null); result.put("memoryMaxChars", null);
-            result.put("memoryDistortionPolicy", "No generated text summary or archive retrieval; estimates use only supplied recent facts, with explicit missing-observation fallback");
-            result.put("memoryUpdateTiming", "Actual facts recorded after QSim; bounded estimates reconstructed at the next decision, never from same-day/future outcomes");
+            result.put("memoryMode", "structured-recent-experience-and-personal-toll-observations");
+            result.put("selfWrittenMemoryEnabled", false);
+            result.put("personalMemory", "Recent own route/departure facts for time estimation; latest own link/bin toll observations, not LLM summaries or network traffic");
+            result.put("memoryTemplate", null);
             result.put("memoryReflectionInputs", List.of());
-            result.put("memoryReflectionExperienceLimit", null);
-            result.put("memoryFailurePolicy", "No traveler model calls or reflection; invalid inputs fail rather than silently change actions");
-            result.put("logitBetaPerMinute", null);
-            result.put("outputValidation", "Joint action enum validation; all finite utility components/probabilities audited; no traveler JSON generation");
-            var departureProtocol = new LinkedHashMap<>((Map<String, Object>)result.get("departureProtocol"));
-            departureProtocol.put("enabledForBaselineTargetTrips", true);
-            result.put("departureProtocol", departureProtocol);
-            var information = new LinkedHashMap<>((Map<String, Object>)result.get("travelerInformation"));
-            information.put("historicalToll", "Same bounded context as LLM: no persistent exact-payment lookup. Baseline belief uses only supplied recent own route/bin payments and the explicit parameter-file prior; unknown context costs stay null.");
-            result.put("travelerInformation", information);
-            result.put("designChanges", List.of("Native full-day replanning retained as configured", "Only selected cohort trips use joint MNL instead of LLM", "Shared LLM action grid, static predictions and visibility; separate explicit bounded-experience estimator"));
+            result.put("travelerCallSchedule", "No traveler model calls");
+            result.put("outputValidation", "All joint alternatives use finite utility and normalized softmax; selected route and departure validated against the action grid");
+            result.put("singleCandidateTreatment", "The sole route retains every legal departure-time option");
         }
         result.put("inputHashes", inputHashes);
         return result;

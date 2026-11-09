@@ -29,7 +29,7 @@
   -Policy llm -LlmAgents 50 -Days 500 -MaxRequests 60000
 ```
 
-结合manager时加 `-Manager`。控制全部符合条件的人时使用 `-LlmAgents all`，并按验证输出的 `minimumLlmCalls` 设置请求预算。选择和记忆反思通常每个受控行程每天各一次调用，repair会增加请求。`-LlmAgents 0`仍然是原生出行者，并不因为筛选改变而自动启用LLM。
+结合manager时加 `-Manager`。控制全部符合条件的人时使用 `-LlmAgents all`，并按验证输出的 `minimumLlmCalls` 设置请求预算。默认每个受控行程每天选择一次、每五天反思一次，repair会增加请求。`-LlmAgents 0`仍然是原生出行者，并不因为筛选改变而自动启用LLM。
 
 匹配的E0也应保留相同筛选条件，仅改为 `-LlmAgents 0` 并去掉 `-Manager`。新cohort统计与历史按出发时间筛选的统计不能直接比较；全体仿真人口和路网容量不因cohort筛选而缩减。
 

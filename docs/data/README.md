@@ -4,7 +4,7 @@
 
 ## Current manuscript summary
 
-The current manuscript reports **five configurations at simulation seed 268, each completed over log Days0–99**. Its active sources are [the execution-validation section](../../paper/AgenticMobility_arXiv/sections/experiment.tex) and [appendices/app_1.tex](../../paper/AgenticMobility_arXiv/appendices/app_1.tex), as included by `main.tex`.
+The manuscript reports **five configurations at simulation seed 268, each completed over log Days0–99**. The manuscript source is not included in this repository; the available summary and underlying exports are listed below.
 
 [manuscript-demonstration.json](manuscript-demonstration.json) transcribes the manuscript's outcome table, settings, choice-change rates, execution audit, and recorded inference workload. Outcome entries retain manuscript display precision: integer person-hours/day, one decimal for target minutes/trip and lateness percentages. Relative changes are the percentages reported in the manuscript, not ratios reconstructed from rounded entries. This file supplies a machine-readable summary; it contains no synthesized daily trajectories or individual records.
 
@@ -24,7 +24,7 @@ The complete five-configuration daily aggregate trajectories and full-precision 
 
 ## Completed 100-day archive exports
 
-The [100-day export package](seed268/README.md) supplies the aggregate time series, run summaries, and audit summaries described in the manuscript's [distribution statement](../../paper/AgenticMobility_arXiv/sections/implement.tex). These exports were recomputed from the author's `arxiv-v1-data` archive and reconciled against the active manuscript appendix.
+The [100-day export package](seed268/README.md) supplies the aggregate time series, run summaries, and audit summaries described in the manuscript. These exports were recomputed from the author's `arxiv-v1-data` archive and reconciled against the manuscript appendix; that manuscript source is not included here.
 
 | File | Coverage and checks |
 | :--- | :--- |

@@ -47,6 +47,7 @@ final class MorningLlmPolicy implements MorningRoutePolicy {
         String contextHash = MorningPromptRenderer.hash(Json.write(context));
         String promptHash = MorningPromptRenderer.hash(system + "\n" + basePrompt);
         output.appendLine("decision-contexts.jsonl", context);
+        if (context.ledger() != null) output.appendLine("ledger-views.jsonl", Map.of("day",context.day(),"personId",context.personId(),"tripId",context.tripId(),"phase","decision","view",context.ledger(),"viewHash",MorningPromptRenderer.hash(Json.write(context.ledger()))));
         for (int attempt = 1; attempt <= repairAttempts; attempt++) {
             budget.reserve(); attemptedCalls.incrementAndGet();
             String user = basePrompt + (error == null ? "" : "\nYour previous response was invalid. " + error

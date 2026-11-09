@@ -23,7 +23,7 @@ final class MorningManagerEnvironment {
     private final int firstIteration, innovationDisableAfter, controlledPersons;
     private final boolean fixedTimes;
     private boolean llmDepartureChoice;
-    private boolean baselineDepartureChoice;
+    private boolean mnlDepartureChoice;
     private MorningManagerDemand demand = MorningManagerDemand.empty();
     private Integer referencePlanCaptureIteration;
 
@@ -34,7 +34,7 @@ final class MorningManagerEnvironment {
                 (Map<?, ?>) manifest.get("travelerInformation"));
         if (!settings.managerControls.basic()) environment.demand = MorningManagerDemand.from(scenario);
         environment.llmDepartureChoice = settings.policyName.equals("llm") && settings.hybrid() && environment.controlledPersons > 0;
-        environment.baselineDepartureChoice = settings.jointMnl() && settings.hybrid() && environment.controlledPersons > 0;
+        environment.mnlDepartureChoice = settings.policyName.equals("mnl") && settings.hybrid() && environment.controlledPersons > 0;
         return environment;
     }
 
@@ -146,11 +146,11 @@ final class MorningManagerEnvironment {
         response.put("evaluatedAtIteration", iteration);
         response.put("nativeInnovationDisableAfterIteration", innovationDisableAfter);
         response.put("routeChoiceEnabled", controlledPersons > 0 || innovationActive("ReRoute", iteration));
-        response.put("departureTimeChoiceEnabled", llmDepartureChoice || baselineDepartureChoice || !fixedTimes && innovationActive("TimeAllocationMutator", iteration));
+        response.put("departureTimeChoiceEnabled", llmDepartureChoice || mnlDepartureChoice || !fixedTimes && innovationActive("TimeAllocationMutator", iteration));
         response.put("nativeDepartureTimeMutationEnabled", !fixedTimes && innovationActive("TimeAllocationMutator", iteration));
         response.put("llmJointDepartureAndRouteChoiceEnabled", llmDepartureChoice);
-        if (baselineDepartureChoice) response.put("baselineJointDepartureAndRouteChoiceEnabled", true);
-        if (llmDepartureChoice || baselineDepartureChoice) {
+        response.put("mnlJointDepartureAndRouteChoiceEnabled", mnlDepartureChoice);
+        if (llmDepartureChoice || mnlDepartureChoice) {
             response.put("plannedActivityEndTimesFixed", false);
             response.put("priceResponse", "Controlled target trips choose listed departure times and routes jointly. Other trips retain native routing and "
                     + (fixedTimes ? "original planned activity ends" : "native selected-plan activity ends, including enabled time mutation")

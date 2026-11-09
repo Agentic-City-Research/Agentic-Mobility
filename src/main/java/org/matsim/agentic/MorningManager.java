@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** The manager sees an explicit public-traffic projection, never the cohort, profiles or traveler memory. */
 final class MorningManager {
-    static final String VERSION = "morning-pricing-v10-daily-memory";
+    static final String VERSION = "morning-pricing-v11-full-day-car";
     static final String FEEDBACK_MODE = "combined";
     static final int FREE_DAYS = 20, UPDATE_INTERVAL = 30;
     static final int MEMORY_MAX_WORDS = 1000;
@@ -27,6 +27,8 @@ final class MorningManager {
             Actual departures/arrivals may still be delayed by activities and congestion even when planned times are fixed.
             Total delay and travel seconds measure completed full-link traversals, not door-to-door journeys. Aborted, unfinished,
             partial traversals and aggregate car-leg completions are reported separately; missing completions cannot establish improvement.
+            fullDayCarTravel reports aggregate planned/departed/completed and failure counts and car person-hours including entry waiting.
+            A null total means at least one planned leg did not complete; observed lower bounds are not complete totals. Completed pre-traffic waiting covers only completed legs with observed traffic entry.
             Traversals are not persons. Your observations contain only completed past simulation days, with the executed policy identified.
             trafficSummary contains the observation period and recent/previous up-to-seven-day aggregates instead of daily rows.
             All totals vectors follow trafficMetricColumns. Divide by observedDays for daily means, or completed full-link traversals
@@ -115,6 +117,7 @@ final class MorningManager {
             action=hold must preserve the price function; test/adjust must change it; remove must actually reduce prices without any increase.
             executionDiff is calculated and validated by the program. Describe the rules you actually return.
             You do not have access to any traveler's private memory, individual payment history or personal profile.
+            Full-day car person-hours include entry waiting and are null if any planned car leg is incomplete; completed pre-traffic wait covers completed legs with observed entry only. Observed lower bounds are not complete totals.
             Return exactly one JSON object with rules and decision. Memory is updated separately after each completed day. rules is an array of objects containing only
             link_id (string), start (number, always 0), end (number, always simulationEndSeconds), amount (number); an empty array is allowed.
             decision contains only action (hold|test|adjust|remove), evidenceBasis (untested|observational|observedTrial),
@@ -210,6 +213,9 @@ final class MorningManager {
         observe(day,linkHours,state,publicCarTrips,null);
     }
     void observe(int day,List<Map<String,Object>> linkHours,MorningTollSystem.State state,Map<String,Object> publicCarTrips,Double revenue) {
+        observe(day, linkHours, state, publicCarTrips, revenue, null);
+    }
+    void observe(int day,List<Map<String,Object>> linkHours,MorningTollSystem.State state,Map<String,Object> publicCarTrips,Double revenue,Map<String,Object> fullDayCarTravel) {
         if (day < 0 || day <= feedback.observationsThroughDay())
             throw new IllegalArgumentException("Manager observations must be chronological completed days");
         var publicRows = new ArrayList<Map<String, Object>>();
@@ -240,6 +246,7 @@ final class MorningManager {
             throw new IllegalArgumentException("Public car-trip starts must equal completed + aborted + unfinished");
         var daily=dailyTraffic(day,publicRows);
         daily.put("pricingSpatial",MorningManagerMeasurements.spatial(publicRows,state.policy()));daily.put("publicCarTrips",trips);
+        if (fullDayCarTravel != null) daily.put("fullDayCarTravel", MorningManagerFeedback.sanitizeCarTravel(fullDayCarTravel));
         if(revenue!=null) daily.put("tollRevenue",revenue);
         feedback.observe(day,state,daily,publicRows);
         if (!controls.basic()) safety.observe(day,List.copyOf(publicRows),Collections.unmodifiableMap(trips),state);
@@ -359,7 +366,8 @@ final class MorningManager {
                 feedback.compactContext((Map<String, Object>) full.get("policyFeedback"), state.policy()),
                 window, feedback.recentPricingWindows(state.policy()), state.policy()) : full;
         String base = Json.write(context), hash = MorningPromptRenderer.hash(base);
-        String system = controls.basic() ? BASIC_SYSTEM : SYSTEM;
+        var outputSchema = schema();
+        String system = MorningOutputContract.jsonObjectSystem(controls.basic() ? BASIC_SYSTEM : SYSTEM, modelSettings, outputSchema);
         output.appendLine("manager-contexts.jsonl", context);
         if (controls.basic()) output.appendLine("manager-contexts-full.jsonl", full);
         String fullJson = Json.write(full);
@@ -373,7 +381,7 @@ final class MorningManager {
         int calls = 0;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             budget.reserve(); attemptedCalls.incrementAndGet(); calls++;
-            var schema = schema();
+            var schema = outputSchema;
             String user = base + (error == null ? "" : "\nPrevious output was invalid: " + error
                     + ". Correct the execution or JSON error; return complete JSON only.");
             var log = new LinkedHashMap<String, Object>();

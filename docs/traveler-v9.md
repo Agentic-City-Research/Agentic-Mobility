@@ -1,21 +1,19 @@
 # Traveler v9: continuous private memory and strict output
 
-Templates: `morning-information-v9-continuous-memory` and `morning-reflection-v9-continuous-memory`. Manifest schema version: 23. Entry point: `org.matsim.agentic.MorningExperiment`.
-
-This page describes the current traveler protocol. The [reported manuscript demonstration](reported-experiments.md) contains five seed-268 configurations over log Days0–99; traveler semantic review was **disabled**. The manuscript reports 1,179,300 finalized Joint target decisions and continuous 100-day personal-memory chains. These checks concern accepted actions and bounded state updates, not systematic semantic validation of generated memories or explanations. Preserve the templates and service settings of the actual archived build when comparing revisions.
+Templates: `morning-information-v12-configurable-history` and `morning-reflection-v10-period-window`. Manifest schema version: 23. Entry point: `org.matsim.agentic.MorningExperiment`.
 
 ## Daily memory cycle
 
 | Phase | Visible private state |
 | --- | --- |
-| Day D choice | Fixed personal information, legal route/time options, previous summary, executed facts from D-3 to D-1 by default |
+| Day D choice | Fixed personal information, legal route/time options, previous summary, executed facts from D-5 to D-1 by default, plus any unsummarized facts |
 | Day D execution | Record the selected and actual route/timing, travel time, arrival, lateness, unfinished/stuck status, and actual payments |
-| Day D reflection | Previous summary plus executed facts from D-2 to D, including today's result |
+| Day D reflection | Every fifth day by default: previous summary plus facts from D-4 to D, including today's result |
 | Day D+1 | Feed the accepted replacement summary into the next choice and reflection |
 
-Initial reflection uses empty memory. Every subsequent live reflection requires the preceding day's summary. Recent factual windows are calendar-day windows; initial days supply available records. `--history-window` accepts 1..3 for pre-choice facts, default 3; reflection uses three days including today.
+Initial reflection uses empty memory. Later reflections require the prior scheduled summary. Recent factual windows are calendar-day windows; initial days supply available records. `--history-window` accepts 1..5; when omitted it follows the reflection interval, default 5. Daily reflection uses one day and defaults to a one-day choice window.
 
-The previous summary can retain selected older experiences, interpretations, and uncertainty within its text limit. The prompt asks the model to retain, revise and integrate it instead of recreating memory from zero or retelling only recent facts. Older experience is not automatically rejected because it cannot be checked within the window. The program archives complete execution records and does not retrieve them to restore forgotten private knowledge. Summary continuity alone does not establish learned habits or the factual accuracy of retained content.
+The previous summary carries useful longer-term experience, habits, interpretations and uncertainty. The prompt asks the model to retain, revise and integrate it instead of recreating memory from zero or retelling only recent facts. Older experience is not automatically rejected because it cannot be checked within the window. The program archives complete execution records and does not retrieve them to restore forgotten private knowledge.
 
 Fixed facts are written once, candidate estimates are labelled predictions with units, experiences are actual executions, and memory is a personal summary. Information groups still refer to manager announcements. No live network traffic, other agents' experience or hidden current tariffs are added. The departure grid, lateness treatment and native behavior mechanisms retain their existing semantics.
 
@@ -32,7 +30,7 @@ Spaces and punctuation count toward character limits. Unicode code points are co
 Recommended experiment arguments, replacing any existing duplicate arguments:
 
 ```bash
---history-window 3 --max-output-tokens 1024 --reason-max-chars 120 \
+--history-window 5 --max-output-tokens 1024 --reason-max-chars 120 \
 --memory-max-output-tokens 1024 --memory-max-chars 500 \
 --response-format json_schema --repair-attempts 3
 ```
@@ -43,9 +41,7 @@ Three output attempts mean one initial call and at most two retries. Local valid
 
 ## Optional one-shot semantic review
 
-`--traveler-semantic-review` is off by default. With it enabled, each structurally legal choice or summary may dispatch one review call, outside the structural repair loop. `--semantic-review-max-output-tokens` defaults to 2048. PowerShell uses `-TravelerSemanticReview`; Slurm uses `TRAVELER_SEMANTIC_REVIEW=1`.
-
-Enabling this option changes the configuration from the reported demonstration and requires a separately recorded comparison and request budget.
+`--traveler-semantic-review` is off by default. It requires `--traveler-reflection-interval 1`. With it enabled, each structurally legal choice or summary may dispatch one review call, outside the structural repair loop. `--semantic-review-max-output-tokens` defaults to 2048. PowerShell uses `-TravelerSemanticReview -TravelerReflectionInterval 1`; supported Slurm templates use `TRAVELER_SEMANTIC_REVIEW=1 TRAVELER_REFLECTION_INTERVAL=1`.
 
 A single model call checks for clear contradictions and, if found, proposes its own revised reason or memory. The review receives only the same traveler's visible fixed facts, recent executed facts, previous subjective memory and proposed output. Fixed-fact/actual-record evidence is separate from the old subjective summary; the latter is not accepted as verified evidence. Predictions, preferences, uncertainty, future plans and unverified old experience are not factual errors. Late arrival does not trigger a mandatory route or departure change.
 

@@ -2,7 +2,7 @@
 
 [Project experiments](../../../../README.md#experiments) · [Reported experiments](../../../reported-experiments.md) · [Methods and protocols](../../../methods-and-protocols.md)
 
-This record follows the current [arXiv manuscript](../../../../paper/AgenticMobility_arXiv/main.tex), specifically its [execution-validation section](../../../../paper/AgenticMobility_arXiv/sections/experiment.tex) and [active appendix](../../../../paper/AgenticMobility_arXiv/appendices/app_1.tex). It describes the reported seed-268 demonstration, not a newly executed simulation. All day labels below are zero-based.
+This record follows the manuscript's execution-validation section and appendix, whose sources are not included in this repository. It describes the reported seed-268 demonstration, not a newly executed simulation. All day labels below are zero-based.
 
 ## Completion and comparison window
 

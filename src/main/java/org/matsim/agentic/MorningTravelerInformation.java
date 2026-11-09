@@ -33,9 +33,9 @@ final class MorningTravelerInformation {
 
     synchronized void observe(int day, String person, MorningTollSystem.Receipt receipt) {
         if (!participates(person)) return;
-        if (day < 0 || receipt.amount() <= 0 || !Double.isFinite(receipt.amount())
+        if (day < 0 || receipt.amount() < 0 || !Double.isFinite(receipt.amount())
                 || receipt.time() < 0 || !Double.isFinite(receipt.time()))
-            throw new IllegalArgumentException("Only actual positive personal payments may enter toll knowledge");
+            throw new IllegalArgumentException("Only actual nonnegative personal toll observations may enter toll knowledge");
         var event = new MorningRoutePolicy.TollObservation(day, receipt.linkId(), receipt.time(), receipt.amount());
         var privateFacts = observations.computeIfAbsent(person, k -> new HashMap<>());
         var key = new LinkBin(receipt.linkId(), (long) Math.floor(receipt.time() / binSeconds));
@@ -66,12 +66,21 @@ final class MorningTravelerInformation {
         return new MorningRoutePolicy.Information(group(person), informed(person), false, binSeconds, List.of());
     }
 
+    MorningRoutePolicy.Information visibleForLlm(String person, int day, MorningTollSystem tolls) {
+        var rules = tolls != null && informed(person) ? tolls.state().policy().rules().stream()
+                .map(r -> new MorningRoutePolicy.AnnouncedToll(r.linkId().toString(), r.startSec(), r.endSec(), r.amount())).toList()
+                : List.<MorningRoutePolicy.AnnouncedToll>of();
+        var personal = informed(person) ? List.<MorningRoutePolicy.TollObservation>of()
+                : personalPayments(person).stream().filter(e -> e.day() < day).toList();
+        return new MorningRoutePolicy.Information(group(person), informed(person), false, binSeconds, personal, rules);
+    }
+
     MorningRoutePolicy.PricingKnowledge pricingForLlm(String person, List<String> links, List<Double> entries,
                                                      double baseCost, MorningTollSystem tolls, int day) {
         if (tolls == null || informed(person)) return pricing(person, links, entries, baseCost, tolls, day);
-        // The LLM gets recent experiences and its bounded summary, never persistent exact-payment retrieval.
-        return new MorningRoutePolicy.PricingKnowledge(group(person), "bounded_personal_memory", baseCost, 0,
-                List.copyOf(links), List.of(), List.of());
+        var historical = pricing(person, links, entries, baseCost, tolls, day);
+        return new MorningRoutePolicy.PricingKnowledge(historical.group(), "personal_history_zero_prior", baseCost,
+                historical.knownTollSubtotal(), historical.unknownLinks(), historical.observations(), List.of());
     }
 
     MorningRoutePolicy.PricingKnowledge pricing(String person, List<String> links, List<Double> entryTimes,

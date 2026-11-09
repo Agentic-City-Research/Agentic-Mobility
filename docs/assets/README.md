@@ -13,7 +13,7 @@
 
 The outcome display uses denominators of 16,822 people, 11,793 target trips, and 11,332 work targets. Mean daily car time per person is `60 × total car person-hours / 16,822`. Thin time-series lines show daily values; thick lines show trailing seven-day means. Log Days20 and 50 identify positive charging in Manager and Joint, respectively; Day90 is the native innovation cutoff. Policy opportunities occur on Days20, 50, and 80, equivalent to simulation days 21, 51, and 81.
 
-The manuscript's canonical figure files are in [paper/AgenticMobility_arXiv/pic](../../paper/AgenticMobility_arXiv/pic), including [outcomes.pdf](../../paper/AgenticMobility_arXiv/pic/outcomes.pdf), [behavior.pdf](../../paper/AgenticMobility_arXiv/pic/behavior.pdf), and the implementation/timing/memory/validation diagrams. The additional route-use display does not expand the manuscript's evidence claims.
+The manuscript's canonical PDF figures and source diagrams are not included in this repository. The available displays are linked in the table above; the additional route-use display does not expand the manuscript's evidence claims.
 
 The [100-day aggregate exports](../data/seed268/README.md) supply the unsmoothed daily outcomes and behavior measures. Full individual records remain in the external run archive; selected case excerpts are documented separately in the data inventory. The extra information-group route-use display requires its own group-specific source records beyond these outcome/behavior columns. Pre-pricing differences prevent interpreting Joint–Traveler contrasts as an isolated manager effect, and people sharing a run are not independent simulation replications.
 

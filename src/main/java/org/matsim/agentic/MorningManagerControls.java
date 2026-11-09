@@ -39,6 +39,11 @@ final class MorningManagerControls {
         r.put("profile", profile); r.put("maximumRules", MAX_RULES);
         r.put("chargingMode", "full_day"); r.put("chargingStartSeconds", 0.0); r.put("chargingEndSeconds", horizon);
         r.put("oneRulePerLink", true); r.put("observationBinSeconds", basic() ? BASIC_BIN_SECONDS : 3600);
+        r.put("minimumAmountPerEntry", 0.0);
+        r.put("amountMustBeFinite", true);
+        r.put("priceCapEnabled", !basic()); r.put("priceIncreaseCapEnabled", !basic());
+        r.put("unavoidableShareCapEnabled", !basic()); r.put("automaticWithdrawalEnabled", !basic());
+        r.put("absoluteMonetaryCap", null);
         r.put("amountMeaning", "Fixed monetary amount for each actual car-link entry throughout [0, simulationEndSeconds)");
         if (basic()) {
             r.put("managerMemoryMaximumWords", MorningManager.MEMORY_MAX_WORDS);

@@ -1,26 +1,77 @@
-# Documentation
+# AgenticMobility documentation
 
-[Project overview](../README.md)
+[Project overview](../README.md) · [Chinese operating guide](usage-guide.zh.md)
 
-For the current arXiv demonstration, start with [Reported experiments](reported-experiments.md): **five configurations, simulation seed 268, 100 days each (log Days0–99)**. The [manuscript](../paper/AgenticMobility_arXiv/main.tex) and its active appendix, `appendices/app_1.tex`, define the reported settings and results.
+AgenticMobility connects LLM travelers, an LLM congestion-pricing manager, and full-day MATSim traffic. Start with a native run, read the interaction protocol, and then configure the roles and scenario needed for your study.
 
-| Guide | Contents |
+当前代码的功能、默认设置、原生/MNL/LLM 旅客与收费条件分类及中文运行示例见 [功能与设置说明](功能与设置说明.md)。
+
+旅客、Manager 和可选语义复核的系统提示词与动态输入见 [Agent 提示词说明](agent-prompts.zh.md)。
+
+在同一 Slurm 作业中启动 Qwen 服务和 MATSim，参见 [HPC 单作业运行说明](HPC单作业运行.md)。
+
+| Guide | Start here when you want to… |
 | :--- | :--- |
-| [Getting started](getting-started.md) | Installation, diagnostic run, model API setup, and troubleshooting |
-| [Methods & protocols](methods-and-protocols.md) | Agent roles, route/time choices, information access, reflection, and pricing |
-| [Experiments & evaluation](experiments-and-evaluation.md) | Configuration templates, baselines, request budgets, and run records |
-| [Joint MNL baseline](joint-mnl-baseline.md) | Recovered route/departure baseline, explicit parameters, information boundaries, and provenance |
-| [Reported experiments](reported-experiments.md) | Current 100-day results and execution audit |
-| [Seed-268 experiment record](assets/data/seed268/seed268-experiments.md) | Five configurations, policy timing, behavior metrics, and inference workload |
-| [Individual traces](assets/data/seed268/seed268-individual-cases.md) | Recorded decisions, execution, and an explanation inconsistency |
-| [Scenarios & data](scenarios-and-data.md) | Scenario inputs, provenance, sampling, capacity, and extensions |
-| [Operating guide](usage-guide.md) | Detailed execution options and workflows |
-| [中文操作指南](usage-guide.zh.md) | 安装、运行与故障排查 |
-| [Data inventory](data/README.md) | Complete 100-day aggregate exports, source-derived audit summaries, manuscript summary, and selected cases |
-| [Figure inventory](assets/README.md) | Framework figures, current 100-day displays, and simulation videos |
-| [Historical experiments](history/2026-10-18/README.md) | Earlier seed-9261 comparisons, aggregate CSVs, and metadata |
-| [Community](community.md) | Questions, research discussions, and contributions |
+| [Getting started](getting-started.md) | Install the project, check inputs, complete a first run, and connect a model service. |
+| [Methods & protocols](methods-and-protocols.md) | Understand roles, action spaces, information access, memory, execution, and failure handling. |
+| [Experiments & evaluation](experiments-and-evaluation.md) | Configure supported experiment modes and preserve the settings and records needed to reproduce a run. |
+| [Scenarios & data](scenarios-and-data.md) | Understand the Sioux Falls inputs, population sampling, data provenance, and scenario extension requirements. |
 
-Start with the diagnostic baseline in Getting started. The 100-person/two-day check and 10%/three-controlled-person examples are setup configurations. The manuscript uses a 20% sample of the original-demand population, population seed 6021, simulation seed 268, and 11,793 fixed target trips; see the [configuration mapping](experiments-and-evaluation.md#manuscript-configuration-mapping).
+The experiment guide currently covers setup and run records. Experimental results and the detailed evaluation protocol will be added separately.
 
-The data inventory links [500 daily aggregate rows and five run summaries](data/seed268/README.md), source-derived audit summaries, the manuscript transcription, selected individual-case evidence, and historical seed-9261 comparisons. Source hashes and archived runtime identities identify the records used for these exports. Full raw logs remain in the external `arxiv-v1-data` archive. Exact historical reruns additionally require the corresponding executable, complete inputs, original prompts, final configuration, and model-service settings.
+## Getting started
+
+Read [Getting started](getting-started.md) in order:
+
+1. Check JDK 25 and build the executable JAR.
+2. Validate a small input configuration without simulation or model calls.
+3. Run a two-day native diagnostic baseline.
+4. [Configure and check a model API](getting-started.md#5-connect-an-existing-model-service), then start a small LLM-traveler run.
+
+For additional deployment options, see the [operating guide](usage-guide.md#installation), [Chinese operating guide](usage-guide.zh.md), and [Slurm deployment notes](../scripts/agentic_morning_qwen35.md). Slurm templates require cluster-specific settings and an existing model service.
+
+## Methods & protocols
+
+Read [Methods & protocols](methods-and-protocols.md) for the current reference implementation. It explains how target-trip choices and scheduled toll policies enter the same traffic environment, while traveler and manager memories retain different information.
+
+Topic references:
+
+| Topic | Reference |
+| :--- | :--- |
+| Traveler prompts, continuous summaries, strict JSON, and optional review | [Traveler v9](traveler-v9.md) |
+| Target-cohort selection | [Planned-arrival cohort notes](../scripts/planned_arrival_cohort.md) |
+| Joint traveler actions and basic manager pricing | [Joint protocol notes, Chinese](../scripts/manager_basic_joint.md) |
+| Daily manager reflection and periodic policy updates | [Manager memory notes, Chinese](../scripts/manager_daily_memory.md) |
+| Optional restricted manager profile | [Controlled manager notes, Chinese](../scripts/manager_v5.md) |
+
+Some topic notes retain development history. Read their version and profile labels before applying settings to a new run.
+
+## Experiments & evaluation
+
+Read [Experiments & evaluation](experiments-and-evaluation.md) for native, traveler-only, manager-only, joint, and fixed-toll configurations. The guide includes Bash and PowerShell command templates, information-group settings, request-budget planning, and a run-configuration template.
+
+Additional references:
+
+- [Detailed operating commands](usage-guide.md#experiments).
+- [Fixed-policy file format, Chinese](../scenarios/SiouxFalls-public/fixed-tolls.md).
+- [Replay runner](../scripts/replay_morning_choices.ps1) and [example model configuration](../scenarios/SiouxFalls-public/replay-models.example.json).
+- [Contribution and experiment-report requirements](../CONTRIBUTING.md).
+
+## Scenarios & data
+
+Read [Scenarios & data](scenarios-and-data.md) for the distributed enriched Sioux Falls scenario, the distinction between demand level and sample rate, units, fixed inputs, and extension requirements.
+
+Source references:
+
+- [Current MATSim configuration](../scenarios/SiouxFalls-public/config.xml).
+- [Detailed public-scenario notes, Chinese](../scenarios/SiouxFalls-public/README.md).
+- [Input-data notes](../scenarios/Souix%20Falls%202014/README.md).
+- [Third-party attribution, modifications, and input hashes](../THIRD_PARTY.md).
+
+## Documentation scope
+
+These guides describe the `org.matsim.agentic.MorningExperiment` interface, Traveler v9, the default `basic` manager, and manifest schema 23, as checked against repository source on **2026-10-16**. The protocol description draws on the framework draft dated 2026-10-13 and technical notes dated 2026-10-14, with current source used to resolve implementation details.
+
+The guides distinguish implemented behavior from the broader AgenticCity direction. Current adaptation uses model inference and memory updates. Mode choice, manager teams, elections, model-weight training, and integration with other urban systems are outside this reference implementation.
+
+For a particular run, preserve its commit, runtime JAR hash, effective configuration, and `morning/manifest.json`. Explicit arguments and environment variables can change defaults. Preparation checks, complete traffic runs, and research findings are different stages; only the corresponding records establish what was actually performed.

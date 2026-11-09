@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MorningTravelerV9Test {
     @TempDir Path directory;
 
-    @Test void decisionAndReflectionWindowsAreThreeDaysButOldMemorySurvives() {
+    @Test void decisionWindowIncludesFiveDaysButOldMemorySurvives() {
         var c=MorningFactsTest.context(); var facts=new ArrayList<MorningMemory.Experience>();
         for(int day=0;day<8;day++) facts.add(new MorningMemory.Experience(day,"c0",100,25300.0,0.0));
         var context=new MorningRoutePolicy.Context(8,c.tripId(),c.personId(),c.originPurpose(),c.destinationPurpose(),
@@ -20,7 +20,7 @@ class MorningTravelerV9Test {
                 null,"I remember an important event from day zero.",7,null);
         String decision=new MorningPromptRenderer().render(context);
         var rows=MorningJointTestSupport.tableRows(decision,"YOUR MOST RECENT PERSONAL EXPERIENCES");
-        assertEquals(List.of(5,6,7),rows.stream().map(r -> r.get(0).asInt()).toList());
+        assertEquals(List.of(3,4,5,6,7),rows.stream().map(r -> r.get(0).asInt()).toList());
         assertTrue(decision.contains(context.memorySummary()));
         var recent=new ArrayList<>(facts.subList(6,8));recent.add(new MorningMemory.Experience(8,"c0",200,25400.0,0.0));
         var memory=new MorningMemoryUpdater.Context(8,c.tripId(),c.personId(),"work",32400.0,Map.of(),null,
@@ -140,10 +140,10 @@ class MorningTravelerV9Test {
         };
         Path out=directory.resolve("loop");
         assertEquals(0,new CommandLine(settings).execute("--config",fixture.writeScenario().toString(),"--output",out.toString(),
-                "--policy","llm","--llm-agents","all","--days","4","--traveler-semantic-review","--max-requests","16"));
+                "--policy","llm","--llm-agents","all","--days","4","--traveler-reflection-interval","1","--traveler-semantic-review","--max-requests","16"));
         assertEquals(16,calls.get());assertEquals(8,reviewCalls.get());
         var manifest=Json.readTree(Files.readString(out.resolve("morning/manifest.json")));
-        assertTrue(manifest.get("memorySemanticCorrectionEnabled").asBoolean()); assertEquals(3,manifest.get("historyDays").asInt());
+        assertTrue(manifest.get("memorySemanticCorrectionEnabled").asBoolean()); assertEquals(1,manifest.get("historyDays").asInt());
         assertEquals(120,manifest.at("/llmSettings/reasonMaxChars").asInt());assertEquals(23,manifest.get("schemaVersion").asInt());
         var usage=Json.readTree(Files.readString(out.resolve("morning/api-usage.json")));
         assertEquals(8,usage.get("attemptedTravelerSemanticReviewCalls").asInt());assertEquals(16,usage.get("attemptedTotalCalls").asInt());

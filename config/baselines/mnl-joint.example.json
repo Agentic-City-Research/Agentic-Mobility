@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Illustrative homogeneous joint-choice baseline. Engineering assumptions only, not calibrated Sioux Falls behavior or a recommended final specification. Freeze or estimate coefficients independently before evaluation.",
+  "description": "Illustrative homogeneous joint MNL baseline for route and departure choice. Engineering assumptions; not calibrated. Freeze independently before comparisons.",
   "calibrated": false,
   "parameters": {
     "timeWeight": {
@@ -32,16 +32,6 @@
       "value": 900,
       "unit": "seconds",
       "source": "Engineering assumption matching the default 15-minute departure grid; absolute time-of-day bins applied to selected, not delayed actual, departure times."
-    },
-    "unknownTollMode": {
-      "value": "reject",
-      "unit": "category",
-      "source": "Conservative protocol: pricing with uninformed controlled travelers is rejected before simulation until an explicit belief rule is selected. Change to personal-with-prior only as a declared experimental assumption."
-    },
-    "unknownTollPriorPerLink": {
-      "value": 0.1,
-      "unit": "scenario-money-unit/link",
-      "source": "Illustrative engineering prior, inactive in reject mode. In personal-with-prior mode, used only without completed recent same-route/same-bin personal payment observations. Never a fact about the current policy."
     }
   }
 }

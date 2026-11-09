@@ -6,8 +6,6 @@ The reference implementation uses an **enriched Sioux Falls car-traffic scenario
 
 The population is synthetic. The supplied files are research inputs rather than observed individual travel traces or a calibration of current Sioux Falls residents.
 
-The [current manuscript demonstration](reported-experiments.md) uses demand 100 with a **20% sample**, population/assignment seed **6021**, simulation seed **268**, and **100 days**. This yields 16,822 people, 11,793 fixed target trips, and 11,332 work targets. Operational examples using 10% sampling or seed 4711 are separate setup configurations; see the [configuration mapping](experiments-and-evaluation.md#manuscript-configuration-mapping).
-
 ## Scenario and data provenance
 
 The project's provenance record identifies the public input lineage as:
@@ -94,12 +92,9 @@ The QSim factors are absolute factors of the original road capacities. They repl
 | :--- | ---: | ---: | ---: | ---: |
 | Demand 100, `--sample-rate 1` | 84,110 | 84,110 | 1 | 1 |
 | Demand 100, `--sample-rate 0.1` | 84,110 | 8,411 | 0.1 | Approximately 0.177828 |
-| Demand 100, `--sample-rate 0.2` (manuscript) | 84,110 | 16,822 | 0.2 | Approximately 0.299070 |
 | Demand 200, `--sample-rate 0.1` | 168,220 | 16,822 | 0.1 | Approximately 0.177828 |
 
 These are configuration calculations. They do not establish that sampled and full-population traffic outcomes are equivalent.
-
-The two rows with 16,822 simulated people are different loading conditions. The manuscript samples the restored original-demand input at 20%; selecting 10% of doubled demand changes both the sampled identities and capacity factors. The archived procedure sorts person IDs, shuffles with Java Random at seed 6021, and retains the fixed subset with all its plans.
 
 `--population-seed` controls deterministic person sampling and defaults to 4711. It also supplies default cohort-control, profile, and information-assignment seeds where the interface uses that common seed. `--seed` controls MATSim randomness separately.
 
@@ -117,8 +112,6 @@ Population sampling, target eligibility, and LLM control are separate selection 
 4. Prepare fixed route/time choices, profiles, and information assignments.
 
 The original destination activity start determines default eligibility. The actual later start or arrival cannot change cohort membership. A controlled person can contribute multiple target trips.
-
-In the reported scenario, the selected cohort happens to contain one target trip for each of 11,793 people, across 2,877 OD pairs. The remaining 5,029 people and the controlled people's non-target trips retain MATSim mechanisms. The before-09:00 eligibility threshold covers all activity purposes and is distinct from each work trip's deadline. Candidate-based conditions have 2,780 targets with one route and 9,013 with multiple routes.
 
 For route-candidate filtering, departure-grid defaults, and information boundaries, see [Methods & protocols](methods-and-protocols.md#joint-route-and-departure-time-actions).
 
@@ -147,12 +140,6 @@ The default `legacy` profile traits are synthetic experimental assumptions. The 
 | Missing value | `null` or absent information as documented by its schema; not zero. |
 
 Original, selected, and actual departure times have distinct meanings. A fixed planned start or an arrival deadline is a schedule reference, not a promise that traffic execution will meet it.
-
-The manuscript result windows use log Days0–99. Pricing opportunities on log Days20, 50, and 80 are simulation days 21, 51, and 81; positive charging begins on log Day20 for Manager and Day50 for Joint. Native route/activity-time innovation is disabled at log Day90, while existing-plan selection continues.
-
-## Reported data and archive coverage
-
-The [data inventory](data/README.md) lists the [complete seed-268 aggregate exports](data/seed268/README.md), source-derived Joint audit summaries, manuscript summary, selected case evidence, and historical seed-9261 comparisons. The current export has 500 configuration/day rows and five full-precision run summaries, reconciled against the manuscript. Source hashes and archived executable/input identities record provenance; full raw records remain in the external `arxiv-v1-data` archive. The seed-9261 data describe separate 61-day traveler and 500-day manager comparisons. Exact reruns additionally require original prompts, runtime/input files, model-service settings, and a verified release-to-run mapping.
 
 ## Fixed toll files
 
