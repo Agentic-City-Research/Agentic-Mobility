@@ -106,6 +106,6 @@ The current files support recalculating manuscript aggregates, inspecting source
 
 The [data inventory](../../../data/README.md) lists the aggregate exports, source-run mapping, manuscript summary, and selected case evidence, including the separately checked six-day `20336_4` sequence.
 
-The [100-day outcome figure](../../seed268/outcomes.svg) uses mean daily car time per person, target-trip time, and work lateness; the daily export supplies those unsmoothed series. The [figure inventory](../../README.md) also links the manuscript's canonical PDF figures.
+The [100-day outcome figure](../../../pic/outcomes.svg) uses mean daily car time per person, target-trip time, and work lateness; the daily export supplies those unsmoothed series. The [figure inventory](../../README.md) describes the available figures.
 
 The [source-location guide](../../../data/seed268/README.md#source-location-and-regeneration) identifies the author's local `arxiv-v1-data` archive and regeneration command. Original simulation logs and model conversations remain in that external archive. Archived executable hashes identify historical builds; exact reruns additionally require the corresponding executable or source revision, complete inputs and candidate files, original prompts, final configuration, model-service settings, and a pinned release-to-run mapping. A traffic seed alone does not fix remote model responses.
