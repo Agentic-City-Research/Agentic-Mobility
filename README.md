@@ -94,7 +94,7 @@ On **Windows PowerShell**, replace the last line with `.\mvnw.cmd -B clean packa
 
 The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar`. Run the remaining commands from this project folder.
 
-### 2. Run a MATSim agent example
+### 2. Run a example without LLM
 
 Check your installation with **100 people over two simulation days**, without model API calls.
 
@@ -125,7 +125,7 @@ Open `morning/status.json` in the output folder printed by the console (normally
 
 This is an installation check; for research runs, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
 
-### 3. Run LLM traveler agents
+### 3. Run AgenticMobility
 
 Set your model service's API root, model ID, and key in the same terminal, replacing the placeholders below. See [API setup](docs/getting-started.md#5-connect-an-existing-model-service) for connection details.
 
