@@ -45,7 +45,6 @@ Counts below were read directly from the distributed compressed XML files on 202
 
 File sizes and complete SHA-256 values are maintained in [THIRD_PARTY.md](../THIRD_PARTY.md#input-checksums).
 
-The 100pct population was produced by removing verified `_new` duplicate people from the doubled-demand file. [`restore_original_population.py`](../scripts/restore_original_population.py) checks pairing and retained person content before writing. This restoration is different from a random population sample.
 
 ## Current execution configuration
 
