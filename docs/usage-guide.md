@@ -451,18 +451,12 @@ flowchart LR
 
 ## Documentation
 
-This operating guide, the project README, and the Traveler v9 guide are in English. The detailed operating, scenario, and manager guides are in Chinese. For current Slurm defaults, use the template and examples above; older deployment notes may describe earlier sampling or memory settings.
+For current Slurm defaults, use the templates and examples above. See the documentation index for the available English guides.
 
 | Guide | Contents |
 | --- | --- |
-| [Detailed operating guide](../docs/usage-guide.zh.md) | Windows/Linux setup, advanced options, output fields, and replay |
-| [Public scenario](../scenarios/SiouxFalls-public/README.md) | Population, cohort, route/time candidates, and measurement protocol |
-| [Current traveler and basic manager protocol](../scripts/manager_basic_joint.md) | Actions, information boundaries, and all-day pricing |
+| [Public scenario](../scenarios/SiouxFalls-public/README.md) | Scenario configuration and links to data and methods |
 | [Traveler protocol](../docs/traveler-v9.md) | Continuous private memory, configurable recent facts, strict JSON, and optional semantic review |
-| [Daily manager memory](../scripts/manager_daily_memory.md) | Timing, context, validation, failures, and audit records |
-| [Controlled manager](../scripts/manager_v5.md) | Restrictions, safety withdrawal, and cooldown |
-| [Fixed toll policies](../scenarios/SiouxFalls-public/fixed-tolls.md) | File schema, activation, and time windows |
-| [Slurm guide](../scripts/agentic_morning_qwen35.md) | Run a CPU simulation against an existing Qwen service |
 | [Data provenance](../THIRD_PARTY.md) | Sources, modifications, attribution, and hashes |
 
 List all CLI options:
