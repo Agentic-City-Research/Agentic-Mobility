@@ -94,7 +94,7 @@ On **Windows PowerShell**, replace the last line with `.\mvnw.cmd -B clean packa
 
 The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar`. Run the remaining commands from this project folder.
 
-### 2. Run a example without LLM
+### 2. Run example without LLM
 
 Check your installation with **100 people over two simulation days**, without model API calls.
 
