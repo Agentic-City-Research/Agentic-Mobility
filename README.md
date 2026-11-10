@@ -12,37 +12,166 @@
 
 Part of [AgenticCity](https://github.com/Agentic-City-Research), exploring AI agents and interconnected urban systems.
 
-[Paper](https://arxiv.org/abs/2611.01918) · [Quickstart](#quickstart) · [Experiments](#experiments) · [Documentation](#documentation) · [Contributing](#community--contributing)
+[📖 Paper](https://arxiv.org/abs/2611.01918) · [🚀 Quickstart](#quickstart) · [🧪 Experiments](#experiments) · [📚 Documentation](#documentation) · [🤝 Contributing](#community--contributing)
 
 </div>
 
 
 <a id="overview"></a>
 
-## Overview 🧩
+## 🧩 Overview 
 
 Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Traveler agents select routes and departure times; optional pricing policies change travel incentives. MATSim executes these decisions in a shared traffic environment, where one agent's choices can affect conditions experienced by others.
 
 ![AgenticMobility framework](docs/assets/agenticmobility_framework_siouxfalls.svg)
-### Daily simulation cycle
+### 🔄 Daily simulation cycle
 
 Each simulation day connects decisions, traffic execution, and feedback. Agents receive information permitted by their configuration; reflection and pricing updates follow configurable schedules. LLMs control selected target trips, while other trips follow MATSim behavior. Model weights remain fixed during the simulation.
 
 The platform supports MATSim agents, constrained MNL, and LLM traveler agents, with no tolls or an LLM pricing manager. See [Methods & protocols](docs/methods-and-protocols.md) for information access, decision constraints, reflection, and policy execution.
 
 <a id="research-questions"></a>
-## What you can study 🎯
+## 🎯 What you can study 
 
 | Research task         | What you can vary                     | What you can inspect                          |
 | :-------------------- | :------------------------------------ | :-------------------------------------------- |
-| Traveler decisions    | MATSim, MNL, or LLM decision policies | Routes, departure times, and arrival outcomes |
-| Information access    | Access to current toll announcements  | Route use, payments, and individual traces    |
-| Pricing interventions | No tolls or an LLM pricing manager    | Individual and system-level outcomes          |
+| 🗳️ Traveler decisions    | MATSim, MNL, or LLM decision policies | Routes, departure times, and arrival outcomes |
+| ℹ️ Information access    | Access to current toll announcements  | Route use, payments, and individual traces    |
+| 💰 Pricing interventions | No tolls or an LLM pricing manager    | Individual and system-level outcomes          |
 
 Explore the [experiment guide](docs/experiments-and-evaluation.md) for configurations, evaluation, and run records. Information-access effects and causal interactions between traveler and pricing agents remain open research questions.
 
+
+## See it in action 🎬
+
+### Traffic replay
+
+In the [historical five-configuration experiment](#experiments), compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents with a pricing manager** at three simulation days. Each animation follows the same 500 sampled travelers from the 16,822-person population. Quantitative results use the full population relevant to each metric.
+
+**Final day — simulation Day 100**
+
+<p align="center">
+  <img src="docs/assets/Day100.gif"
+       alt="Traffic replay on simulation Day 100: comparison of three configurations"
+       width="100%">
+</p>
+
+<details>
+<summary>View the initial and intermediate snapshots</summary>
+
+#### Initial snapshot — simulation Day 1
+
+<p align="center">
+  <img src="docs/assets/Day1.gif"
+       alt="Traffic replay on simulation Day 1: comparison of three configurations"
+       width="100%">
+</p>
+
+#### Intermediate snapshot — simulation Day 51
+
+<p align="center">
+  <img src="docs/assets/Day50.gif"
+       alt="Traffic replay on simulation Day 51: comparison of three configurations"
+       width="100%">
+</p>
+
+</details>
+
+<a id="quickstart"></a>
+## Quickstart 🚀
+
+**Requirements:** Git and JDK 25 (`java` and `javac` on your PATH). The Maven Wrapper downloads build dependencies on first use. MATSim runs on CPU; LLM experiments also need a Chat Completions-compatible model service.
+
+### 1. Download and build
+
+Open a terminal in the folder where you want to keep the project:
+
+```bash
+git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
+cd Agentic-Mobility
+sh ./mvnw -B clean package
+```
+
+On **Windows PowerShell**, replace the last line with `.\mvnw.cmd -B clean package`.
+
+The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar`. Run the remaining commands from this project folder.
+
+### 2. Run a MATSim agent example
+
+Check your installation with **100 people over two simulation days**, without model API calls.
+
+```bash
+java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
+  --config scenarios/SiouxFalls-public/config.xml \
+  --mode hybrid --policy mnl --llm-agents 0 \
+  --demand 100 --sample-persons 100 --days 2 \
+  --population-seed 4711 --seed 4711 \
+  --output output/quickstart
+```
+
+<details>
+<summary>Windows PowerShell</summary>
+
+```powershell
+java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
+  --config scenarios/SiouxFalls-public/config.xml `
+  --mode hybrid --policy mnl --llm-agents 0 `
+  --demand 100 --sample-persons 100 --days 2 `
+  --population-seed 4711 --seed 4711 `
+  --output output/quickstart
+```
+
+</details>
+
+Open `morning/status.json` in the output folder printed by the console (normally `output/quickstart`). A successful run reports `complete: true`, `daysCompleted: 2`, and `integrityVerified: true`.
+
+This is an installation check; for research runs, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity).
+
+### 3. Run LLM traveler agents
+
+Set your model service's API root, model ID, and key in the same terminal, replacing the placeholders below. See [API setup](docs/getting-started.md#5-connect-an-existing-model-service) for connection details.
+
+**Bash (Linux/macOS)**
+
+```bash
+export AGENTIC_BASE_URL='https://YOUR_API_HOST/v1'
+export AGENTIC_MODEL='YOUR_MODEL_ID'
+export AGENTIC_API_KEY='YOUR_API_KEY'
+
+java -Xmx8g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
+  --config scenarios/SiouxFalls-public/config.xml \
+  --mode hybrid --demand 100 --sample-rate 0.1 \
+  --population-seed 4711 --seed 4711 --days 7 \
+  --policy llm --llm-agents 3 --concurrency 3 \
+  --thinking omit --response-format omit --max-requests 500 \
+  --output output/first-llm-travelers
+```
+
+<details>
+<summary>Windows PowerShell</summary>
+
+```powershell
+$env:AGENTIC_BASE_URL = 'https://YOUR_API_HOST/v1'
+$env:AGENTIC_MODEL = 'YOUR_MODEL_ID'
+$env:AGENTIC_API_KEY = 'YOUR_API_KEY'
+
+java -Xmx8g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
+  --config scenarios/SiouxFalls-public/config.xml `
+  --mode hybrid --demand 100 --sample-rate 0.1 `
+  --population-seed 4711 --seed 4711 --days 7 `
+  --policy llm --llm-agents 3 --concurrency 3 `
+  --thinking omit --response-format omit --max-requests 500 `
+  --output output/first-llm-travelers
+```
+
+</details>
+
+This runs **seven days**, with LLMs controlling the eligible target trips of **three people** in a **10% population sample**. Check `morning/status.json` for completion with `daysCompleted: 7`. The same folder contains choices in `decisions.jsonl.gz` and realized trips in `trips.jsonl.gz`.
+
+[Inspect agent decisions and outcomes →](docs/usage-guide.md#outputs-and-evaluation) · [More experiment configurations →](docs/experiments-and-evaluation.md) · [Troubleshooting →](docs/getting-started.md#troubleshooting)
+
 <a id="experiments"></a>
-## Experiments 🧪
+## 🧪 Experiments 
 
 The following historical experiment connects individual decisions with outcomes across a shared mobility system.
 
@@ -57,8 +186,8 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | MATSim agents | MATSim replanning | None |
 | Constrained MNL | MNL over fixed route–departure options | None |
 | LLM traveler agents | LLM route–departure choices | None |
-| Manager | MATSim replanning | Enabled; tolls from simulation Day 21 (log Day20) |
-| Joint | LLM route–departure choices | Enabled; tolls from simulation Day 51 (log Day50) |
+| Manager | MATSim replanning | Enabled; tolls from simulation Day 21 |
+| Joint | LLM route–departure choices | Enabled; tolls from simulation Day 51 |
 
 For the historical MNL configuration and its provenance, see the [experiment record](docs/joint-mnl-baseline.md). For the current implementation, see [MNL setup](docs/mnl-joint.md).
 
@@ -77,7 +206,7 @@ Compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents wi
 <details>
 <summary>View the initial and intermediate snapshots</summary>
 
-#### Initial snapshot — simulation Day 1 (log Day 0)
+#### Initial snapshot — simulation Day 1
 
 <p align="center">
   <img src="docs/assets/Day1.gif"
@@ -85,7 +214,7 @@ Compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents wi
        width="100%">
 </p>
 
-#### Intermediate snapshot — simulation Day 51 (log Day 50)
+#### Intermediate snapshot — simulation Day 51
 
 <p align="center">
   <img src="docs/assets/Day50.gif"
@@ -114,7 +243,7 @@ All car legs completed, with no stuck agents. Car time includes waiting before n
 
 [![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/outcomes.png)](docs/assets/seed268/outcomes.svg)
 
-Thin lines show daily values; thick lines show trailing seven-day means. Figure markers use zero-based log days: toll activation at Day20 for Manager and Day50 for Joint, a policy review on Day80, and the MATSim route/time innovation cutoff on Day90. These are simulation days 21, 51, 81, and 91 respectively; existing-plan selection continues after the cutoff.
+Thin lines show daily values; thick lines show trailing seven-day means. Positive tolls begin on simulation Day 21 for Manager and Day 51 for Joint; a review occurs on Day 81 and MATSim route/time innovation stops on Day 91. Existing-plan selection continues after the cutoff. The original figure axis uses zero-based log days; add 1 to obtain the simulation day.
 
 Compared with LLM traveler agents alone, **Joint has 6.63% shorter target-trip time and 1.87 percentage points less work lateness, alongside 14.62% more all-day car time**. Differences already exist before Joint tolling.
 
@@ -134,11 +263,11 @@ Two recorded examples connect available information, selected actions, generated
 <details>
 <summary>LLM traveler agent: switching routes after a late arrival</summary>
 
-Traveler `1005_1`, log Day 65 (simulation Day 66); LLM traveler agents configuration.
+Traveler `1005_1`, simulation Day 66; LLM traveler agents configuration.
 
 | Stage | Recorded example |
 | :--- | :--- |
-| Available information | Four routes, nine departure times, a 09:00 arrival target, and personal trips from log Days 62–64; no network traffic information. |
+| Available information | Four routes, nine departure times, a 09:00 arrival target, and personal trips from simulation Days 63–65; no network traffic information. |
 | Selected action | `c1` at **08:12:47**, the same departure time as the previous day. |
 | Recorded rationale | “I chose route c1 to avoid the inconsistency of c0 while ensuring I meet the 09:00 deadline on time.” |
 | Realized outcome | **7.85 min** car time; destination arrival **08:41:33**. The previous day's `c0` trip took **31.28 min**, arriving **4 min 59 s late**. |
@@ -150,20 +279,20 @@ Both choices were executed as recorded. Shared conditions also varied between da
 <details>
 <summary>Joint: trying different routes after delays</summary>
 
-Traveler `20336_4` keeps the original **07:49:58** departure across log Days **21–26** (zero-based; simulation Days 22–27), with a **09:00** arrival target. The traveler belongs to the uninformed group. This sequence precedes Joint toll activation.
+Traveler `20336_4` keeps the original **07:49:58** departure across simulation Days **22–27**, with a **09:00** arrival target. The traveler belongs to the uninformed group. This sequence precedes Joint toll activation.
 
-| Log day | Route | Car time (min:sec) | Destination arrival | Arrival status |
+| Simulation day | Route | Car time (min:sec) | Destination arrival | Arrival status |
 | :--- | :--- | ---: | :--- | :--- |
-| 21 | c0 | 14:17 | 08:16:59 | On time |
-| 22 | c0 | 65:35 | 09:08:17 | 8:17 late |
-| 23 | c1 | 97:43 | 09:40:25 | 40:25 late |
-| 24 | c2 | 37:55 | 08:40:37 | On time |
-| 25 | c2 | 87:52 | 09:30:34 | 30:34 late |
-| 26 | c0 | 64:00 | 09:06:42 | 6:42 late |
+| 22 | c0 | 14:17 | 08:16:59 | On time |
+| 23 | c0 | 65:35 | 09:08:17 | 8:17 late |
+| 24 | c1 | 97:43 | 09:40:25 | 40:25 late |
+| 25 | c2 | 37:55 | 08:40:37 | On time |
+| 26 | c2 | 87:52 | 09:30:34 | 30:34 late |
+| 27 | c0 | 64:00 | 09:06:42 | 6:42 late |
 
-After a late `c0` trip, the traveler tries `c1` and arrives later still. On log Day 24, the recorded rationale describes `c0` as unreliable and `c1` as too slow; the selected `c2` trip arrives on time. The next `c2` trip is late, followed by a return to `c0` that is also late.
+After a late `c0` trip, the traveler tries `c1` and arrives later still. On simulation Day 25, the recorded rationale describes `c0` as unreliable and `c1` as too slow; the selected `c2` trip arrives on time. The next `c2` trip is late, followed by a return to `c0` that is also late.
 
-All six selected routes and departure times match execution. Log Day 26's rationale calls `c0` “untested”, although it was used earlier. Car time includes pre-network waiting; this sequence shows changing choices and outcomes, without isolating a route or memory effect.
+All six selected routes and departure times match execution. Simulation Day 27's rationale calls `c0` “untested”, although it was used earlier. Car time includes pre-network waiting; this sequence shows changing choices and outcomes, without isolating a route or memory effect.
 
 </details>
 
@@ -186,7 +315,7 @@ In Joint, **5,897 travelers receive current toll announcements and 5,896 do not*
 
 [![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/assets/seed268/information_route_response.svg)
 
-Links are identified retrospectively before charging and in the no-toll comparison. Payments include zero-payment trips. Group time differences already exist before charging; these observations do not isolate a toll-information treatment effect.
+Links are identified retrospectively before charging and in the no-toll comparison. Payments include zero-payment trips. The original figure uses zero-based log days, so its Day 50 is simulation Day 51. Group time differences already exist before charging; these observations do not isolate a toll-information treatment effect.
 
 </details>
 
@@ -196,103 +325,7 @@ Links are identified retrospectively before charging and in the no-toll comparis
 
 <br>
 
-<a id="quickstart"></a>
-## Quickstart 🚀
-
-Build the project, run a small MATSim baseline, and check that it completes. Then, optionally connect a model service to run LLM-controlled travelers.
-
-**Prerequisites:** JDK 25 (including `javac`), Git, and network access for the first build. The Maven Wrapper downloads Maven and dependencies. The MATSim baseline requires no model API.
-
-Confirm that both commands report version 25:
-
-```text
-java -version
-javac -version
-```
-
-### 1. Get the source and build
-
-**Bash (Linux/macOS)**
-
-```bash
-git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
-cd Agentic-Mobility
-sh ./mvnw -B clean package
-```
-
-<details>
-<summary>Windows PowerShell</summary>
-
-```powershell
-git clone https://github.com/Agentic-City-Research/Agentic-Mobility.git
-cd Agentic-Mobility
-.\mvnw.cmd -B clean package
-```
-
-</details>
-
-The build creates `matsim-example-project-0.0.1-SNAPSHOT.jar` in the repository root. Run the simulation commands below from that directory.
-
-### 2. Run a MATSim baseline
-
-Run a two-day diagnostic simulation with 100 MATSim travelers and no model API calls.
-
-**Bash (Linux/macOS)**
-
-```bash
-java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment \
-  --config scenarios/SiouxFalls-public/config.xml \
-  --mode hybrid --policy mnl --llm-agents 0 \
-  --demand 100 --sample-persons 100 --days 2 \
-  --population-seed 4711 --seed 4711 \
-  --output output/quickstart
-```
-
-<details>
-<summary>Windows PowerShell command</summary>
-
-```powershell
-java -Xmx4g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment `
-  --config scenarios/SiouxFalls-public/config.xml `
-  --mode hybrid --policy mnl --llm-agents 0 `
-  --demand 100 --sample-persons 100 --days 2 `
-  --population-seed 4711 --seed 4711 `
-  --output output/quickstart
-```
-
-</details>
-
-### 3. Confirm the run completed
-
-Use the output directory reported in the console (normally `output/quickstart`). If that directory already exists, the application creates a numbered alternative.
-
-Open `<output-directory>/morning/status.json` and check that it contains:
-
-```json
-{
-  "complete": true,
-  "daysCompleted": 2,
-  "integrityVerified": true
-}
-```
-
-The status file also contains additional run information.
-
-This 100-person example checks installation and execution. The `--sample-persons` option reduces the population without scaling road capacity. For research experiments, follow the [sampling and capacity guidance](docs/scenarios-and-data.md#sampling-and-capacity). To run controlled joint MNL instead, use `--policy mnl --llm-agents all`; the default parameter file is an uncalibrated engineering example, not an empirical estimate. See [MNL setup](docs/mnl-joint.md).
-
-### 4. Optional: run an LLM traveler experiment
-
-1. Follow the [API connection guide](docs/getting-started.md#5-connect-an-existing-model-service) to set `AGENTIC_BASE_URL`, `AGENTIC_MODEL`, and `AGENTIC_API_KEY` for a Chat Completions-compatible service.
-2. Follow the [first LLM traveler experiment](docs/getting-started.md#start-with-a-small-traveler-run) to run seven simulation days with the eligible target trips of three LLM-controlled people in a 10% population sample. Bash and Windows PowerShell examples are provided.
-
-**[Inspect your agent decisions and outcomes →](docs/usage-guide.md#outputs-and-evaluation)**
-
-In the reported output directory, `morning/decisions.jsonl.gz` records choices, while `morning/trips.jsonl.gz` records realized trips. See the output guide for the other records. MATSim runs on CPU; the model service can be hosted on another machine. The same API setup is required for an LLM pricing agent.
-
-For installation, troubleshooting, and additional instructions, see the [operating guide](docs/usage-guide.md) or its [Chinese version](docs/usage-guide.zh.md).
-
 <a id="documentation"></a>
-
 ## Documentation 📖
 
 New to the project? Start with [Getting started](docs/getting-started.md). For research experiments, check the scenario and sampling settings, review the methods, then use the experiment guide to configure and record your runs.
