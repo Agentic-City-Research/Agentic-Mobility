@@ -206,7 +206,7 @@ All-day car time is normalized to min/person by dividing the daily person-hours 
 Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**.
 All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
-[![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/outcomes.png)](docs/assets/seed268/outcomes.svg)
+[![Five configurations: mobility outcomes over Days 1–100](docs/pic/outcomes.png)](docs/assets/seed268/outcomes.svg)
 
 Thin lines show daily values; thick lines show trailing seven-day means. Positive tolls begin on simulation Day 21 for Manager and Day 51 for Joint; a review occurs on Day 81 and MATSim route/time innovation stops on Day 91. Existing-plan selection continues after the cutoff. The original figure axis uses zero-based log days; add 1 to obtain the simulation day.
 
@@ -278,7 +278,7 @@ In Joint, **5,897 travelers receive current toll announcements and 5,896 do not*
 | Target car time, Days 51–100 (min/trip) | 17.02 | 15.17 |
 | Work late-arrival rate, Days 51–100 | 3.81% | 2.50% |
 
-[![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/assets/seed268/information_route_response.svg)
+[![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/pic/information_route_response.svg)
 
 Links are identified retrospectively before charging and in the no-toll comparison. Payments include zero-payment trips. The original figure uses zero-based log days, so its Day 50 is simulation Day 51. Group time differences already exist before charging; these observations do not isolate a toll-information treatment effect.
 
