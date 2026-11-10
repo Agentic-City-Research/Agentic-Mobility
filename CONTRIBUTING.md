@@ -10,10 +10,12 @@ Good starting points include improving setup instructions, adding a small exampl
 
 ## How to contribute
 
-1. For a bug, feature, or research idea, open an issue with the relevant template. Small documentation corrections can go directly to a pull request.
-2. For larger changes, discuss the intended direction in an issue before implementation.
-3. Fork the repository, create a branch, make a focused change, and update any affected documentation.
-4. Run the relevant checks below and open a pull request describing what changed and what you verified. Respond to review and make follow-up changes as needed.
+1. Share open-ended research ideas or questions in [Discussions](https://github.com/Agentic-City-Research/Agentic-Mobility/discussions). Use an issue for a reproducible bug or a scoped feature or experiment; check existing issues first.
+2. To work on an issue, comment with your proposed approach before starting. Small documentation corrections can go directly to a pull request.
+3. Fork the public repository, create a branch, make a focused change, and update affected documentation. For private collaboration, use a branch or an authorized fork as repository permissions allow.
+4. Run relevant checks and open a pull request describing the change and how it was verified. Use `Closes #NUMBER` to link an issue completed by the pull request; respond to review and make follow-up changes as needed.
+
+Issues labeled `good first issue` are intended as approachable starting points when available. Contributions through discussions, research ideas, bug reports, and reviews are also welcome.
 
 For experiment proposals, separate planned work from completed results. When sharing outputs or logs, remove credentials and private data.
 
