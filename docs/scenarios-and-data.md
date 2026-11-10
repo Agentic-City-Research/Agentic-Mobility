@@ -28,8 +28,6 @@ The repository identifies its distributed files by SHA-256. These hashes establi
 | [`Siouxfalls_population_100pct.xml.gz`](../scenarios/Souix%20Falls%202014/Siouxfalls_population_100pct.xml.gz) | Restored original-demand population. |
 | [`Siouxfalls_population_200pct.xml.gz`](../scenarios/Souix%20Falls%202014/Siouxfalls_population_200pct.xml.gz) | Published doubled-demand population lineage. |
 | [`Siouxfalls_config.xml.orig`](../scenarios/Souix%20Falls%202014/Siouxfalls_config.xml.orig) | Historical configuration reference; use the current public configuration for the current interface. |
-| [`fixed-tolls-*.json`](../scenarios/SiouxFalls-public) | Project-authored example toll policies. |
-| [`replay-models.example.json`](../scenarios/SiouxFalls-public/replay-models.example.json) | Example service definitions for saved-context replay. |
 
 The source directory is spelled **`Souix Falls 2014`**. Preserve this exact directory name and its spaces when using the supplied configuration. JSON fixed-policy files and replay settings are project experiment inputs, not upstream validated policy recommendations.
 
@@ -143,7 +141,7 @@ Original, selected, and actual departure times have distinct meanings. A fixed p
 
 ## Fixed toll files
 
-The fixed-file interface accepts a JSON object containing a `rules` array. For example, the distributed [`75_1` policy](../scenarios/SiouxFalls-public/fixed-tolls-75_1-1unit.json) uses this form:
+The fixed-file interface accepts a JSON object containing a `rules` array. For example, the distributed `75_1` policy uses this form:
 
 ```json
 {
@@ -166,7 +164,6 @@ Rules require existing car links, finite nonnegative amounts, and time windows i
 
 Fixed-policy windows are independent of manager constraints. A `basic` manager must return one all-day rule per priced link, while a fixed file can define narrower non-overlapping windows. Fixed files and `--manager` cannot be enabled together.
 
-Additional fixed-policy examples are in `scenarios/SiouxFalls-public/`.
 
 ## Check input identity
 
