@@ -1,0 +1,161 @@
+{
+  "record_date": "2026-10-18",
+  "artifact_scope": "historical_seed9261_comparisons",
+  "current_manuscript_summary": "../../../data/manuscript-demonstration.json",
+  "scope_note": "This metadata describes the historical 61-day traveler and 500-day manager comparisons. It does not identify the current manuscript's seed-268 five-configuration 100-day experiment. Runtime, model, input, and aggregate hashes below retain their historical meaning.",
+  "days_are_zero_based": true,
+  "traveler_window_inclusive": [
+    0,
+    60
+  ],
+  "manager_window_inclusive": [
+    0,
+    499
+  ],
+  "manager_charged_window_inclusive": [
+    20,
+    499
+  ],
+  "traveler_run": {
+    "schemaVersion": 23,
+    "matsimVersion": "2026.0",
+    "seed": 9261,
+    "populationSeed": 6021,
+    "simulatedPopulation": 16822,
+    "flowCapacityFactor": 0.2,
+    "storageCapacityFactor": 0.29906975624424414,
+    "runtime_jar_sha256": "d840f208dc618cb4238df09b36b2b4bd386d663880b0dee1f293aeaf367b11c3",
+    "source_git_commit": null,
+    "source_git_commit_note": "Not recorded in the archived manifest; no current source commit is substituted.",
+    "input_sha256": {
+      "config": "14fd0f2451ab41bdc50cb8914595b7183cc8cdb7711334318d7810fb17afaeaa",
+      "network": "5cf9741ced77122b0971f7c2294770ede9af8d649d14ba905b9afbcc227083fb",
+      "population": "d888a3db7e2823f4c02f60b6f69462726470d163efd7bfa42261667bb35c036b",
+      "facilities": "6affe3962df39c1c1def993176298d199b7474dc9ebcf8aa53b64e2fa4319fbd"
+    },
+    "traveler_choice": {
+      "recorded_model_id": "qwen3.5-9b",
+      "recorded_generation_parameters": {
+        "max_tokens": 1024
+      },
+      "response_format": "json_schema"
+    },
+    "traveler_reflection": {
+      "recorded_model_id": "qwen3.5-9b",
+      "recorded_generation_parameters": {
+        "max_tokens": 1024
+      },
+      "response_format": "json_schema"
+    }
+  },
+  "traveler_native_seed9261": {
+    "schemaVersion": 18,
+    "matsimVersion": "2026.0",
+    "seed": 9261,
+    "populationSeed": 6021,
+    "simulatedPopulation": 16822,
+    "flowCapacityFactor": 0.2,
+    "storageCapacityFactor": 0.29906975624424414,
+    "runtime_jar_sha256": "6eb3c58b1f16bdbad31313d1ec12e8421e29d8fa0eb609c533f7518343aea958",
+    "source_git_commit": null,
+    "source_git_commit_note": "Not recorded in the archived manifest; no current source commit is substituted.",
+    "input_sha256": {
+      "config": "1d689b86e0a40d27dae0eb7e421ca325e2cef86c255370f84ed06dd93ed180d2",
+      "network": "5cf9741ced77122b0971f7c2294770ede9af8d649d14ba905b9afbcc227083fb",
+      "population": "d888a3db7e2823f4c02f60b6f69462726470d163efd7bfa42261667bb35c036b",
+      "facilities": "6affe3962df39c1c1def993176298d199b7474dc9ebcf8aa53b64e2fa4319fbd"
+    }
+  },
+  "manager_run": {
+    "schemaVersion": 23,
+    "matsimVersion": "2026.0",
+    "seed": 9261,
+    "populationSeed": 6021,
+    "simulatedPopulation": 16822,
+    "flowCapacityFactor": 0.2,
+    "storageCapacityFactor": 0.29906975624424414,
+    "runtime_jar_sha256": "c44eabe2f082be26a26802281357ba9e6d54fdb55f1daf2a47913d9860f75102",
+    "source_git_commit": null,
+    "source_git_commit_note": "Not recorded in the archived manifest; no current source commit is substituted.",
+    "input_sha256": {
+      "config": "c9837c8a3a5852a65027be4be4a8c267afe30452726d9b10130682c44d3c36a8",
+      "network": "5cf9741ced77122b0971f7c2294770ede9af8d649d14ba905b9afbcc227083fb",
+      "population": "d888a3db7e2823f4c02f60b6f69462726470d163efd7bfa42261667bb35c036b",
+      "facilities": "6affe3962df39c1c1def993176298d199b7474dc9ebcf8aa53b64e2fa4319fbd"
+    },
+    "manager_policy": {
+      "recorded_model_id": "deepseek-flash",
+      "recorded_generation_parameters": {
+        "max_tokens": 8192,
+        "thinking": {
+          "type": "disabled"
+        },
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "response_format": "json_object"
+    },
+    "manager_reflection": {
+      "recorded_model_id": "deepseek-flash",
+      "recorded_generation_parameters": {
+        "max_tokens": 2048,
+        "thinking": {
+          "type": "disabled"
+        },
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "response_format": "json_object"
+    }
+  },
+  "manager_native_seed9261": {
+    "schemaVersion": 18,
+    "matsimVersion": "2026.0",
+    "seed": 9261,
+    "populationSeed": 6021,
+    "simulatedPopulation": 16822,
+    "flowCapacityFactor": 0.2,
+    "storageCapacityFactor": 0.29906975624424414,
+    "runtime_jar_sha256": "6eb3c58b1f16bdbad31313d1ec12e8421e29d8fa0eb609c533f7518343aea958",
+    "source_git_commit": null,
+    "source_git_commit_note": "Not recorded in the archived manifest; no current source commit is substituted.",
+    "input_sha256": {
+      "config": "5b753dddf3bb0b3ca30c301a90e5d4e322754b194d8a3a33dbf3d9c407f8783f",
+      "network": "5cf9741ced77122b0971f7c2294770ede9af8d649d14ba905b9afbcc227083fb",
+      "population": "d888a3db7e2823f4c02f60b6f69462726470d163efd7bfa42261667bb35c036b",
+      "facilities": "6affe3962df39c1c1def993176298d199b7474dc9ebcf8aa53b64e2fa4319fbd"
+    }
+  },
+  "parameter_note": "Only archived request fields are recorded. Omission does not imply a value of zero or identical service defaults.",
+  "aggregate_sha256": {
+    "llm-traveler-daily-comparison.csv": "bbdd806f13c244f15759e82098ce724086b95d9c2d38d1b0e4a9a0e29a3d6d1b",
+    "manager-corridor-comparison.csv": "ae41e4444dff315b9d7b255a4a0b4a121f7698366ab6f1aea364786669bac5e7",
+    "manager-daily-comparison.csv": "c48b200de621a1c23a938d968b6e32e23c20c0d2b1e26df7384c985761271c08",
+    "manager-policy-schedule.csv": "44a78d0733e0ae86923e91b78454a92c27b0a732506a46fd2d13b383250e0301",
+    "daily-comparison.csv": "ba28c955f6bfbfc0da4d5b9e85f93c019ba3946c09be5c63a85fa0e1b92a7673"
+  },
+  "aggregate_sha256_note": "SHA-256 of UTF-8 CSV bytes with LF line endings, matching the archived exports. Normalize CRLF checkout line endings to LF before comparison. The retired duplicate remains listed solely for provenance.",
+  "retired_duplicate_export": {
+    "filename": "llm-traveler-daily-comparison.csv",
+    "retained_file": "daily-comparison.csv",
+    "rows": 244,
+    "key_fields": [
+      "condition",
+      "seed",
+      "day"
+    ],
+    "preserved_fields": [
+      "day",
+      "condition",
+      "seed",
+      "mean_car_min",
+      "mean_door_min",
+      "p95_car_min",
+      "work_late_pct",
+      "all_car_person_hours"
+    ],
+    "validation": "All 244 keys and all eight shared fields match exactly. The retained file also includes expanded behavior metrics."
+  }
+}
