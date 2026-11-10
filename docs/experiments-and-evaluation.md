@@ -87,11 +87,6 @@ java -Xmx8g -cp "$MOBILITY_JAR" "$MOBILITY_APP" "${MOBILITY_COMMON[@]}" \
   "${MOBILITY_TRAVELER[@]}" "${MOBILITY_MANAGER[@]}" \
   --output output/llm-travelers-manager
 
-# Native travelers with a fixed policy file.
-java -Xmx8g -cp "$MOBILITY_JAR" "$MOBILITY_APP" "${MOBILITY_COMMON[@]}" \
-  --policy mnl --llm-agents 0 \
-  --fixed-toll-policy scenarios/SiouxFalls-public/fixed-tolls-75_1-1unit.json \
-  --fixed-toll-free-days 20 --output output/native-fixed-tolls
 ```
 
 Choose the configuration you need. Each command creates a separate run. Add `--validate-only` and use a separate `--output` to prepare its inputs without traffic or model calls.
@@ -143,11 +138,6 @@ java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
 java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
   @MobilityTraveler @MobilityManager --output output/llm-travelers-manager
 
-# Native travelers with a fixed policy file.
-java -Xmx8g -cp $MobilityJar $MobilityApp @MobilityCommon `
-  --policy mnl --llm-agents 0 `
-  --fixed-toll-policy scenarios/SiouxFalls-public/fixed-tolls-75_1-1unit.json `
-  --fixed-toll-free-days 20 --output output/native-fixed-tolls
 ```
 
 `-Xmx8g` is the example Java heap allocation, not a measured minimum. Resource use depends on population, run length, retained records, and enabled tasks.
@@ -261,6 +251,6 @@ Fill this table from preparation records and the actual run manifest. Requested 
 
 ## Saved-context replay
 
-[`MorningReplay`](../src/main/java/org/matsim/agentic/MorningReplay.java) can reuse saved traveler contexts across model configurations or candidate presentation orders. The [example model file](../scenarios/SiouxFalls-public/replay-models.example.json) references environment-variable names for credentials.
+[`MorningReplay`](../src/main/java/org/matsim/agentic/MorningReplay.java) can reuse saved traveler contexts across model configurations or candidate presentation orders.
 
 Replay performs choices on fixed saved inputs. It runs neither QSim nor memory updates. Its outputs therefore belong to a separate workflow from day-to-day traffic experiments. See the [operating guide](usage-guide.md) for replay invocation and output layout.
