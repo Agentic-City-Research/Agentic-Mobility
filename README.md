@@ -278,7 +278,7 @@ In Joint, **5,897 travelers receive current toll announcements and 5,896 do not*
 | Target car time, Days 51–100 (min/trip) | 17.02 | 15.17 |
 | Work late-arrival rate, Days 51–100 | 3.81% | 2.50% |
 
-[![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/assets/seed268/information_route_response.png)](docs/pic/information_route_response.svg)
+[![Use of subsequently tolled links by information group, in Joint and the no-toll traveler configuration](docs/pic/information_route_response.png)](docs/pic/information_route_response.svg)
 
 Links are identified retrospectively before charging and in the no-toll comparison. Payments include zero-payment trips. The original figure uses zero-based log days, so its Day 50 is simulation Day 51. Group time differences already exist before charging; these observations do not isolate a toll-information treatment effect.
 
@@ -301,7 +301,7 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 | Install and run my first simulation | [Getting started](docs/getting-started.md) | Requirements, diagnostic baseline, model API setup, and troubleshooting |
 | Choose data and set the simulation scale | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, population sampling, and road capacity |
 | Understand how the agents work | [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, decisions, memory, and pricing |
-| Inspect agent prompts | [Agent prompts (Chinese)](docs/agent-prompts.zh.md) | System prompts, dynamic inputs, and request logs |
+| Inspect agent prompts | [Agent prompts](docs/agent-prompts.md) | System prompts, dynamic inputs, and request logs |
 | Design and evaluate an experiment | [Experiments & evaluation](docs/experiments-and-evaluation.md) | Configuration templates, baselines, request budgets, and run records |
 | Inspect the five-configuration experiment | [Experiment record](docs/assets/data/seed268/seed268-experiments.md) | Settings, results, provenance, and available data |
 | Inspect earlier exploratory results | [Reported experiments](docs/reported-experiments.md) | Separate earlier comparisons, model settings, and aggregate data |
