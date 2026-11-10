@@ -1,6 +1,6 @@
 # Historical experiments recorded on 2026-10-18
 
-[Documentation](../../README.md) · [Current manuscript results](../../reported-experiments.md) · [Data inventory](../../data/README.md)
+[Documentation](../../README.md) · [Current manuscript results](../../reported-experiments.md)
 
 The following record describes earlier homepage comparisons. The traveler and manager experiments used different role configurations and durations against their own native MATSim baselines. Their settings, runtime hashes, and percentage changes apply only to these historical comparisons; they are not the current manuscript's seed-268 five-configuration results.
 
