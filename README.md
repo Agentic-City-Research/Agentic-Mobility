@@ -45,7 +45,6 @@ The current implementation uses MATSim to execute mobility decisions and generat
 Each simulation day connects agent decisions with shared traffic outcomes. Traveler agents choose routes and departure times, MATSim executes the traffic simulation, and agents receive feedback permitted by their information settings. Traveler reflection and pricing updates follow configurable schedules.
 
 The platform supports MATSim agents, constrained MNL policies, and LLM traveler agents, with no tolls or an LLM pricing manager. LLMs control selected target trips, while other trips follow MATSim behavior. Model weights remain fixed during simulation.See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
-
 <br>
 
 <a id="research-questions"></a>
