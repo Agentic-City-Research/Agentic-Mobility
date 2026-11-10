@@ -307,8 +307,6 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 | Inspect earlier exploratory results | [Reported experiments](docs/reported-experiments.md) | Separate earlier comparisons, model settings, and aggregate data |
 | Find detailed operating instructions | [Operating guide](docs/usage-guide.md) | Execution options, deployment, outputs, and troubleshooting |
 
-Browse the [documentation index](docs/README.md) for all guides.
-
 <a id="community--contributing"></a>
 
 ## Community & Contributing 🤝
