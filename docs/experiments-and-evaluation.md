@@ -261,6 +261,6 @@ Fill this table from preparation records and the actual run manifest. Requested 
 
 ## Saved-context replay
 
-[`MorningReplay`](../src/main/java/org/matsim/agentic/MorningReplay.java) and the [PowerShell replay runner](../scripts/replay_morning_choices.ps1) can reuse saved traveler contexts across model configurations or candidate presentation orders. The [example model file](../scenarios/SiouxFalls-public/replay-models.example.json) references environment-variable names for credentials.
+[`MorningReplay`](../src/main/java/org/matsim/agentic/MorningReplay.java) can reuse saved traveler contexts across model configurations or candidate presentation orders. The [example model file](../scenarios/SiouxFalls-public/replay-models.example.json) references environment-variable names for credentials.
 
 Replay performs choices on fixed saved inputs. It runs neither QSim nor memory updates. Its outputs therefore belong to a separate workflow from day-to-day traffic experiments. See the [operating guide](usage-guide.md) for replay invocation and output layout.
