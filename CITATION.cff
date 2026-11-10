@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use AgenticMobility in research, please cite the paper below and report the code version and experiment settings."
+title: AgenticMobility
+type: software
+authors:
+  - name: AgenticCity Research
+repository-code: https://github.com/Agentic-City-Research/Agentic-Mobility
+preferred-citation:
+  type: article
+  title: "AgenticMobility: An Open-Source Platform for Multi-AI-Agent Mobility Dynamics"
+  authors:
+    - family-names: Xiao
+      given-names: Jiaheng
+    - family-names: Han
+      given-names: Jiangtao
+    - family-names: Wang
+      given-names: Jiachen
+    - family-names: Li
+      given-names: Honghai
+    - family-names: Sun
+      given-names: Lijun
+    - family-names: Axhausen
+      given-names: Kay
+    - family-names: Liu
+      given-names: Chang
+    - family-names: He
+      given-names: Zhengbing
+  journal: arXiv preprint arXiv:2611.01918
+  year: 2026
+  url: https://arxiv.org/abs/2611.01918
