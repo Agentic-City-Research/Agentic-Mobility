@@ -308,4 +308,4 @@ For manager-only or joint runs, continue to [experiment configurations](experime
 | Output directory differs from the supplied name | Read the reserved output path in the console; repeated names receive a suffix. |
 | An existing output directory is incomplete | Inspect `status.json`, `progress.json`, exit status, and logs before treating it as a complete run. |
 
-For Slurm and advanced operating options, see the [operating guide](usage-guide.md) and [Qwen deployment notes](../scripts/agentic_morning_qwen35.md). When reporting a problem, include the commit, command, effective settings, and relevant logs, with credentials removed.
+For Slurm and advanced operating options, see the [operating guide](usage-guide.md). When reporting a problem, include the commit, command, effective settings, and relevant logs, with credentials removed.
