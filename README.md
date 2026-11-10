@@ -12,7 +12,7 @@
 
 Part of [AgenticCity](https://github.com/Agentic-City-Research), exploring AI agents and interconnected urban systems.
 
-[📚 Paper](https://arxiv.org/abs/2611.01918) · [🚀 Quickstart](#quickstart) · [🧪 Experiments](#experiments) · [📖 Documentation](#documentation) · [🤝 Contributing](#community--contributing)
+[📚 Paper](https://arxiv.org/abs/2611.01918) · [🚀 Quickstart](#quickstart) · [🧪 Experiments](#experiments) · [📖 Documentation](#documentation) · [ 🤔 Discussions](https://github.com/Agentic-City-Research/Agentic-Mobility/discussions) · [🤝 Contributing](#community--contributing)
 
 </div>
 
