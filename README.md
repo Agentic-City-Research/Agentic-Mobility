@@ -22,7 +22,6 @@ Part of [AgenticCity](https://github.com/Agentic-City-Research), exploring AI ag
 ## 🧩 Overview 
 
 Agentic Mobility is a research platform for studying AI agents and collective dynamics in mobility systems. Traveler agents select routes and departure times; optional pricing policies change travel incentives. MATSim executes these decisions in a shared traffic environment, where one agent's choices can affect conditions experienced by others.
-
 ![AgenticMobility framework](docs/assets/agenticmobility_framework_siouxfalls.svg)
 ### 🔄 Daily simulation cycle
 
@@ -41,19 +40,18 @@ The platform supports MATSim agents, constrained MNL, and LLM traveler agents, w
 
 Explore the [experiment guide](docs/experiments-and-evaluation.md) for configurations, evaluation, and run records. Information-access effects and causal interactions between traveler and pricing agents remain open research questions.
 
-
-## See it in action 🎬
+## 🎬 See it in action
 
 ### Traffic replay
 
-In the [historical five-configuration experiment](#experiments), compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents with a pricing manager** at three simulation days. Each animation follows the same 500 sampled travelers from the 16,822-person population. Quantitative results use the full population relevant to each metric.
+In the [five-configuration experiment](#experiments), compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents with a pricing manager** at three simulation days. Each animation follows the same 500 sampled travelers from the 16,822-person population. Quantitative results use the full population relevant to each metric.
 
 **Final day — simulation Day 100**
 
 <p align="center">
   <img src="docs/assets/Day100.gif"
        alt="Traffic replay on simulation Day 100: comparison of three configurations"
-       width="100%">
+       width="80%">
 </p>
 
 <details>
@@ -64,15 +62,15 @@ In the [historical five-configuration experiment](#experiments), compare **MATSi
 <p align="center">
   <img src="docs/assets/Day1.gif"
        alt="Traffic replay on simulation Day 1: comparison of three configurations"
-       width="100%">
+       width="80%">
 </p>
 
-#### Intermediate snapshot — simulation Day 51
+#### Intermediate snapshot — simulation Day 50
 
 <p align="center">
   <img src="docs/assets/Day50.gif"
-       alt="Traffic replay on simulation Day 51: comparison of three configurations"
-       width="100%">
+       alt="Traffic replay on simulation Day 50: comparison of three configurations"
+       width="80%">
 </p>
 
 </details>
@@ -177,9 +175,9 @@ The following historical experiment connects individual decisions with outcomes 
 
 ### Five configurations over 100 simulation days
 
-**Historical results:** these figures describe the recorded experiment builds and settings. Current code and defaults differ; consult the [experiment record](docs/assets/data/seed268/seed268-experiments.md) and original build identifiers before attempting reproduction.
+**Historical results:** these figures describe the recorded experiment builds and settings. Consult the [experiment record](docs/assets/data/seed268/seed268-experiments.md) for reproduction.
 
-We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. 
+We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`.
 
 | Configuration | Traveler decisions | Pricing agent |
 | :--- | :--- | :--- |
@@ -187,42 +185,9 @@ We compare five configurations of the enriched Sioux Falls scenario over **Days 
 | Constrained MNL | MNL over fixed route–departure options | None |
 | LLM traveler agents | LLM route–departure choices | None |
 | Manager | MATSim replanning | Enabled; tolls from simulation Day 21 |
-| Joint | LLM route–departure choices | Enabled; tolls from simulation Day 51 |
+| Joint | LLM route–departure choices | Enabled; tolls from simulation Day 21 |
 
-For the historical MNL configuration and its provenance, see the [experiment record](docs/joint-mnl-baseline.md). For the current implementation, see [MNL setup](docs/mnl-joint.md).
-
-### Traffic replay
-
-Compare **MATSim agents**, **LLM traveler agents**, and **LLM traveler agents with a pricing manager** at three simulation days. Each animation follows the same 500 sampled travelers from the 16,822-person population. Quantitative results use the full population relevant to each metric.
-
-**Final day — simulation Day 100**
-
-<p align="center">
-  <img src="docs/assets/Day100.gif"
-       alt="Traffic replay on simulation Day 100: comparison of three configurations"
-       width="100%">
-</p>
-
-<details>
-<summary>View the initial and intermediate snapshots</summary>
-
-#### Initial snapshot — simulation Day 1
-
-<p align="center">
-  <img src="docs/assets/Day1.gif"
-       alt="Traffic replay on simulation Day 1: comparison of three configurations"
-       width="100%">
-</p>
-
-#### Intermediate snapshot — simulation Day 51
-
-<p align="center">
-  <img src="docs/assets/Day50.gif"
-       alt="Traffic replay on simulation Day 51: comparison of three configurations"
-       width="100%">
-</p>
-
-</details>
+For the MNL configuration implementation, see [MNL setup](docs/mnl-joint.md).
 
 ### Individual and system outcomes
 
@@ -245,7 +210,7 @@ All car legs completed, with no stuck agents. Car time includes waiting before n
 
 Thin lines show daily values; thick lines show trailing seven-day means. Positive tolls begin on simulation Day 21 for Manager and Day 51 for Joint; a review occurs on Day 81 and MATSim route/time innovation stops on Day 91. Existing-plan selection continues after the cutoff. The original figure axis uses zero-based log days; add 1 to obtain the simulation day.
 
-Compared with LLM traveler agents alone, **Joint has 6.63% shorter target-trip time and 1.87 percentage points less work lateness, alongside 14.62% more all-day car time**. Differences already exist before Joint tolling.
+Compared with LLM traveler agents alone, **Joint has 6.63% shorter target-trip time and 1.87 percentage points less work lateness, alongside 14.62% more all-day car time**.
 
 <details>
 <summary>Behavioral patterns and outcome breakdowns</summary>
@@ -322,6 +287,7 @@ Links are identified retrospectively before charging and in the no-toll comparis
 **Interpretation.** The main comparison contains one run per configuration. MNL uses uncalibrated homogeneous parameters, and some executable builds differ. Shared traffic and pre-existing differences limit causal attribution and claims of traveler–pricing synergy.
 
 **[Experiment settings, data, behavioral results and validation →](docs/assets/data/seed268/seed268-experiments.md)**
+
 
 <br>
 
