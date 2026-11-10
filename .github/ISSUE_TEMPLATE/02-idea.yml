@@ -1,0 +1,21 @@
+name: Feature or research idea
+description: Suggest a capability, improvement, or research direction.
+title: "[Idea]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to explore or improve?
+      description: Explain the research or user problem in a few sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Proposed direction
+      description: Describe a possible approach or example; a complete design is not required.
+  - type: textarea
+    id: context
+    attributes:
+      label: Related work or additional context
+      description: Link relevant discussions, literature, code, or examples if available.

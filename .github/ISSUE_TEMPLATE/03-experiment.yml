@@ -1,0 +1,28 @@
+name: Experiment proposal
+description: Propose a reproducible experiment or analysis.
+title: "[Experiment]: "
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question
+      description: What would the experiment investigate?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed comparison
+      description: Describe the conditions, scenario, population, agent roles, and information access where known.
+    validations:
+      required: true
+  - type: textarea
+    id: evaluation
+    attributes:
+      label: Evaluation and reproducibility
+      description: Suggest metrics, baselines, model settings, seeds or repetitions, and useful outputs. Unresolved details are welcome.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Related evidence or open questions
+      description: Link relevant data, prior work, or practical constraints; distinguish proposed analysis from results already observed.
