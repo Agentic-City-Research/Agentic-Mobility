@@ -45,7 +45,7 @@ Counts below were read directly from the distributed compressed XML files on 202
 | People in the 100pct population | 84,110 |
 | People in the 200pct population | 168,220 |
 
-File sizes and complete SHA-256 values are maintained in [THIRD_PARTY.md](../THIRD_PARTY.md#实际输入校验值).
+File sizes and complete SHA-256 values are maintained in [THIRD_PARTY.md](../THIRD_PARTY.md#input-checksums).
 
 The 100pct population was produced by removing verified `_new` duplicate people from the doubled-demand file. [`restore_original_population.py`](../scripts/restore_original_population.py) checks pairing and retained person content before writing. This restoration is different from a random population sample.
 
@@ -166,7 +166,7 @@ Rules require existing car links, finite nonnegative amounts, and time windows i
 
 Fixed-policy windows are independent of manager constraints. A `basic` manager must return one all-day rule per priced link, while a fixed file can define narrower non-overlapping windows. Fixed files and `--manager` cannot be enabled together.
 
-See the [fixed-policy notes](../scenarios/SiouxFalls-public/fixed-tolls.md) for the other distributed examples.
+Additional fixed-policy examples are in `scenarios/SiouxFalls-public/`.
 
 ## Check input identity
 
