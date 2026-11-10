@@ -311,9 +311,18 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 
 ## 🤝 Community & Contributing 
 
-Contributions are welcome, including decision policies, reproducible examples, simulation scenarios, and tools for inspecting agent trajectories.
+AgenticMobility is an open research platform for exploring how
+AI agents interact with mobility systems. We welcome researchers,
+developers, and students interested in:
 
-[Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) · [Contribution guide](CONTRIBUTING.md) · [Contributors](https://github.com/Agentic-City-Research/Agentic-Mobility/graphs/contributors)
+- Traveler behavior and AI-agent decision-making
+- Mobility simulation and urban systems
+- Information access and transport policy experiments
+- New scenarios, evaluation methods, and visualization tools
+
+💬 [Share an idea or ask a question](https://github.com/Agentic-City-Research/Agentic-Mobility/discussions)
+· 🛠️ [Contribute to the project](CONTRIBUTING.md)
+· 🐛 [Report an issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues)
 
 ⭐ If you find Agentic Mobility useful, consider starring the repository.
 
