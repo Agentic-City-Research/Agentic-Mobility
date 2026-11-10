@@ -12,7 +12,7 @@
 
 Part of [AgenticCity](https://github.com/Agentic-City-Research), exploring AI agents and interconnected urban systems.
 
-[📖 Paper](https://arxiv.org/abs/2611.01918) · [🚀 Quickstart](#quickstart) · [🧪 Experiments](#experiments) · [📚 Documentation](#documentation) · [🤝 Contributing](#community--contributing)
+[📚 Paper](https://arxiv.org/abs/2611.01918) · [🚀 Quickstart](#quickstart) · [🧪 Experiments](#experiments) · [📖 Documentation](#documentation) · [🤝 Contributing](#community--contributing)
 
 </div>
 
@@ -76,7 +76,7 @@ In the [five-configuration experiment](#experiments), compare **MATSim agents**,
 </details>
 
 <a id="quickstart"></a>
-## Quickstart 🚀
+## 🚀 Quickstart 
 
 **Requirements:** Git and JDK 25 (`java` and `javac` on your PATH). The Maven Wrapper downloads build dependencies on first use. MATSim runs on CPU; LLM experiments also need a Chat Completions-compatible model service.
 
@@ -292,7 +292,7 @@ Links are identified retrospectively before charging and in the no-toll comparis
 <br>
 
 <a id="documentation"></a>
-## Documentation 📖
+## 📖 Documentation 
 
 New to the project? Start with [Getting started](docs/getting-started.md). For research experiments, check the scenario and sampling settings, review the methods, then use the experiment guide to configure and record your runs.
 
@@ -309,7 +309,7 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 
 <a id="community--contributing"></a>
 
-## Community & Contributing 🤝
+## 🤝 Community & Contributing 
 
 Contributions are welcome, including decision policies, reproducible examples, simulation scenarios, and tools for inspecting agent trajectories.
 
@@ -317,7 +317,7 @@ Contributions are welcome, including decision policies, reproducible examples, s
 
 ⭐ If you find Agentic Mobility useful, consider starring the repository.
 
-## Citation & License 📚
+## 📚 Citation & License
 
 If you use Agentic Mobility in research, please cite the [paper](https://arxiv.org/abs/2611.01918) and report the exact code version, scenario, model, and experimental settings.
 
