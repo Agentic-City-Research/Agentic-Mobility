@@ -4,11 +4,11 @@
 
 ## Framework and 100-day displays
 
-| Asset | Meaning and scope |
-| :--- | :--- |
-| [agenticmobility_framework_siouxfalls.svg](agenticmobility_framework_siouxfalls.svg) | Role-specific observations/actions, shared execution, persistent state, and a research archive separate from agent memory |
-| [seed268/outcomes.svg](seed268/outcomes.svg), [PNG](seed268/outcomes.png) | Five-configuration 100-day outcome display: mean daily car time per person, target-trip time, and work lateness |
-| [seed268/information_route_response.svg](seed268/information_route_response.svg), [PNG](seed268/information_route_response.png) | Additional 100-day route-use display by announcement group; not a figure in the current manuscript and not an isolated causal information effect |
+| Asset                                                                                                                 | Meaning and scope                                                                                                                                |
+| :-------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [agenticmobility_framework_siouxfalls.svg](agenticmobility_framework_siouxfalls.svg)                                  | Role-specific observations/actions, shared execution, persistent state, and a research archive separate from agent memory                        |
+| [outcomes.svg](../pic/outcomes.svg), [PNG](../pic/outcomes.png)                                                       | Five-configuration 100-day outcome display: mean daily car time per person, target-trip time, and work lateness                                  |
+| [information_route_response.svg](../pic/information_route_response.svg), [PNG](../pic/information_route_response.png) | Additional 100-day route-use display by announcement group; not a figure in the current manuscript and not an isolated causal information effect |
 
 The outcome display uses denominators of 16,822 people, 11,793 target trips, and 11,332 work targets. Mean daily car time per person is `60 × total car person-hours / 16,822`. Thin time-series lines show daily values; thick lines show trailing seven-day means. Positive charging begins on simulation Days 21 and 51 in Manager and Joint, respectively; Day 91 is the MATSim innovation cutoff. Policy opportunities occur on simulation Days 21, 51, and 81. The original figure axes use zero-based log days; add 1 to read a simulation day.
 
