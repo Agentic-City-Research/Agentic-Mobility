@@ -28,6 +28,6 @@ Start with [Getting started](getting-started.md) to build the project, run a MAT
 | :--- | :--- |
 | [Seed-268 experiment](assets/data/seed268/seed268-experiments.md) · [Individual cases](assets/data/seed268/seed268-individual-cases.md) | Five-configuration historical experiment, interpretation, and case evidence. |
 | [Reported experiments](reported-experiments.md) · [Historical archive](history/2026-10-18/README.md) | Manuscript demonstration and earlier comparisons. |
-| [Data inventory](data/README.md) · [Seed-268 exports](data/seed268/README.md) · [Figure inventory](assets/README.md) | Available aggregate data, selected records, and figures. |
+|  [Figure inventory](assets/README.md) | Available aggregate data, selected records, and figures. |
 
 The recorded experiments used specific builds and settings; consult their provenance before comparing them with current code. For new runs, preserve the commit, executable hash, effective configuration, and `morning/manifest.json`.
