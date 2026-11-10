@@ -23,7 +23,7 @@ exploring AI agents and interconnected urban systems.
 
 
     
-[RESEARCH QUESTIONS 🎯](#research-questions) · [EXPERIMENT 🧪](#experiments) · [QUICKSTART 🚀](#quickstart) · [DOCUMENTATION 📖](#documentation) · [COMMUNITY 🤝](#community--contributing)
+[QUICKSTART 🚀](#quickstart) · [EXPERIMENT 🧪](#experiments) ·  [DOCUMENTATION 📖](#documentation) · [COMMUNITY 🤝](#community--contributing)
 
 </div>
 
@@ -42,13 +42,9 @@ The current implementation uses MATSim to execute mobility decisions and generat
 
 ### Daily simulation cycle
 
-Each day follows a decide–execute–observe cycle: enabled pricing policies are applied, controlled travelers select routes and departure times, and MATSim executes full-day traffic. Each role receives its permitted feedback. LLM travelers reflect every five days by default; the manager reflects daily and updates pricing on scheduled review days.
+Each simulation day connects agent decisions with shared traffic outcomes. Traveler agents choose routes and departure times, MATSim executes the traffic simulation, and agents receive feedback permitted by their information settings. Traveler reflection and pricing updates follow configurable schedules.
 
-LLMs control selected target trips; other trips follow native simulation behavior. Model weights remain fixed during the simulation. See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
-
-The main workflow combines one traveler condition (native, MNL, or LLM) with one pricing condition (no toll, fixed toll, or LLM manager). The default `--policy mnl --llm-agents 0` is a **native baseline**: set `--llm-agents all` or a positive count to enable MNL control. MNL itself makes no model API calls; an enabled manager still requires a model service. Fixed tolls and the manager are mutually exclusive.
-
-Controlled MNL and LLM travelers choose from fixed route candidates and a 15-minute departure grid, by default from 60 minutes before to 30 minutes after the original planned departure, subject to schedule constraints. The default decision history and traveler reflection period are five days; uninformed travelers estimate tolls from their own actual link/time-bin observations, including zero charges. Informed travelers can see the current toll announcement. The manager's first possible policy update is simulation day 21 by default, after 20 free observation days; daily manager reflection also runs during that free period.
+The platform supports MATSim agents, constrained MNL policies, and LLM traveler agents, with no tolls or an LLM pricing manager. LLMs control selected target trips, while other trips follow MATSim behavior. Model weights remain fixed during simulation.See [Methods & protocols](docs/methods-and-protocols.md) for information access, reflection, and policy execution.
 
 <br>
 
@@ -79,7 +75,7 @@ The time series and corridor comparisons show how aggregate outcomes vary over t
 
 ### Historical experiment: five configurations, 100 completed days
 
-**Historical results:** the figures and numbers below describe previously completed experiments with their recorded settings and executable builds. The current implementation changes the MNL interface, traveler history and reflection windows, and other protocol details. These results are retained as a historical record; do not assume that rebuilding the current code reproduces them. Consult the linked experiment record and original build identifiers before making comparisons.
+**Historical results:** These results were obtained with the recorded experiment builds and settings. For reproduction, use the linked experiment versions and configurations.
 
 We compare five configurations of the enriched Sioux Falls scenario over **Days 1–100**, using **simulation seed 268**. All share the same scenario inputs, sampled population and target-trip cohort. Constrained MNL and both LLM traveler configurations share fixed route and departure-time options. Traveler agents use `qwen3.5-9b`; pricing agents use `deepseek-flash`. 
 
@@ -95,7 +91,7 @@ For the historical recovered baseline, `--policy mnl-joint` was used with an exp
 
 ### Simulation Videos
 
-Compare **MATSim**, **LLM Traveler**, and **LLM Traveler + Manager** at three simulation days. Each animation follows the same **500** sampled travelers from the full population of 16,822.
+Compare **MATSim**, **LLM Traveler**, and **LLM Traveler + LLM Manager** at three simulation days. Each animation follows the same **500** sampled travelers from the full population of 16,822.
 
 **Final Day — Simulation Day 100**
 
@@ -133,7 +129,7 @@ Visualization: 500 sampled travelers. Quantitative results: the complete populat
 
 **LLM traveler agents record the lowest all-day car time, 19.90% below MATSim agents. Joint records the shortest target-trip time and lowest work late-arrival rate.**
 
-| Configuration | All-day car time (min/person) | Change vs. MATSim agents | Target car time (min/per trip) | Work late-arrival rate |
+| Configuration | Daily car time (min/person/day) | Change vs. MATSim agents | Target-trip car time (min/trip) | Work late-arrival rate |
 | :--- | ---: | ---: | ---: | ---: |
 | MATSim agents | 44.34 | — | 29.32 | 19.97% |
 | Constrained MNL | 61.35 | +38.37% | 53.19 | 31.25% |
@@ -143,7 +139,7 @@ Visualization: 500 sampled travelers. Quantitative results: the complete populat
 
 All-day car time is normalized to min/person by dividing the daily person-hours total by the 16,822 simulated travelers and converting to minutes. 
 
-Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs** across **16,822 people**.
+Daily means cover **11,793 target trips**, including **11,332 work trips with arrival deadlines**, and **33,644 all-day car legs**  across **16,822 people**.
 All car legs completed, with no stuck agents. Car time includes waiting before network entry; target trips cover multiple activity purposes. Contrasts use unrounded means.
 
 [![Five configurations: mobility outcomes over Days 1–100](docs/assets/seed268/outcomes.png)](docs/assets/seed268/outcomes.svg)
