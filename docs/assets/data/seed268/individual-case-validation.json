@@ -1,0 +1,17 @@
+{
+  "_scope": {
+    "artifact_kind": "selected_case_excerpt_validation",
+    "simulation_seed": 268,
+    "extraction_last_log_day": 87,
+    "current_manuscript_summary": "../../../data/manuscript-demonstration.json",
+    "note": "Checks below cover the 18 published date/trip excerpts, not a representative sample or the full 100-day execution audit. The excerpt facts support the manuscript's selected cases; extraction_last_log_day records the source extraction boundary."
+  },
+  "records": 18,
+  "all_legal_route_time_choices": true,
+  "model_decision_execution_consistent": true,
+  "all_completed_route_checks_match": true,
+  "durations_and_lateness_recomputed": true,
+  "overlapping_history_reconciled": true,
+  "raw_logs_unchanged_during_each_scan": true,
+  "public_projection_omits_private_endpoints": true
+}

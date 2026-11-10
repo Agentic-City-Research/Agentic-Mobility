@@ -1,0 +1,19 @@
+condition,day,tripId,routeId,selected_departure,car_minutes,door_minutes,destination_arrival,late_seconds,pre_traffic_wait_seconds,reason
+Traveler,58,10042_2/0,c1,07:31:19,17.333333333333332,20.75,07:52:04,0.0,1.0,"Recent trips on c1 arrived on time with no delays or tolls, fitting my conservative choice."
+Traveler,59,10042_2/0,c0,07:31:19,11.95,15.366666666666667,07:46:41,0.0,1.0,"As a conservative low-income commuter, I choose the cheapest and shortest route c0 to minimize costs and maximize punctu"
+Traveler,60,10042_2/0,c1,07:31:19,15.766666666666667,19.183333333333334,07:50:30,0.0,1.0,"I prioritize predictable arrivals and lower costs, and my recent trips on c1 were reliable and free."
+Traveler,61,10042_2/0,c1,07:46:19,81.43333333333334,84.85,09:11:10,670.0,2190.0,I choose the familiar route c1 at 07:49:39 to stay conservative and predictable.
+Traveler,62,10042_2/0,c0,07:31:19,12.516666666666667,15.933333333333334,07:47:15,0.0,1.0,Route c0 is historically faster and ensures timely arrival despite its slightly higher cost than the currently risky c1.
+Traveler,62,1005_1/0,c0,08:12:47,28.983333333333334,49.9,09:02:41,161.0,1.0,c0 has recently proven reliable with on-time arrivals and no recorded delays.}
+Traveler,63,1005_1/0,c0,08:12:47,14.133333333333333,35.05,08:47:50,0.0,1.0,I choose route c0 because my recent success on day 61 matches my usual experience and my slight lateness tolerance makes
+Traveler,64,1005_1/0,c0,08:12:47,31.283333333333335,52.2,09:04:59,299.0,1.0,"Recent executions show c0 arrives exactly on time when no delay occurs, and my aggressive tolerance handles potential w8"
+Traveler,65,1005_1/0,c1,08:12:47,7.85,28.766666666666666,08:41:33,0.0,1.0,I chose route c1 to avoid the inconsistency of c0 while ensuring I meet the 09:00 deadline on time.
+Traveler,66,1005_1/0,c1,07:57:47,13.116666666666667,34.03333333333333,08:31:49,0.0,2.0,"Route c1 has been reliable and arrived early, avoiding the unpredictability seen with route c0."
+Traveler,67,1005_1/0,c1,08:12:47,8.616666666666667,29.533333333333335,08:42:19,0.0,1.0,"Your history shows c1 arrives early and on time, whereas c0 is less reliable and already late."
+Joint,57,10010_2/0,c0,05:56:43,23.183333333333334,38.1,06:34:49,0.0,19.0,Route c0 has a proven track record of on-time arrival with zero costs based on days 54–56 performance.
+Joint,58,10010_2/0,c0,05:56:43,22.65,37.56666666666667,06:34:17,0.0,5.0,"Recent execution on c0 arrived early with zero toll, ensuring punctuality and saved money."
+Joint,59,10010_2/0,c0,07:41:43,74.16666666666667,89.08333333333333,09:10:48,648.0,2104.0,"I choose route c0 at 27:7:03 because my recent history proves it arrives early with zero lateness or tolls, guaranteeing"
+Joint,60,10010_2/0,c1,05:56:43,21.966666666666665,36.88333333333333,06:33:36,0.0,2.0,Aggressive decision to diversify from unreliable c0 and avoid lateness.
+Joint,61,10010_2/0,c0,05:56:43,22.683333333333334,37.6,06:34:19,0.0,1.0,Taking the fastest route early ensures arrival well before my strict 9 AM deadline.
+Joint,62,10010_2/0,c0,05:56:43,19.4,34.31666666666667,06:31:02,0.0,9.0,"Route c0 is the shortest distance and previously arrived early or on time, making it the most reliable choice to meet my"
+Joint,63,10010_2/0,c0,07:26:43,19.283333333333335,34.2,08:00:55,0.0,7.0,"C0 is fastest and consistently on time in recent trips, maximizing margin before the 09:00 deadline."
