@@ -1,6 +1,6 @@
 # Agent prompts: system messages and inputs
 
-[中文](agent-prompts.zh.md) · [Documentation](README.md)
+[Documentation](README.md)
 
 This document records the system prompts used by the main Java experiment, expanded from the current code with default settings. User messages are generated dynamically for each person and day, according to their history and the policy. For the actual system and user messages sent in a run, consult that run's attempt logs. Unless stated otherwise, the examples use joint route-and-departure choice, `original` memory, five-day reflection, a 120-character reason limit, and a 500-character memory limit. MNL and MATSim agents do not call the traveler model. API keys are read from environment variables and are not included in prompts; run logs may contain personal behavioral information.
 
