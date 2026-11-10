@@ -182,7 +182,7 @@ The `decision` object contains:
 
 Manager memory targets 400–600 English words with a 1,000-word hard limit and no hard minimum. This word limit differs from the traveler's character limit. Successful reflection replaces the entire summary; structured policies and public records remain the execution ledger.
 
-The default `basic` profile has no automatic performance-triggered withdrawal or cooldown. The explicitly selected `controlled` profile adds restricted trial rules, safety withdrawal, and cooldown behavior. These are different experimental conditions; see the [controlled-manager notes](../scripts/manager_v5.md).
+The default `basic` profile has no automatic performance-triggered withdrawal or cooldown. The explicitly selected `controlled` profile adds restricted trial rules, safety withdrawal, and cooldown behavior. These are different experimental conditions.
 
 Fixed-policy files are a separate intervention mechanism. They can contain explicit time windows and are mutually exclusive with `--manager`. Their format is described in [Scenarios & data](scenarios-and-data.md#fixed-toll-files).
 
