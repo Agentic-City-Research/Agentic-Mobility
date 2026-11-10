@@ -2,6 +2,21 @@
 
 Contributions can include reproducible bug reports, documentation, experiment protocols, scenario extensions, analysis tools, and implementation changes. Start with an [issue](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) when the scope needs discussion.
 
+## Ways to contribute
+
+Researchers, developers, and students are welcome. You can improve documentation, report a bug, suggest a research question, propose an experiment, add a scenario or decision policy, or share an analysis tool. You do not need to write code to participate.
+
+Good starting points include improving setup instructions, adding a small example for reading decision records, documenting a Windows setup issue, proposing an information-access experiment, or improving a visualization. Check existing [issues](https://github.com/Agentic-City-Research/Agentic-Mobility/issues) before starting.
+
+## How to contribute
+
+1. For a bug, feature, or research idea, open an issue with the relevant template. Small documentation corrections can go directly to a pull request.
+2. For larger changes, discuss the intended direction in an issue before implementation.
+3. Fork the repository, create a branch, make a focused change, and update any affected documentation.
+4. Run the relevant checks below and open a pull request describing what changed and what you verified. Respond to review and make follow-up changes as needed.
+
+For experiment proposals, separate planned work from completed results. When sharing outputs or logs, remove credentials and private data.
+
 ## Current implementation
 
 - `MorningExperiment` runs the full-day scenario with optional traveler choices and manager pricing.
