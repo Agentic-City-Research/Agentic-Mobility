@@ -45,13 +45,7 @@ Information checks use **2,000 sampled contexts from Traveler and 2,000 from Joi
 
 ## Source location and regeneration
 
-The raw archive supplied for this documentation update is stored outside this repository. The source paths in `run-metadata.json` are relative to that archive, allowing it to be moved. It is not a public download location. Raw personal contexts, model responses, and complete simulation files remain in the external archive; the documentation contains aggregate exports, audit summaries, and the separately published case excerpts.
-
-Run the [exporter](../../../scripts/export_arxiv_documentation_data.py) from the repository root:
-
-```powershell
-python scripts/export_arxiv_documentation_data.py --source '<path-to-arxiv-v1-data>'
-```
+The raw archive supplied for this documentation update is stored outside this repository. 
 
 On another machine, pass that machine's archive path to `--source`. The exporter reads source records, validates all five 100-day windows, recomputes the Joint audit, checks manuscript values, and writes these documentation exports. It performs no simulation or model calls. It records source stability and hashes; the source archive is read-only during export. The archived JAR hashes identify historical runtime builds. Exact simulation reruns additionally require the corresponding executable or verified source revision, original prompts, full inputs, and model-service setup; an export script is not a pinned release-to-run mapping.
 
