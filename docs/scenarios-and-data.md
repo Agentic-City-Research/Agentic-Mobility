@@ -77,6 +77,8 @@ Demand level selects an input **before** sampling. Thus a 10% sample of demand 2
 
 `--population PATH` explicitly overrides the population file. In that case, retain its real file path and hash: a demand label alone is insufficient to identify the population used.
 
+An explicit `--population` override without `--scenario-source` also adds a console warning and a manifest `sourceWarning`. Pass `--scenario-source` for synthetic scenarios (see [TinySynthetic](../scenarios/TinySynthetic/README.md)). The warning deliberately does not compare paths, so an explicit Sioux Falls population override can also trigger it.
+
 ## Sampling and capacity
 
 For `--sample-rate k`, with `0 < k <= 1`:

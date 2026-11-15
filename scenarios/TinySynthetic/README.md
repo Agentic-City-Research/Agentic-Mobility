@@ -94,7 +94,8 @@ java -Xmx1g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.Mor
 `--days 2` runs iterations 0 and 1. `--llm-agents 0` keeps every traveler
 native and makes no model API calls; `--policy mnl` is only the selected
 interface label and does not create MNL decisions when the controlled roster is
-empty. `--trip-output-interval 1` retains target trip rows for both days.
+empty. `--trip-output-interval 1` is explicit for reproducibility and retains
+target trip rows for both days; `1` is also the CLI default.
 
 Expected day-level records, for the default 10 people:
 
@@ -117,6 +118,11 @@ Events and plans are written per iteration, for example
 If the requested output directory already exists, the runner reserves a name
 such as `output/tiny-run-2`; use the directory printed by the application, not
 the requested path.
+
+To inspect the records, read `morning/status.json` and `morning/manifest.json`
+as plain JSON, and use `gzip -dc output/tiny-run/morning/trips.jsonl.gz | head`
+for JSONL files. Iteration events and plans are gzip XML under
+`ITERS/it.0/` and `ITERS/it.1/`.
 
 ## How to change demand or capacity
 
@@ -156,6 +162,8 @@ Known boundaries:
   source text. The canonical commands above include both parameters.
 - The PowerShell command is equivalent but has not been executed in this
   validation.
+- `accessEgressType=none` is deprecated in MATSim 2026 and may log a deprecation
+  notice; it keeps this scenario car-only and requires no access/egress walk.
 - `c1` is a feasible alternative used to verify candidate preparation; it is
   not guaranteed to be selected by native MATSim.
 - One two-day run is a teaching and validation input, not evidence about

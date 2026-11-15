@@ -22,6 +22,8 @@ import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 
@@ -251,9 +253,19 @@ class TinySyntheticScenarioTest {
         assertEquals("explicit-scenario-declaration", manifest.get("sourceBasis").asText());
         assertEquals(0, manifest.get("apiCalls").asInt());
         assertFalse(manifest.has("sourceWarning"));
+        assertEquals(10, manifest.get("simulatedPopulation").asInt());
+        assertEquals("none", manifest.at("/populationSampling/mode").asText());
+        assertEquals(100, manifest.get("requestedDemandPercent").asInt());
+        Path populationPath = config.getParent().resolve("population.xml");
+        var populationHash = manifest.at("/inputHashes/population");
+        assertEquals(populationPath.toAbsolutePath().normalize().toString(), populationHash.get("path").asText());
+        assertEquals(Files.size(populationPath), populationHash.get("bytes").asLong());
+        assertEquals(sha256(populationPath), populationHash.get("sha256").asText());
 
         assertEquals(10, readLines(output.resolve("morning/cohort.jsonl.gz")).size());
-        assertEquals(1, readLines(output.resolve("morning/candidates.jsonl.gz")).size());
+        var candidates = readLines(output.resolve("morning/candidates.jsonl.gz")).stream().map(Json::readTree).toList();
+        assertEquals(1, candidates.size());
+        assertEquals("sh>tw", candidates.getFirst().get("od").asText());
         assertEquals(1, readLines(output.resolve("morning/candidate-quality.jsonl.gz")).size());
         var trips = readLines(output.resolve("morning/trips.jsonl.gz")).stream().map(Json::readTree).toList();
         var experiences = readLines(output.resolve("morning/experiences.jsonl.gz")).stream().map(Json::readTree).toList();
@@ -301,20 +313,36 @@ class TinySyntheticScenarioTest {
             assertEquals(20, departures.values().stream().mapToInt(Integer::intValue).sum());
             for (int i = 1; i <= 10; i++) {
                 String person = String.format("p%02d", i);
-                assertEquals(2, departures.get(person), person);
-                assertEquals(2, arrivals.get(person), person);
+                assertEquals(2, departures.getOrDefault(person, 0), person);
+                assertEquals(2, arrivals.getOrDefault(person, 0), person);
             }
 
             var saved = ScenarioUtils.createScenario(ConfigUtils.createConfig());
             new org.matsim.core.population.io.PopulationReader(saved).readFile(plansFile.toString());
             assertEquals(10, saved.getPopulation().getPersons().size());
             for (var person : saved.getPopulation().getPersons().values()) {
+                var activities = person.getSelectedPlan().getPlanElements().stream()
+                        .filter(Activity.class::isInstance).map(Activity.class::cast).toList();
+                assertEquals(3, activities.size(), person.getId().toString());
+                assertEquals(Id.createLinkId("sh"), activities.get(0).getLinkId(), person.getId().toString());
+                assertEquals(Id.createLinkId("tw"), activities.get(1).getLinkId(), person.getId().toString());
+                assertEquals(Id.createLinkId("sh"), activities.get(2).getLinkId(), person.getId().toString());
                 long carLegs = person.getSelectedPlan().getPlanElements().stream()
                         .filter(Leg.class::isInstance).map(Leg.class::cast)
                         .filter(leg -> leg.getMode().equals("car")).count();
                 assertEquals(2, carLegs, person.getId().toString());
             }
         }
+    }
+
+    private String sha256(Path file) throws Exception {
+        var digest = MessageDigest.getInstance("SHA-256");
+        try (var input = Files.newInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) > 0) digest.update(buffer, 0, read);
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
     private record Loaded(Scenario scenario, MorningCohort cohort) {}
