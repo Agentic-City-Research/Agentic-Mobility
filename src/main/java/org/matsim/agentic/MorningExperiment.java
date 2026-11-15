@@ -69,6 +69,7 @@ public final class MorningExperiment implements Callable<Integer> {
     @Option(names = "--output", description = "Explicit directory override; default project output/<date and parameters>; existing names get -2, -3, ...") Path outputDirectory;
     @Option(names = "--demand", defaultValue = "200", description = "200: published doubled demand; 100: restored original persons") int demand;
     @Option(names = "--population", description = "Explicit population file override") Path populationFile;
+    @Option(names = "--scenario-source", description = "Optional source declaration for a non-default scenario; must not be blank") String scenarioSource;
     @Option(names = "--cohort-selection", defaultValue = "planned-arrival", description = "planned-arrival (default) | planned-departure; fixed membership from original input plans") String cohortSelection = "planned-arrival";
     @Option(names = "--planned-arrival-before", defaultValue = "32400", description = "Exclusive original destination activity start cutoff, seconds (09:00); no departure-window restriction") double plannedArrivalBefore = 32400;
     @Option(names = "--departure-before-seconds", defaultValue = "3600", description = "Earlier departure allowance relative to original input departure (60 minutes)") int departureBeforeSeconds = 3600;
@@ -329,6 +330,8 @@ public final class MorningExperiment implements Callable<Integer> {
         if (!Set.of("legacy", "input").contains(personalProfiles) || profileFile != null && !personalProfiles.equals("legacy"))
             throw new IllegalArgumentException("Profile file requires --personal-profiles legacy");
         if (demand != 100 && demand != 200) throw new IllegalArgumentException("--demand must be 100 or 200");
+        if (scenarioSource != null && scenarioSource.isBlank())
+            throw new IllegalArgumentException("--scenario-source must not be blank");
         if (sampleRate != null && (!Double.isFinite(sampleRate) || sampleRate <= 0 || sampleRate > 1))
             throw new IllegalArgumentException("--sample-rate must be finite and in (0,1]");
         if (sampleRate != null && samplePersons != 0)
@@ -615,7 +618,17 @@ public final class MorningExperiment implements Callable<Integer> {
             result.put("llmSettings", modelSettings);
             if (reflects()) result.put("memoryModelSettings", llmConfig.withOutputLimit(memoryMaxOutputTokens).publicModelSettings());
         }
-        result.put("source", "Local enriched Sioux Falls files, public car-only doubled-demand lineage DOI 10.17632/2332kg48c8.3; local hashes identify inputs, not a claim of byte-for-byte download verification");
+        if (scenarioSource != null) {
+            result.put("source", scenarioSource);
+            result.put("sourceBasis", "explicit-scenario-declaration");
+        } else {
+            result.put("source", "Local enriched Sioux Falls files, public car-only doubled-demand lineage DOI 10.17632/2332kg48c8.3; local hashes identify inputs, not a claim of byte-for-byte download verification");
+            if (populationFile != null) {
+                String warning = "Explicit --population override without --scenario-source; manifest.source retains the legacy Sioux Falls declaration and may misattribute this scenario.";
+                result.put("sourceWarning", warning);
+                System.err.println("WARNING: " + warning);
+            }
+        }
         result.put("designChanges", List.of("native full-day ReRoute and ChangeExpBeta for everyone, including controlled persons' other trips",
                 nativeTimeMutation ? "TimeAllocationMutator retained; native activity end times are not restored; controlled target departures follow their morning policy"
                         : "TimeAllocationMutator disabled; original planned activity end times restored on current selected plans",
