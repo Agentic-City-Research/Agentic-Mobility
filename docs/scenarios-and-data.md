@@ -6,6 +6,10 @@ The reference implementation uses an **enriched Sioux Falls car-traffic scenario
 
 The population is synthetic. The supplied files are research inputs rather than observed individual travel traces or a calibration of current Sioux Falls residents.
 
+## Tiny synthetic demonstration scenario
+
+For a small, uncalibrated learning input, see [TinySynthetic](../scenarios/TinySynthetic/README.md). It has 6 nodes, 12 directed car links, 10 commuters, two route candidates for the target `sh>tw` trip, and a two-day native MATSim run with no model API. It is independent of the Sioux Falls inputs described below; the Mendeley provenance below does not apply to it.
+
 ## Scenario and data provenance
 
 The project's provenance record identifies the public input lineage as:
