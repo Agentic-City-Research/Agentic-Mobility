@@ -15,7 +15,10 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.config.groups.RoutingConfigGroup;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.network.io.NetworkWriter;
+import org.matsim.core.population.io.PopulationWriter;
 import org.matsim.facilities.ActivityFacility;
+import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.matsim.agentic.JsonlTestSupport.readLines;
 
 class TinySyntheticScenarioTest {
     @TempDir Path directory;
@@ -143,6 +147,174 @@ class TinySyntheticScenarioTest {
         assertEquals(.7, strategies.get("ChangeExpBeta"), .001);
         assertEquals(.1, strategies.get("ReRoute"), .001);
         assertEquals(.1, strategies.get("TimeAllocationMutator"), .001);
+    }
+
+    @Test void demandAndCapacityXmlEditsRemainStructurallyValid() throws Exception {
+        Path config = copyScenario();
+        Config cfg = ConfigUtils.loadConfig(config.toString());
+        Scenario scenario = ScenarioUtils.createScenario(cfg);
+        ScenarioUtils.loadScenario(scenario);
+
+        var population = scenario.getPopulation();
+        population.removePerson(Id.createPersonId("p10"));
+        assertEquals(9, population.getPersons().size());
+
+        var factory = population.getFactory();
+        var source = population.getPersons().get(Id.createPersonId("p01")).getSelectedPlan();
+        var added = factory.createPerson(Id.createPersonId("p11"));
+        var plan = factory.createPlan();
+        for (var element : source.getPlanElements()) {
+            if (element instanceof Activity activity) {
+                var copy = factory.createActivityFromLinkId(activity.getType(), activity.getLinkId());
+                copy.setFacilityId(activity.getFacilityId());
+                copy.setCoord(activity.getCoord());
+                if (activity.getStartTime().isDefined()) copy.setStartTime(activity.getStartTime().seconds());
+                if (activity.getEndTime().isDefined()) copy.setEndTime(activity.getEndTime().seconds());
+                plan.addActivity(copy);
+            } else if (element instanceof Leg leg) {
+                plan.addLeg(factory.createLeg(leg.getMode()));
+            }
+        }
+        plan.getPlanElements().stream().filter(Activity.class::isInstance).map(Activity.class::cast).toList()
+                .get(0).setEndTime(29085);
+        plan.getPlanElements().stream().filter(Activity.class::isInstance).map(Activity.class::cast).toList()
+                .get(1).setStartTime(29700);
+        plan.getPlanElements().stream().filter(Activity.class::isInstance).map(Activity.class::cast).toList()
+                .get(1).setEndTime(61485);
+        added.addPlan(plan);
+        population.addPerson(added);
+
+        Path editedPopulation = config.getParent().resolve("population-edited.xml");
+        new PopulationWriter(population).write(editedPopulation.toString());
+        MorningJointTestSupport.useBundledDtd(editedPopulation);
+        var reloaded = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        new org.matsim.core.population.io.PopulationReader(reloaded).readFile(editedPopulation.toString());
+        assertEquals(10, reloaded.getPopulation().getPersons().size());
+        assertEquals(10, new java.util.HashSet<>(reloaded.getPopulation().getPersons().keySet()).size());
+        for (var person : reloaded.getPopulation().getPersons().values()) {
+            var activities = person.getSelectedPlan().getPlanElements().stream()
+                    .filter(Activity.class::isInstance).map(Activity.class::cast).toList();
+            var carLegs = person.getSelectedPlan().getPlanElements().stream()
+                    .filter(Leg.class::isInstance).map(Leg.class::cast)
+                    .filter(leg -> leg.getMode().equals("car")).count();
+            assertEquals(3, activities.size(), person.getId().toString());
+            assertEquals(2, carLegs, person.getId().toString());
+        }
+        var p11 = reloaded.getPopulation().getPersons().get(Id.createPersonId("p11"));
+        var p11Activities = p11.getSelectedPlan().getPlanElements().stream()
+                .filter(Activity.class::isInstance).map(Activity.class::cast).toList();
+        assertEquals(29085, p11Activities.get(0).getEndTime().seconds(), .001);
+        assertEquals(29700, p11Activities.get(1).getStartTime().seconds(), .001);
+        assertEquals(61485, p11Activities.get(1).getEndTime().seconds(), .001);
+
+        var network = scenario.getNetwork();
+        network.getLinks().get(Id.createLinkId("su")).setCapacity(500);
+        network.getLinks().get(Id.createLinkId("us")).setCapacity(500);
+        Path editedNetwork = config.getParent().resolve("network-edited.xml");
+        new NetworkWriter(network).write(editedNetwork.toString());
+        MorningJointTestSupport.useBundledDtd(editedNetwork);
+        var reloadedNetwork = org.matsim.core.network.NetworkUtils.createNetwork();
+        new org.matsim.core.network.io.MatsimNetworkReader(reloadedNetwork).readFile(editedNetwork.toString());
+        assertEquals(500, reloadedNetwork.getLinks().get(Id.createLinkId("su")).getCapacity(), .001);
+        assertEquals(500, reloadedNetwork.getLinks().get(Id.createLinkId("us")).getCapacity(), .001);
+        assertEquals(1000, reloadedNetwork.getLinks().get(Id.createLinkId("hs")).getCapacity(), .001);
+        assertEquals(3600, reloadedNetwork.getCapacityPeriod(), .001);
+    }
+
+    @Test void twoDayNativeRunCompletesWithoutModelClients() throws Exception {
+        Path config = copyScenario();
+        Path output = directory.resolve("two-day");
+        var experiment = new MorningExperiment();
+        experiment.clientFactory = (cfg, usage) -> {
+            throw new AssertionError("A model client must not be created for a native run");
+        };
+        int exit = new CommandLine(experiment).execute(
+                "--config", config.toString(),
+                "--population", config.getParent().resolve("population.xml").toString(),
+                "--demand", "100",
+                "--scenario-source", "TinySynthetic: synthetic and uncalibrated",
+                "--mode", "hybrid", "--policy", "mnl", "--llm-agents", "0",
+                "--days", "2", "--seed", "4711", "--population-seed", "4711",
+                "--native-time-mutation", "--trip-output-interval", "1",
+                "--output", output.toString());
+        assertEquals(0, exit);
+
+        var status = Json.readTree(Files.readString(output.resolve("morning/status.json")));
+        assertTrue(status.get("complete").asBoolean());
+        assertEquals(2, status.get("daysCompleted").asInt());
+        assertTrue(status.get("integrityVerified").asBoolean());
+        assertEquals(0, status.get("apiCalls").asInt());
+
+        var manifest = Json.readTree(Files.readString(output.resolve("morning/manifest.json")));
+        assertEquals(23, manifest.get("schemaVersion").asInt());
+        assertEquals("TinySynthetic: synthetic and uncalibrated", manifest.get("source").asText());
+        assertEquals("explicit-scenario-declaration", manifest.get("sourceBasis").asText());
+        assertEquals(0, manifest.get("apiCalls").asInt());
+        assertFalse(manifest.has("sourceWarning"));
+
+        assertEquals(10, readLines(output.resolve("morning/cohort.jsonl.gz")).size());
+        assertEquals(1, readLines(output.resolve("morning/candidates.jsonl.gz")).size());
+        assertEquals(1, readLines(output.resolve("morning/candidate-quality.jsonl.gz")).size());
+        var trips = readLines(output.resolve("morning/trips.jsonl.gz")).stream().map(Json::readTree).toList();
+        var experiences = readLines(output.resolve("morning/experiences.jsonl.gz")).stream().map(Json::readTree).toList();
+        var metrics = readLines(output.resolve("morning/metrics.jsonl.gz")).stream().map(Json::readTree).toList();
+        assertEquals(20, trips.size());
+        assertEquals(20, experiences.size());
+        assertEquals(2, metrics.size());
+        assertEquals(20, trips.stream().map(t -> t.get("day").asInt() + "/" + t.get("tripId").asText()).distinct().count());
+        assertEquals(20, experiences.stream().map(t -> t.get("day").asInt() + "/" + t.get("tripId").asText()).distinct().count());
+        for (var metric : metrics) {
+            var travel = metric.get("fullDayCarTravel");
+            assertEquals(20, travel.get("expectedCarLegs").asInt());
+            assertEquals(20, travel.get("completedCarLegs").asInt());
+            assertEquals(0, travel.get("notStartedCarLegs").asInt());
+            assertEquals(0, travel.get("abortedCarLegs").asInt());
+            assertEquals(0, travel.get("unfinishedCarLegs").asInt());
+            assertTrue(travel.get("allPlannedCarLegsCompleted").asBoolean());
+        }
+        for (String name : List.of("profiles.jsonl.gz", "information-groups.jsonl.gz",
+                "decisions.jsonl.gz", "executed-route-checks.jsonl.gz")) {
+            assertFalse(Files.exists(output.resolve("morning/" + name)), name);
+        }
+
+        for (int day = 0; day < 2; day++) {
+            Path eventsFile = output.resolve("ITERS/it." + day + "/" + day + ".events.xml.gz");
+            Path plansFile = output.resolve("ITERS/it." + day + "/" + day + ".plans.xml.gz");
+            assertTrue(Files.exists(eventsFile), eventsFile.toString());
+            assertTrue(Files.exists(plansFile), plansFile.toString());
+
+            var events = org.matsim.core.events.EventsUtils.createEventsManager();
+            var departures = new java.util.HashMap<String, Integer>();
+            var arrivals = new java.util.HashMap<String, Integer>();
+            events.addHandler((org.matsim.api.core.v01.events.handler.PersonDepartureEventHandler) event -> {
+                if ("car".equals(event.getLegMode())) {
+                    departures.merge(event.getPersonId().toString(), 1, Integer::sum);
+                }
+            });
+            events.addHandler((org.matsim.api.core.v01.events.handler.PersonArrivalEventHandler) event -> {
+                if ("car".equals(event.getLegMode())) {
+                    arrivals.merge(event.getPersonId().toString(), 1, Integer::sum);
+                }
+            });
+            new org.matsim.core.events.MatsimEventsReader(events).readFile(eventsFile.toString());
+            assertEquals(10, departures.size());
+            assertEquals(20, departures.values().stream().mapToInt(Integer::intValue).sum());
+            for (int i = 1; i <= 10; i++) {
+                String person = String.format("p%02d", i);
+                assertEquals(2, departures.get(person), person);
+                assertEquals(2, arrivals.get(person), person);
+            }
+
+            var saved = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+            new org.matsim.core.population.io.PopulationReader(saved).readFile(plansFile.toString());
+            assertEquals(10, saved.getPopulation().getPersons().size());
+            for (var person : saved.getPopulation().getPersons().values()) {
+                long carLegs = person.getSelectedPlan().getPlanElements().stream()
+                        .filter(Leg.class::isInstance).map(Leg.class::cast)
+                        .filter(leg -> leg.getMode().equals("car")).count();
+                assertEquals(2, carLegs, person.getId().toString());
+            }
+        }
     }
 
     private record Loaded(Scenario scenario, MorningCohort cohort) {}
