@@ -132,3 +132,85 @@ the runner and are named in the sections below.
   current zero-controlled output contract; they are not missing evidence of a
   failed decision log.
 - Only the default seed 4711 was run; this record is not a multi-seed study.
+
+## Windows re-run (2026-11-16)
+
+An independent re-run on a second machine, using the same commands and the
+default seed.
+
+### Tested version and environment
+
+- Code: commit `06256fbfb3a583f0c97f14b2273667613e3c6c0e`, clean working tree.
+- JAR: `matsim-example-project-0.0.1-SNAPSHOT.jar`, SHA-256
+  `6cc07cbf650c9156fd2df334b85ad35695a4cf8e339ccf9479f15d80fc469904`, built
+  with `sh ./mvnw -B -DskipTests package`.
+- Environment: Windows 11 Home China 10.0.22631, Git Bash; Temurin OpenJDK
+  25.0.5+8; Maven Wrapper 3.9.8; 32 GB RAM.
+- Model service: none. Both runs used `--llm-agents 0` and reported
+  `apiCalls=0`.
+
+### Input hashes and line endings
+
+A Windows checkout writes CRLF line endings, because `.gitattributes`
+normalizes only the archived parameter and data files, not the scenario XMLs.
+Working-tree SHA-256 values therefore differ from the POSIX checkout above,
+while the git blob hashes (the recorded macOS values) are unchanged:
+
+| File | Working tree, CRLF Windows | Git blob, equals the macOS record above |
+| :--- | :--- | :--- |
+| `config.xml` | `5dd02c361771577b00a171d9af393cdf7d7f4e193cb318056ad021eaa4d8f332` | `5c1878c6d8c4c3e19915965ee33e9fe8f0b4e89fc05b4557ea39742065a3c747` |
+| `network.xml` | `27606b46bb91fc048f48f4112bc20f1270ee0a6769e7b0e9a2708826d51ae9ff` | `9583ea9d03e5df0d795c32c8759f98cc12761e43b14a0f296e9c4ec4d1be217a` |
+| `population.xml` | `226164771c23e7b471e39d0bbad54358dc38ccc11096caed1eb6ecd2a1935eb3` | `719ffdedc56d489187f67babb1478861b7ddf2e802a7f4478f9dd74d4b97581a` |
+| `facilities.xml` | `2ac1a9f66a9a7d7edf97e6d64ee1f80668591958ece039e7f44d470c3beb9f37` | `01f179d32bc8ecabd8c89c1e931eab2d425bdb5c18ebc905c6c67c723913a9dd` |
+
+The two checkouts therefore contain the same committed content. Compare
+git blob hashes when checking identity across platforms.
+
+### Results
+
+- Preparation run (`output/tiny-prepare-win`): `validated=true`,
+  `simulationRun=false`, `apiCalls=0`, `integrityVerified=true`.
+  One unique OD `sh>tw`, 10 cohort records, the same two candidates
+  (`c0 = sh-hs-su-ut-tw`, 120 s, 1200 m; `c1 = sh-hs-sl-lt-tw`, 145 s,
+  1200 m; overlap about 1/6).
+- Two-day run (`output/tiny-run-win`): `complete=true`, `daysCompleted=2`,
+  `integrityVerified=true`, `unexpectedShutdown=false`, `apiCalls=0`.
+- Records match the POSIX run:
+
+| File or metric | Day 0 | Day 1 | Total |
+|---|---:|---:|---:|
+| `morning/trips.jsonl.gz` | 10 | 10 | 20 |
+| `morning/experiences.jsonl.gz` | 10 | 10 | 20 |
+| `morning/metrics.jsonl.gz` | 1 | 1 | 2 |
+| `fullDayCarTravel.expectedCarLegs` | 20 | 20 | 40 |
+| `fullDayCarTravel.completedCarLegs` | 20 | 20 | 40 |
+
+- Both days: 20 car departures and 20 car arrivals; `notStartedCarLegs=0`,
+  `abortedCarLegs=0`, `unfinishedCarLegs=0`,
+  `allPlannedCarLegsCompleted=true`; `lateWorkTrips=0` of 10 work targets,
+  `onTimeWorkFractionAll=1.0`; `meanCarSeconds=124.0` with `c0` selected
+  (`meanSelectedRouteFreeFlowSecondsCompleted=120.0`).
+- Both plans files contain two car legs for each of the 10 persons; all four
+  `ITERS` gzip files pass `gzip -t`.
+- Manifest: `schemaVersion=23`, `requestedDemandPercent=100`,
+  `simulatedPopulation=10`, explicit source and `sourceBasis`, no
+  `sourceWarning`, `apiCalls=0`.
+- Wall time: about 4 s for preparation and 6 s for the two-day run.
+
+### Checks run on this machine
+
+- `TinySyntheticScenarioTest`: 8/8 pass; `ManifestSourceTest`: 4/4 pass
+  (12/12).
+- `python -m unittest discover -s tests`: 8 tests, OK.
+- `python scripts/check_local_links.py`: 241 links checked, 0 errors.
+- The full test suite was not rerun here; the JAR was built with
+  `-DskipTests`. The commands above were executed in Bash, so the PowerShell
+  variants remain untested.
+
+### Warnings
+
+- `logfileWarningsErrors.log` has no ERROR lines. Its WARN lines are MATSim
+  deprecations (`usePersonIdForMissingVehicleId`, `NetworkRoutingProvider`
+  for `accessEgressType=none`, `ExperiencedPlansServiceImpl`, the
+  `AttributeConverter` notice for `IdImpl`, and `ExpBetaPlanChanger`) plus the
+  Guice/ASM Java 25 notice described above. None affects completion.

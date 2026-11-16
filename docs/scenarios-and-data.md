@@ -33,6 +33,9 @@ The repository identifies its distributed files by SHA-256. These hashes establi
 | [`Siouxfalls_population_200pct.xml.gz`](../scenarios/Souix%20Falls%202014/Siouxfalls_population_200pct.xml.gz) | Published doubled-demand population lineage. |
 | [`Siouxfalls_config.xml.orig`](../scenarios/Souix%20Falls%202014/Siouxfalls_config.xml.orig) | Historical configuration reference; use the current public configuration for the current interface. |
 
+Local run evidence for the current revision is in the [SiouxFalls-public validation record](../scenarios/SiouxFalls-public/VALIDATION.md). It records a preparation check and a two-day native run at demand 100 with a 0.1 sample; it is not a reproduction of the manuscript comparison.
+
+
 The source directory is spelled **`Souix Falls 2014`**. Preserve this exact directory name and its spaces when using the supplied configuration. JSON fixed-policy files and replay settings are project experiment inputs, not upstream validated policy recommendations.
 
 ### Input inventory
