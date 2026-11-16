@@ -202,7 +202,8 @@ git blob hashes when checking identity across platforms.
 - `TinySyntheticScenarioTest`: 8/8 pass; `ManifestSourceTest`: 4/4 pass
   (12/12).
 - `python -m unittest discover -s tests`: 8 tests, OK.
-- `python scripts/check_local_links.py`: 241 links checked, 0 errors.
+- `python scripts/check_local_links.py`: 248 links checked, 0 errors
+  (rerun at the issue-scoped HEAD).
 - The full test suite was not rerun here; the JAR was built with
   `-DskipTests`. The commands above were executed in Bash, so the PowerShell
   variants remain untested.
