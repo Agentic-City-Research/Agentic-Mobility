@@ -73,8 +73,11 @@ Bash:
 java -Xmx1g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment --config scenarios/TinySynthetic/config.xml --population scenarios/TinySynthetic/population.xml --demand 100 --scenario-source "TinySynthetic: synthetic and uncalibrated" --mode hybrid --policy mnl --llm-agents 0 --days 2 --seed 4711 --population-seed 4711 --native-time-mutation --trip-output-interval 1 --output output/tiny-prepare --validate-only
 ```
 
-PowerShell uses the same single-line command (the equivalent PowerShell form
-has not been executed in this repository's validation; see `VALIDATION.md`).
+PowerShell uses the same single-line command. It has been executed on Windows
+11 with Windows PowerShell 5.1 and Temurin 25; see `VALIDATION.md`. Make sure
+`java` resolves to JDK 25 first: with a JDK 17 earlier on `PATH`, the command
+stops before MATSim starts with `UnsupportedClassVersionError` (class file
+version 69).
 
 Expected preparation records:
 

@@ -121,8 +121,9 @@ the runner and are named in the sections below.
 
 - Synthetic and uncalibrated; one two-day run is not evidence about
   equilibrium, pricing, demand/capacity policy, or real-world traffic.
-- PowerShell was not executed; the documented PowerShell command is equivalent
-  but untested in this record.
+- The PowerShell form was executed once on one Windows machine. The full
+  `clean package` including the whole test suite was not repeated in
+  PowerShell.
 - A `--config`-only invocation that omits both `--population` and
   `--scenario-source` can bypass the source warning and retain the legacy
   Sioux Falls source text.
@@ -197,16 +198,43 @@ git blob hashes when checking identity across platforms.
   `sourceWarning`, `apiCalls=0`.
 - Wall time: about 4 s for preparation and 6 s for the two-day run.
 
+### PowerShell execution
+
+The documented PowerShell form was executed on the same machine with Windows
+PowerShell 5.1.22621, using the same JAR and inputs:
+
+```powershell
+Set-Location 'C:\Users\ROG\Desktop\Agentic-Mobility'
+$env:JAVA_HOME = 'C:\Users\ROG\jdks\jdk-25.0.5+8'
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+java -Xmx1g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment --config scenarios/TinySynthetic/config.xml --population scenarios/TinySynthetic/population.xml --demand 100 --scenario-source "TinySynthetic: synthetic and uncalibrated" --mode hybrid --policy mnl --llm-agents 0 --days 2 --seed 4711 --population-seed 4711 --native-time-mutation --trip-output-interval 1 --output output/tiny-prepare-ps --validate-only
+java -Xmx1g -cp matsim-example-project-0.0.1-SNAPSHOT.jar org.matsim.agentic.MorningExperiment --config scenarios/TinySynthetic/config.xml --population scenarios/TinySynthetic/population.xml --demand 100 --scenario-source "TinySynthetic: synthetic and uncalibrated" --mode hybrid --policy mnl --llm-agents 0 --days 2 --seed 4711 --population-seed 4711 --native-time-mutation --trip-output-interval 1 --output output/tiny-run-ps
+```
+
+- Without the `JAVA_HOME`/`PATH` lines the same command fails before MATSim
+  starts: the default `java` on this machine is JDK 17, which rejects the JDK 25
+  class files (`UnsupportedClassVersionError`, class file version 69), exit
+  status 1.
+- With them, both runs exit `0`. `output/tiny-prepare-ps` reports
+  `validated=true`, `simulationRun=false`, `apiCalls=0`; `output/tiny-run-ps`
+  reports `complete=true`, `daysCompleted=2`, `apiCalls=0`.
+- `candidates.jsonl.gz` and `cohort.jsonl.gz` in the PowerShell runs are
+  byte-identical to the Bash runs in `output/tiny-prepare-win` and
+  `output/tiny-run-win` (both 1 candidate row and 10 cohort rows). Trips and
+  experiences are 10 per day, as above.
+- `.\mvnw.cmd -B -DskipTests package` also reports `BUILD SUCCESS` in
+  PowerShell. The documented `clean package` including the full test suite was
+  not repeated in PowerShell.
+
 ### Checks run on this machine
 
 - `TinySyntheticScenarioTest`: 8/8 pass; `ManifestSourceTest`: 4/4 pass
   (12/12).
 - `python -m unittest discover -s tests`: 8 tests, OK.
-- `python scripts/check_local_links.py`: 248 links checked, 0 errors
-  (rerun at the issue-scoped HEAD).
+- `python scripts/check_local_links.py`: 241 links checked, 0 errors,
+  re-run after the PowerShell edits.
 - The full test suite was not rerun here; the JAR was built with
-  `-DskipTests`. The commands above were executed in Bash, so the PowerShell
-  variants remain untested.
+  `-DskipTests`. Both the Bash and PowerShell command forms were executed.
 
 ### Warnings
 
