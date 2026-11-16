@@ -299,6 +299,7 @@ New to the project? Start with [Getting started](docs/getting-started.md). For r
 | I want to… | Read | What it covers |
 | :--- | :--- | :--- |
 | Install and run my first simulation | [Getting started](docs/getting-started.md) | Requirements, diagnostic baseline, model API setup, and troubleshooting |
+| Try a tiny synthetic scenario locally | [TinySynthetic](scenarios/TinySynthetic/README.md) | Six-node, 10-person native demo with two route candidates and no model API |
 | Choose data and set the simulation scale | [Scenarios & data](docs/scenarios-and-data.md) | Scenario inputs, data provenance, population sampling, and road capacity |
 | Understand how the agents work | [Methods & protocols](docs/methods-and-protocols.md) | Agent roles, information access, decisions, memory, and pricing |
 | Inspect agent prompts | [Agent prompts](docs/agent-prompts.md) | System prompts, dynamic inputs, and request logs |

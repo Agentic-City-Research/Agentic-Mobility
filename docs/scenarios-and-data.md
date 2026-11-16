@@ -6,6 +6,10 @@ The reference implementation uses an **enriched Sioux Falls car-traffic scenario
 
 The population is synthetic. The supplied files are research inputs rather than observed individual travel traces or a calibration of current Sioux Falls residents.
 
+## Tiny synthetic demonstration scenario
+
+For a small, uncalibrated learning input, see [TinySynthetic](../scenarios/TinySynthetic/README.md). It has 6 nodes, 12 directed car links, 10 commuters, two route candidates for the target `sh>tw` trip, and a two-day native MATSim run with no model API. It is independent of the Sioux Falls inputs described below; the Mendeley provenance below does not apply to it.
+
 ## Scenario and data provenance
 
 The project's provenance record identifies the public input lineage as:
@@ -72,6 +76,8 @@ Configuration values can be overridden by CLI settings. In particular, use expli
 Demand level selects an input **before** sampling. Thus a 10% sample of demand 200 is not the same traffic setup as a 10% sample of demand 100.
 
 `--population PATH` explicitly overrides the population file. In that case, retain its real file path and hash: a demand label alone is insufficient to identify the population used.
+
+An explicit `--population` override without `--scenario-source` also adds a console warning and a manifest `sourceWarning`. Pass `--scenario-source` for synthetic scenarios (see [TinySynthetic](../scenarios/TinySynthetic/README.md)). The warning deliberately does not compare paths, so an explicit Sioux Falls population override can also trigger it.
 
 ## Sampling and capacity
 
